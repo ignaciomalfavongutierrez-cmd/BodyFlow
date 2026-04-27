@@ -1,0 +1,109 @@
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
+
+export interface LoggedMacros {
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+  sugar: number
+}
+
+export interface CustomFood {
+  id: string
+  name: string
+  quantity: string
+  macros: LoggedMacros
+}
+
+export interface LoggedMeal {
+  id: string
+  completed: boolean
+  actualMacros: LoggedMacros | null
+  customFoods?: CustomFood[]
+}
+
+export interface DailyLog {
+  date: string // YYYY-MM-DD
+  meals: LoggedMeal[]
+}
+
+export const useLogStore = defineStore('log', () => {
+  // Store logs by date as a dictionary for easy access
+  const logs = ref<Record<string, DailyLog>>({})
+
+  function toggleMeal(date: string, mealId: string) {
+    if (!logs.value[date]) {
+      logs.value[date] = { date, meals: [] }
+    }
+    
+    let meal = logs.value[date].meals.find(m => m.id === mealId)
+    if (!meal) {
+      meal = { id: mealId, completed: false, actualMacros: null }
+      logs.value[date].meals.push(meal)
+    }
+    
+    meal.completed = !meal.completed
+  }
+
+  function setMealMacros(date: string, mealId: string, macros: LoggedMacros) {
+    if (!logs.value[date]) logs.value[date] = { date, meals: [] }
+    let meal = logs.value[date].meals.find(m => m.id === mealId)
+    if (!meal) {
+      meal = { id: mealId, completed: false, actualMacros: null }
+      logs.value[date].meals.push(meal)
+    }
+    meal.actualMacros = macros
+  }
+
+  function addCustomFood(date: string, mealId: string, food: CustomFood) {
+    if (!logs.value[date]) logs.value[date] = { date, meals: [] }
+    let meal = logs.value[date].meals.find(m => m.id === mealId)
+    if (!meal) {
+      meal = { id: mealId, completed: false, actualMacros: null, customFoods: [] }
+      logs.value[date].meals.push(meal)
+    }
+    if (!meal.customFoods) meal.customFoods = []
+    meal.customFoods.push(food)
+    recalculateMacrosFromCustomFoods(meal)
+  }
+
+  function removeCustomFood(date: string, mealId: string, foodId: string) {
+    const meal = logs.value[date]?.meals.find(m => m.id === mealId)
+    if (meal && meal.customFoods) {
+      meal.customFoods = meal.customFoods.filter(f => f.id !== foodId)
+      recalculateMacrosFromCustomFoods(meal)
+    }
+  }
+
+  function clearCustomFoods(date: string, mealId: string, fallbackMacros: LoggedMacros) {
+    const meal = logs.value[date]?.meals.find(m => m.id === mealId)
+    if (meal) {
+      meal.customFoods = []
+      meal.actualMacros = { ...fallbackMacros }
+    }
+  }
+
+  function recalculateMacrosFromCustomFoods(meal: LoggedMeal) {
+    if (!meal.customFoods || meal.customFoods.length === 0) return
+    
+    const totals = { calories: 0, protein: 0, carbs: 0, fat: 0, sugar: 0 }
+    for (const food of meal.customFoods) {
+      totals.calories += food.macros.calories
+      totals.protein += food.macros.protein
+      totals.carbs += food.macros.carbs
+      totals.fat += food.macros.fat
+      totals.sugar += food.macros.sugar
+    }
+    meal.actualMacros = totals
+  }
+
+  return {
+    logs,
+    toggleMeal,
+    setMealMacros,
+    addCustomFood,
+    removeCustomFood,
+    clearCustomFoods
+  }
+})
