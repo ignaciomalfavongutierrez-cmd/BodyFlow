@@ -76,7 +76,7 @@ export async function searchFoods(
     page: String(page),
   })
 
-  return apiFetch<FoodSearchResult[]>(`/api/foods/search?${qs}`)
+  return apiFetch<FoodSearchResult[]>(`api/foods/search?${qs}`)
 }
 
 /**
@@ -87,5 +87,5 @@ export async function searchFoods(
  * console.log(food.macros.sugar)
  */
 export async function getFoodById(id: string): Promise<FoodSearchResult> {
-  return apiFetch<FoodSearchResult>(`/api/foods/${encodeURIComponent(id)}`)
+  return apiFetch<FoodSearchResult>(`api/foods/${encodeURIComponent(id)}`)
 }
