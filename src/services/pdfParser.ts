@@ -35,7 +35,8 @@ export async function extractTextFromPDF(file: File): Promise<string> {
           
           await page.render({
             canvasContext: context,
-            viewport: viewport
+            viewport: viewport,
+            canvas: canvas
           }).promise
           
           // Ejecutar OCR en español e inglés

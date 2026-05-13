@@ -91,7 +91,7 @@ function initEditState() {
     editProtein.value = plannedMeal.value.plannedMacros.protein
     editCarbs.value = plannedMeal.value.plannedMacros.carbs
     editFat.value = plannedMeal.value.plannedMacros.fat
-    editSugar.value = plannedMeal.value.plannedMacros.sugar
+    editSugar.value = plannedMeal.value.plannedMacros.sugar ?? 0
   }
 }
 
@@ -129,7 +129,8 @@ function toggleCompletion() {
   
   if (willBeCompleted && !loggedMeal.value?.actualMacros && plannedMeal.value?.plannedMacros) {
     logStore.setMealMacros(date.value, mealId.value, {
-      ...plannedMeal.value.plannedMacros
+      ...plannedMeal.value.plannedMacros,
+      sugar: plannedMeal.value.plannedMacros.sugar ?? 0
     })
   }
 }
@@ -203,7 +204,10 @@ function removeFood(foodId: string) {
 
 function resetToPlanned() {
   if (!plannedMeal.value?.plannedMacros) return
-  logStore.clearCustomFoods(date.value, mealId.value, plannedMeal.value.plannedMacros)
+  logStore.clearCustomFoods(date.value, mealId.value, {
+    ...plannedMeal.value.plannedMacros,
+    sugar: plannedMeal.value.plannedMacros.sugar ?? 0
+  })
 }
 </script>
 
