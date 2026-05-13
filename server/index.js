@@ -172,6 +172,9 @@ app.get('/api/foods/search', async (req, res) => {
     return res.status(err.status ?? 500).json({ error: err.message })
   }
 })
+app.get('/', async (_req, res) => {
+  res.json({ message: 'Welcome to the BodyFlow API' })
+})
 
 app.get('/api/foods/:id', async (req, res) => {
   const { id } = req.params
