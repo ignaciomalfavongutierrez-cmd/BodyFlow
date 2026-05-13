@@ -7,7 +7,17 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
 
 export async function extractTextFromPDF(file: File): Promise<string> {
   try {
-    const arrayBuffer = await file.arrayBuffer()
+    let arrayBuffer: ArrayBuffer
+    if (file.arrayBuffer) {
+      arrayBuffer = await file.arrayBuffer()
+    } else {
+      arrayBuffer = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as ArrayBuffer)
+        reader.onerror = reject
+        reader.readAsArrayBuffer(file)
+      })
+    }
     const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer })
     const pdf = await loadingTask.promise
     

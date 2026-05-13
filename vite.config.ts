@@ -1,11 +1,17 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
+import legacy from '@vitejs/plugin-legacy'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     vue(),
+    legacy({
+      targets: ['defaults', 'iOS >= 12', 'Safari >= 12'],
+      renderLegacyChunks: true,
+      polyfills: true
+    }),
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {

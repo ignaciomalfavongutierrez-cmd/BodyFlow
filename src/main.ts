@@ -1,3 +1,4 @@
+import './polyfills'
 import { createApp, watch } from 'vue'
 import { createPinia } from 'pinia'
 import router from './router'

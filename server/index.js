@@ -32,7 +32,7 @@ const FATSECRET_TOKEN_URL = 'https://oauth.fatsecret.com/connect/token'
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-  : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174'] // Agregué el 5174 basado en tu log
+  : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174'] 
 
 const app = express()
 app.use(cors({

@@ -1,8 +1,48 @@
 @import "tailwindcss";
 @reference "tailwindcss";
 
+/* Fallbacks for legacy browsers */
+:root {
+  --app-height: 100%;
+}
+
+@supports not (height: 100dvh) {
+  :root {
+    --app-height: 100vh;
+  }
+}
+
 @layer base {
   body {
     @apply bg-gray-50 text-gray-900;
+    /* Ensure smooth scrolling on iOS */
+    -webkit-overflow-scrolling: touch;
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+
+  /* Fallback for backdrop-filter if used in components */
+  .backdrop-blur-md {
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+  
+  /* Safe area fallbacks */
+  .pb-safe {
+    padding-bottom: 0.75rem; /* Default fallback */
+    padding-bottom: env(safe-area-inset-bottom, 0.75rem);
+  }
+
+  /* Fix for sticky positioning in older WebKit */
+  .sticky {
+    position: -webkit-sticky;
+    position: sticky;
+  }
+}
+
+/* Optimization for low-end mobile: reduce heavy animations */
+@media (prefers-reduced-motion: no-preference) {
+  .transition-all {
+    transition-duration: 200ms !important;
   }
 }

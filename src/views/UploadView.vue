@@ -61,7 +61,21 @@ async function processPdf() {
 }
 
 function copyPrompt() {
-  navigator.clipboard.writeText(manualPrompt.value)
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(manualPrompt.value)
+  } else {
+    // Fallback for older Safari
+    const textArea = document.createElement("textarea")
+    textArea.value = manualPrompt.value
+    document.body.appendChild(textArea)
+    textArea.select()
+    try {
+      document.execCommand('copy')
+    } catch (err) {
+      console.error('Fallback copy failed', err)
+    }
+    document.body.removeChild(textArea)
+  }
   copySuccess.value = true
   setTimeout(() => copySuccess.value = false, 2000)
 }
