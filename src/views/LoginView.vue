@@ -7,9 +7,10 @@ import {
   GoogleAuthProvider,
   signInWithPopup
 } from 'firebase/auth'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
+const route = useRoute()
 const email = ref('')
 const password = ref('')
 const isRegister = ref(false)
@@ -27,7 +28,8 @@ async function handleSubmit() {
     } else {
       await signInWithEmailAndPassword(auth, email.value, password.value)
     }
-    router.push('/')
+    const redirect = route.query.redirect as string || '/'
+    router.push(redirect)
   } catch (err: any) {
     error.value = err.message
   } finally {
@@ -39,7 +41,8 @@ async function loginWithGoogle() {
   const provider = new GoogleAuthProvider()
   try {
     await signInWithPopup(auth, provider)
-    router.push('/')
+    const redirect = route.query.redirect as string || '/'
+    router.push(redirect)
   } catch (err: any) {
     error.value = err.message
   }
@@ -56,6 +59,10 @@ async function loginWithGoogle() {
 
       <div v-if="error" class="mb-4 p-3 bg-red-50 text-red-600 text-xs rounded-xl border border-red-100">
         {{ error }}
+      </div>
+      
+      <div v-if="route.query.expired" class="mb-4 p-3 bg-amber-50 text-amber-700 text-xs rounded-xl border border-amber-100">
+        Tu sesión ha expirado. Por favor ingresa nuevamente.
       </div>
 
       <form @submit.prevent="handleSubmit" class="space-y-4">

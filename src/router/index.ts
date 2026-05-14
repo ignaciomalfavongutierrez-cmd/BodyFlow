@@ -12,6 +12,7 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: () => import('../views/LoginView.vue'),
+      meta: { guestOnly: true }
     },
     {
       path: '/',
@@ -52,12 +53,20 @@ const router = createRouter({
   ]
 })
 
-// Auth Guard
+let isAuthInitialized = false
+let currentUser: any = null
+
 const getCurrentUser = () => {
   return new Promise((resolve, reject) => {
+    if (isAuthInitialized) {
+      resolve(currentUser)
+      return
+    }
     const removeListener = onAuthStateChanged(
       auth,
       (user) => {
+        currentUser = user
+        isAuthInitialized = true
         removeListener()
         resolve(user)
       },
@@ -67,12 +76,14 @@ const getCurrentUser = () => {
 }
 
 router.beforeEach(async (to, _from, next) => {
-  if (to.matched.some((record) => record.meta.requiresAuth)) {
-    if (await getCurrentUser()) {
-      next()
-    } else {
-      next('/login')
-    }
+  const user = await getCurrentUser()
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
+  const guestOnly = to.matched.some(record => record.meta.guestOnly)
+
+  if (requiresAuth && !user) {
+    next({ name: 'login', query: { redirect: to.fullPath } })
+  } else if (guestOnly && user) {
+    next({ name: 'dashboard' })
   } else {
     next()
   }

@@ -1,17 +1,24 @@
 <script setup lang="ts">
-import { RouterView } from 'vue-router'
+import { RouterView, useRoute } from 'vue-router'
 import { Home, Utensils, User, Settings } from 'lucide-vue-next'
+import { auth } from '../firebase'
+
+const route = useRoute()
 </script>
 
 <template>
   <div class="min-h-screen bg-gray-50 flex flex-col font-sans">
     <!-- Main content area -->
-    <main class="flex-1 pb-16 overflow-y-auto">
-      <RouterView />
+    <main class="flex-1 overflow-y-auto" :class="{'pb-16': route.meta.requiresAuth && auth.currentUser}">
+      <RouterView v-slot="{ Component }">
+        <transition name="fade" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </RouterView>
     </main>
 
     <!-- Bottom Navigation (Mobile First) -->
-    <nav class="fixed bottom-0 w-full bg-white border-t border-gray-200 flex justify-around p-3 pb-safe shadow-[0_-2px_10px_rgba(0,0,0,0.05)] z-50">
+    <nav v-if="route.meta.requiresAuth && auth.currentUser" class="fixed bottom-0 w-full bg-white border-t border-gray-200 flex justify-around p-3 pb-safe shadow-[0_-2px_10px_rgba(0,0,0,0.05)] z-50">
       <router-link to="/" class="flex flex-col items-center text-gray-400 hover:text-emerald-600 active-nav-link">
         <Home class="h-6 w-6" />
         <span class="text-xs mt-1 font-medium">Home</span>
@@ -38,5 +45,13 @@ import { Home, Utensils, User, Settings } from 'lucide-vue-next'
 }
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0.75rem);
+}
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
