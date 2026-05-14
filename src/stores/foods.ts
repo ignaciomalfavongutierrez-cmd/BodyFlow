@@ -1,10 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { db, auth } from '../firebase'
+import { collection, addDoc, deleteDoc, doc, getDocs, query, orderBy } from 'firebase/firestore'
 
 export interface SavedFood {
   id: string
   name: string
-  description: string // e.g. "100g", "1 serving"
+  description: string
   macros: {
     calories: number
     protein: number
@@ -16,35 +18,47 @@ export interface SavedFood {
 }
 
 export const useFoodsStore = defineStore('foods', () => {
-  const myFoods = ref<SavedFood[]>(
-    JSON.parse(localStorage.getItem('bf_myFoods') || '[]')
-  )
+  const myFoods = ref<SavedFood[]>([])
 
-  function saveFood(food: Omit<SavedFood, 'id' | 'createdAt'>) {
-    const newFood: SavedFood = {
+  async function fetchMyFoods() {
+    const uid = auth.currentUser?.uid
+    if (!uid) return
+
+    const q = query(collection(db, `users/${uid}/foods`), orderBy('createdAt', 'desc'))
+    const querySnapshot = await getDocs(q)
+    
+    myFoods.value = querySnapshot.docs.map(d => ({
+      id: d.id,
+      ...d.data()
+    } as SavedFood))
+  }
+
+  async function saveFood(food: Omit<SavedFood, 'id' | 'createdAt'>) {
+    const uid = auth.currentUser?.uid
+    if (!uid) return
+
+    const newFoodData = {
       ...food,
-      id: `myfood_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
       createdAt: new Date().toISOString()
     }
+
+    const docRef = await addDoc(collection(db, `users/${uid}/foods`), newFoodData)
+    const newFood = { id: docRef.id, ...newFoodData } as SavedFood
     myFoods.value.unshift(newFood)
-    persist()
     return newFood
   }
 
-  function removeFood(id: string) {
+  async function removeFood(id: string) {
+    const uid = auth.currentUser?.uid
+    if (!uid) return
+
+    await deleteDoc(doc(db, `users/${uid}/foods`, id))
     myFoods.value = myFoods.value.filter(f => f.id !== id)
-    persist()
   }
 
-  function searchMyFoods(query: string): SavedFood[] {
-    if (!query.trim()) return myFoods.value.slice(0, 10)
-    const q = query.toLowerCase()
-    return myFoods.value.filter(f => f.name.toLowerCase().includes(q))
+  function reset() {
+    myFoods.value = []
   }
 
-  function persist() {
-    localStorage.setItem('bf_myFoods', JSON.stringify(myFoods.value))
-  }
-
-  return { myFoods, saveFood, removeFood, searchMyFoods }
+  return { myFoods, fetchMyFoods, saveFood, removeFood, reset }
 })

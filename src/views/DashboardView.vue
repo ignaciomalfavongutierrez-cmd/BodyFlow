@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useUserStore } from '../stores/user'
 import { useDietStore } from '../stores/diet'
 import { useLogStore } from '../stores/log'
@@ -11,6 +11,21 @@ const logStore = useLogStore()
 
 // State for navigation
 const selectedDateStr = ref(new Date().toISOString().split('T')[0])
+
+// Fetch log on date change
+watch(selectedDateStr, (newDate) => {
+  logStore.fetchDayLog(newDate)
+}, { immediate: true })
+
+onMounted(async () => {
+  // Ensure profile and diet are loaded if not already
+  if (userStore.profile.weight === null) {
+    await userStore.fetchProfile()
+  }
+  if (dietStore.week.length === 0) {
+    await dietStore.fetchDiet()
+  }
+})
 
 // Computed JS Date
 const selectedDateObj = computed(() => {

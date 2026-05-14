@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { db, auth } from '../firebase'
+import { doc, getDoc, setDoc, collection, getDocs, query, where } from 'firebase/firestore'
 
 export interface LoggedMacros {
   calories: number
@@ -29,13 +31,32 @@ export interface DailyLog {
 }
 
 export const useLogStore = defineStore('log', () => {
-  // Store logs by date as a dictionary for easy access
   const logs = ref<Record<string, DailyLog>>({})
 
-  function toggleMeal(date: string, mealId: string) {
-    if (!logs.value[date]) {
+  async function fetchDayLog(date: string) {
+    const uid = auth.currentUser?.uid
+    if (!uid) return
+
+    const docRef = doc(db, `users/${uid}/logs`, date)
+    const docSnap = await getDoc(docRef)
+
+    if (docSnap.exists()) {
+      logs.value[date] = docSnap.data() as DailyLog
+    } else {
       logs.value[date] = { date, meals: [] }
     }
+  }
+
+  async function saveDayLog(date: string) {
+    const uid = auth.currentUser?.uid
+    if (!uid || !logs.value[date]) return
+    
+    const docRef = doc(db, `users/${uid}/logs`, date)
+    await setDoc(docRef, logs.value[date])
+  }
+
+  async function toggleMeal(date: string, mealId: string) {
+    if (!logs.value[date]) await fetchDayLog(date)
     
     let meal = logs.value[date].meals.find(m => m.id === mealId)
     if (!meal) {
@@ -44,20 +65,22 @@ export const useLogStore = defineStore('log', () => {
     }
     
     meal.completed = !meal.completed
+    await saveDayLog(date)
   }
 
-  function setMealMacros(date: string, mealId: string, macros: LoggedMacros) {
-    if (!logs.value[date]) logs.value[date] = { date, meals: [] }
+  async function setMealMacros(date: string, mealId: string, macros: LoggedMacros) {
+    if (!logs.value[date]) await fetchDayLog(date)
     let meal = logs.value[date].meals.find(m => m.id === mealId)
     if (!meal) {
       meal = { id: mealId, completed: false, actualMacros: null }
       logs.value[date].meals.push(meal)
     }
     meal.actualMacros = macros
+    await saveDayLog(date)
   }
 
-  function addCustomFood(date: string, mealId: string, food: CustomFood) {
-    if (!logs.value[date]) logs.value[date] = { date, meals: [] }
+  async function addCustomFood(date: string, mealId: string, food: CustomFood) {
+    if (!logs.value[date]) await fetchDayLog(date)
     let meal = logs.value[date].meals.find(m => m.id === mealId)
     if (!meal) {
       meal = { id: mealId, completed: false, actualMacros: null, customFoods: [] }
@@ -66,27 +89,11 @@ export const useLogStore = defineStore('log', () => {
     if (!meal.customFoods) meal.customFoods = []
     meal.customFoods.push(food)
     recalculateMacrosFromCustomFoods(meal)
-  }
-
-  function removeCustomFood(date: string, mealId: string, foodId: string) {
-    const meal = logs.value[date]?.meals.find(m => m.id === mealId)
-    if (meal && meal.customFoods) {
-      meal.customFoods = meal.customFoods.filter(f => f.id !== foodId)
-      recalculateMacrosFromCustomFoods(meal)
-    }
-  }
-
-  function clearCustomFoods(date: string, mealId: string, fallbackMacros: LoggedMacros) {
-    const meal = logs.value[date]?.meals.find(m => m.id === mealId)
-    if (meal) {
-      meal.customFoods = []
-      meal.actualMacros = { ...fallbackMacros }
-    }
+    await saveDayLog(date)
   }
 
   function recalculateMacrosFromCustomFoods(meal: LoggedMeal) {
     if (!meal.customFoods || meal.customFoods.length === 0) return
-    
     const totals = { calories: 0, protein: 0, carbs: 0, fat: 0, sugar: 0 }
     for (const food of meal.customFoods) {
       totals.calories += food.macros.calories
@@ -98,12 +105,16 @@ export const useLogStore = defineStore('log', () => {
     meal.actualMacros = totals
   }
 
+  function reset() {
+    logs.value = {}
+  }
+
   return {
     logs,
+    fetchDayLog,
     toggleMeal,
     setMealMacros,
     addCustomFood,
-    removeCustomFood,
-    clearCustomFoods
+    reset
   }
 })

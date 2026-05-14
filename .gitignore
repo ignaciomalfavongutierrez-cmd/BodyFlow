@@ -27,3 +27,5 @@ dist-ssr
 .env.development
 .env.example
 .vscode/*
+
+CONTEXT.md

@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
+import { db, auth } from '../firebase'
+import { doc, getDoc, setDoc } from 'firebase/firestore'
 
 export interface MacroTargets {
   calories: number
@@ -18,45 +20,42 @@ export interface MealPlan {
 
 export interface DayPlan {
   dayName?: string
-  date: string // e.g. "dia 1", "lunes", or ISO date
-  assignedDays?: number[] // 0=Sun, 1=Mon, ..., 6=Sat
+  date: string
+  assignedDays?: number[]
   meals: MealPlan[]
 }
 
-const STORAGE_KEY = 'bodyflow_diet_week'
-
 export const useDietStore = defineStore('diet', () => {
-  // Hydrate from localStorage on first load
-  const stored = localStorage.getItem(STORAGE_KEY)
-  const week = ref<DayPlan[]>(stored ? JSON.parse(stored) : [])
+  const week = ref<DayPlan[]>([])
 
-  // Persist every change automatically
-  watch(
-    week,
-    (val) => localStorage.setItem(STORAGE_KEY, JSON.stringify(val)),
-    { deep: true }
-  )
+  async function fetchDiet() {
+    const uid = auth.currentUser?.uid
+    if (!uid) return
 
-  function setDiet(newWeek: DayPlan[]) {
-    week.value = newWeek
+    const docRef = doc(db, `users/${uid}/diet`, 'current')
+    const docSnap = await getDoc(docRef)
+
+    if (docSnap.exists()) {
+      week.value = (docSnap.data() as { week: DayPlan[] }).week
+    }
   }
 
-  /** Toggle a single weekday assignment for a day plan (0=Sun … 6=Sat) */
-  function toggleAssignedDay(dayDate: string, dayIndex: number) {
-    const dayPlan = week.value.find(d => d.date === dayDate)
-    if (!dayPlan) return
-    if (!dayPlan.assignedDays) dayPlan.assignedDays = []
-    const pos = dayPlan.assignedDays.indexOf(dayIndex)
-    if (pos > -1) {
-      dayPlan.assignedDays.splice(pos, 1)
-    } else {
-      dayPlan.assignedDays.push(dayIndex)
+  async function setDiet(newWeek: DayPlan[]) {
+    week.value = newWeek
+    const uid = auth.currentUser?.uid
+    if (uid) {
+      await setDoc(doc(db, `users/${uid}/diet`, 'current'), { week: newWeek })
     }
+  }
+
+  function reset() {
+    week.value = []
   }
 
   return {
     week,
+    fetchDiet,
     setDiet,
-    toggleAssignedDay
+    reset
   }
 })

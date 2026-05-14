@@ -87,8 +87,12 @@ async function getAccessToken() {
 async function callFatSecret(apiParams) {
   const token = await getAccessToken();
 
-  // Convertimos los parámetros a formato x-www-form-urlencoded
-  const body = new URLSearchParams(apiParams).toString();
+  const body = new URLSearchParams({
+    format: 'json',
+    language: 'es',
+    region: 'MX',
+    ...apiParams,
+  }).toString();
 
   const res = await fetch(FATSECRET_API_URL, {
     method: 'POST',
