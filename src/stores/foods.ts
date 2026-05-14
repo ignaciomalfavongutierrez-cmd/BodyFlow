@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { db, auth } from '../firebase'
-import { collection, addDoc, deleteDoc, doc, getDocs, query, orderBy } from 'firebase/firestore'
+import { collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from 'firebase/firestore'
 
 export interface SavedFood {
   id: string
@@ -19,18 +19,36 @@ export interface SavedFood {
 
 export const useFoodsStore = defineStore('foods', () => {
   const myFoods = ref<SavedFood[]>([])
+  let unsubscribe: (() => void) | null = null
 
-  async function fetchMyFoods() {
+  function fetchMyFoods() {
     const uid = auth.currentUser?.uid
-    if (!uid) return
+    if (!uid) return Promise.resolve()
+
+    if (unsubscribe) unsubscribe()
 
     const q = query(collection(db, `users/${uid}/foods`), orderBy('createdAt', 'desc'))
-    const querySnapshot = await getDocs(q)
     
-    myFoods.value = querySnapshot.docs.map(d => ({
-      id: d.id,
-      ...d.data()
-    } as SavedFood))
+    return new Promise<void>((resolve) => {
+      let isFirstLoad = true
+      unsubscribe = onSnapshot(q, (querySnapshot) => {
+        myFoods.value = querySnapshot.docs.map(d => ({
+          id: d.id,
+          ...d.data()
+        } as SavedFood))
+        
+        if (isFirstLoad) {
+          isFirstLoad = false
+          resolve()
+        }
+      }, (error) => {
+        console.error("Error listening to foods:", error)
+        if (isFirstLoad) {
+          isFirstLoad = false
+          resolve()
+        }
+      })
+    })
   }
 
   async function saveFood(food: Omit<SavedFood, 'id' | 'createdAt'>) {
@@ -43,9 +61,7 @@ export const useFoodsStore = defineStore('foods', () => {
     }
 
     const docRef = await addDoc(collection(db, `users/${uid}/foods`), newFoodData)
-    const newFood = { id: docRef.id, ...newFoodData } as SavedFood
-    myFoods.value.unshift(newFood)
-    return newFood
+    return { id: docRef.id, ...newFoodData } as SavedFood
   }
 
   async function removeFood(id: string) {
@@ -53,10 +69,13 @@ export const useFoodsStore = defineStore('foods', () => {
     if (!uid) return
 
     await deleteDoc(doc(db, `users/${uid}/foods`, id))
-    myFoods.value = myFoods.value.filter(f => f.id !== id)
   }
 
   function reset() {
+    if (unsubscribe) {
+      unsubscribe()
+      unsubscribe = null
+    }
     myFoods.value = []
   }
 

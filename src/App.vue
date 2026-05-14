@@ -2,12 +2,12 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AppLayout from './layouts/AppLayout.vue'
-import InstallPrompt from './components/InstallPrompt.vue'
 import { auth } from './firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { useUserStore } from './stores/user'
 import { useDietStore } from './stores/diet'
 import { useLogStore } from './stores/log'
+import { usePwaStore } from './stores/pwa'
 
 const isOffline = ref(!navigator.onLine)
 const isAuthReady = ref(false)
@@ -16,6 +16,7 @@ const router = useRouter()
 const userStore = useUserStore()
 const dietStore = useDietStore()
 const logStore = useLogStore()
+const pwaStore = usePwaStore()
 
 function updateOnlineStatus() {
   isOffline.value = !navigator.onLine
@@ -26,7 +27,6 @@ onMounted(() => {
   window.addEventListener('offline', updateOnlineStatus)
 
   onAuthStateChanged(auth, (user) => {
-    // Si ya estábamos listos y perdemos el usuario (logout o expira sesión)
     if (isAuthReady.value && !user) {
       userStore.reset()
       dietStore.reset()
@@ -38,6 +38,10 @@ onMounted(() => {
     }
     
     isAuthReady.value = true
+  })
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    pwaStore.capturePrompt(e)
   })
 })
 
@@ -71,7 +75,5 @@ onUnmounted(() => {
     </div>
     
     <AppLayout v-else :class="{'pt-6': isOffline}" />
-    
-    <InstallPrompt />
   </div>
 </template>

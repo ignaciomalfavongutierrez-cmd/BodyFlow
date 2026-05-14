@@ -5,8 +5,10 @@ import { auth } from '../firebase'
 import { updateProfile as updateAuthProfile } from 'firebase/auth'
 import BaseInput from '../components/BaseInput.vue'
 import { CheckCircle, AlertTriangle } from 'lucide-vue-next'
+import { usePwaStore } from '../stores/pwa'
 
 const userStore = useUserStore()
+const pwaStore = usePwaStore()
 
 const name = ref(userStore.profile.name || auth.currentUser?.displayName || '')
 const email = ref(userStore.profile.email || auth.currentUser?.email || '')
@@ -127,6 +129,17 @@ function autoCalculate() {
         <AlertTriangle class="w-5 h-5 flex-shrink-0" />
         {{ validationError }}
       </div>
+
+      <!-- PWA Install -->
+      <section v-if="pwaStore.isInstallable" class="bg-emerald-50 rounded-2xl p-5 shadow-sm border border-emerald-100 flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-bold text-emerald-900">Install BodyFlow</h2>
+          <p class="text-xs text-emerald-700">Add to your home screen.</p>
+        </div>
+        <button @click="pwaStore.promptInstall" class="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow hover:bg-emerald-700 transition">
+          Install
+        </button>
+      </section>
 
       <!-- Account Info -->
       <section class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">

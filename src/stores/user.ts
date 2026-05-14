@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { db, auth } from '../firebase'
-import { doc, getDoc, setDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, setDoc, collection, addDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
 
 export interface MacroTargets {
   calories: number
@@ -42,16 +42,34 @@ const DEFAULT_PROFILE: UserProfile = {
 export const useUserStore = defineStore('user', () => {
   const profile = ref<UserProfile>({ ...DEFAULT_PROFILE })
 
-  async function fetchProfile() {
+  let unsubscribe: (() => void) | null = null
+
+  function fetchProfile() {
     const uid = auth.currentUser?.uid
-    if (!uid) return
+    if (!uid) return Promise.resolve()
+
+    if (unsubscribe) unsubscribe()
 
     const docRef = doc(db, 'users', uid)
-    const docSnap = await getDoc(docRef)
-
-    if (docSnap.exists()) {
-      profile.value = docSnap.data() as UserProfile
-    }
+    
+    return new Promise<void>((resolve) => {
+      let isFirstLoad = true
+      unsubscribe = onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+          profile.value = docSnap.data() as UserProfile
+        }
+        if (isFirstLoad) {
+          isFirstLoad = false
+          resolve()
+        }
+      }, (error) => {
+        console.error("Error listening to profile:", error)
+        if (isFirstLoad) {
+          isFirstLoad = false
+          resolve()
+        }
+      })
+    })
   }
 
   async function updateProfile(newProfile: Partial<UserProfile>) {
@@ -73,6 +91,10 @@ export const useUserStore = defineStore('user', () => {
   }
 
   function reset() {
+    if (unsubscribe) {
+      unsubscribe()
+      unsubscribe = null
+    }
     profile.value = { ...DEFAULT_PROFILE }
   }
 

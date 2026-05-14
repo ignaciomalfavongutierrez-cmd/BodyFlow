@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { db, auth } from '../firebase'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { doc, setDoc, onSnapshot } from 'firebase/firestore'
 
 export interface MacroTargets {
   calories: number
@@ -27,20 +27,39 @@ export interface DayPlan {
 
 export const useDietStore = defineStore('diet', () => {
   const week = ref<DayPlan[]>([])
+  let unsubscribe: (() => void) | null = null
 
-  async function fetchDiet() {
+  function fetchDiet() {
     const uid = auth.currentUser?.uid
-    if (!uid) return
+    if (!uid) return Promise.resolve()
+
+    if (unsubscribe) unsubscribe()
 
     const docRef = doc(db, `users/${uid}/diet`, 'current')
-    const docSnap = await getDoc(docRef)
-
-    if (docSnap.exists()) {
-      week.value = (docSnap.data() as { week: DayPlan[] }).week
-    }
+    
+    return new Promise<void>((resolve) => {
+      let isFirstLoad = true
+      unsubscribe = onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+          week.value = (docSnap.data() as { week: DayPlan[] }).week
+        }
+        if (isFirstLoad) {
+          isFirstLoad = false
+          resolve()
+        }
+      }, (error) => {
+        console.error("Error listening to diet:", error)
+        if (isFirstLoad) {
+          isFirstLoad = false
+          resolve()
+        }
+      })
+    })
   }
 
   async function setDiet(newWeek: DayPlan[]) {
+    // Optimistic UI handled by onSnapshot directly if we don't block
+    // but for immediate response we can update it locally
     week.value = newWeek
     const uid = auth.currentUser?.uid
     if (uid) {
@@ -49,6 +68,10 @@ export const useDietStore = defineStore('diet', () => {
   }
 
   function reset() {
+    if (unsubscribe) {
+      unsubscribe()
+      unsubscribe = null
+    }
     week.value = []
   }
 

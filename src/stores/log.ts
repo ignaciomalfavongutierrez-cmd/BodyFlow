@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { db, auth } from '../firebase'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { doc, setDoc, onSnapshot } from 'firebase/firestore'
 
 export interface LoggedMacros {
   calories: number
@@ -33,19 +33,38 @@ export interface DailyLog {
 
 export const useLogStore = defineStore('log', () => {
   const logs = ref<Record<string, DailyLog>>({})
+  const unsubscribes: Record<string, () => void> = {}
 
-  async function fetchDayLog(date: string) {
+  function fetchDayLog(date: string) {
     const uid = auth.currentUser?.uid
-    if (!uid) return
+    if (!uid) return Promise.resolve()
+
+    if (unsubscribes[date]) {
+      return Promise.resolve()
+    }
 
     const docRef = doc(db, `users/${uid}/logs`, date)
-    const docSnap = await getDoc(docRef)
-
-    if (docSnap.exists()) {
-      logs.value[date] = docSnap.data() as DailyLog
-    } else {
-      logs.value[date] = { date, meals: [] }
-    }
+    
+    return new Promise<void>((resolve) => {
+      let isFirstLoad = true
+      unsubscribes[date] = onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+          logs.value[date] = docSnap.data() as DailyLog
+        } else {
+          logs.value[date] = { date, meals: [] }
+        }
+        if (isFirstLoad) {
+          isFirstLoad = false
+          resolve()
+        }
+      }, (error) => {
+        console.error(`Error listening to logs ${date}:`, error)
+        if (isFirstLoad) {
+          isFirstLoad = false
+          resolve()
+        }
+      })
+    })
   }
 
   async function saveDayLog(date: string) {
@@ -107,6 +126,8 @@ export const useLogStore = defineStore('log', () => {
   }
 
   function reset() {
+    Object.values(unsubscribes).forEach(unsub => unsub())
+    for (const key in unsubscribes) delete unsubscribes[key]
     logs.value = {}
   }
 
