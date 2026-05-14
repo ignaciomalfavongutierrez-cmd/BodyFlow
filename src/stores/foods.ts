@@ -60,5 +60,14 @@ export const useFoodsStore = defineStore('foods', () => {
     myFoods.value = []
   }
 
-  return { myFoods, fetchMyFoods, saveFood, removeFood, reset }
+  function searchMyFoods(q: string) {
+    if (!q.trim()) return myFoods.value
+    const search = q.toLowerCase()
+    return myFoods.value.filter(f => 
+      f.name.toLowerCase().includes(search) || 
+      f.description.toLowerCase().includes(search)
+    )
+  }
+
+  return { myFoods, fetchMyFoods, saveFood, removeFood, searchMyFoods, reset }
 })
