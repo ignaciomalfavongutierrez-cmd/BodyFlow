@@ -6,6 +6,7 @@ import { useRouter } from 'vue-router';
 import { useUserStore } from './user';
 import { useDietStore } from './diet';
 import { useFoodsStore } from './foods';
+import { useLogStore } from './log';
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null);
@@ -15,6 +16,7 @@ export const useAuthStore = defineStore('auth', () => {
   const userStore = useUserStore();
   const dietStore = useDietStore();
   const foodsStore = useFoodsStore();
+  const logStore = useLogStore();
 
   // Listen to Auth changes
   onAuthStateChanged(auth, async (firebaseUser) => {
@@ -29,17 +31,28 @@ export const useAuthStore = defineStore('auth', () => {
         foodsStore.fetchMyFoods()
       ]);
     } else {
-      // Clear and reset stores on logout
+      // Clear and reset stores on session expiry or logout
       userStore.reset();
       dietStore.reset();
       foodsStore.reset();
-      localStorage.clear();
-      router.push('/login');
+      logStore.reset();
+      if (router.currentRoute.value?.meta?.requiresAuth) {
+         router.push({ name: 'login', query: { expired: 'true' } });
+      }
     }
   });
 
   const logout = async () => {
+    // 1. Sign out from Firebase
     await signOut(auth);
+    
+    // 2 & 3. Reset all stores (this automatically calls their unsubscribe methods)
+    userStore.reset();
+    dietStore.reset();
+    foodsStore.reset();
+    logStore.reset();
+    
+    // 4. Redirect to login
     router.push('/login');
   };
 

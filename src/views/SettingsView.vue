@@ -4,11 +4,15 @@ import { useUserStore } from '../stores/user'
 import { auth } from '../firebase'
 import { updateProfile as updateAuthProfile } from 'firebase/auth'
 import BaseInput from '../components/BaseInput.vue'
-import { CheckCircle, AlertTriangle } from 'lucide-vue-next'
+import { CheckCircle, AlertTriangle, LogOut } from 'lucide-vue-next'
 import { usePwaStore } from '../stores/pwa'
+import { useAuthStore } from '../stores/auth'
 
 const userStore = useUserStore()
 const pwaStore = usePwaStore()
+const authStore = useAuthStore()
+
+const showLogoutModal = ref(false)
 
 const name = ref(userStore.profile.name || auth.currentUser?.displayName || '')
 const email = ref(userStore.profile.email || auth.currentUser?.email || '')
@@ -111,6 +115,10 @@ function autoCalculate() {
   
   saveProfile()
 }
+
+function confirmLogout() {
+  authStore.logout()
+}
 </script>
 
 <template>
@@ -209,6 +217,14 @@ function autoCalculate() {
         </div>
       </section>
 
+      <!-- Logout Button -->
+      <section class="mt-6 mb-8">
+        <button @click="showLogoutModal = true" class="w-full flex items-center justify-center gap-2 py-4 bg-red-50 text-red-600 rounded-2xl font-bold text-sm border border-red-100 hover:bg-red-100 transition-colors">
+          <LogOut class="w-5 h-5" />
+          Cerrar Sesión
+        </button>
+      </section>
+
     </div>
 
     <!-- Fixed Bottom Save Button -->
@@ -221,6 +237,27 @@ function autoCalculate() {
         Save Settings
       </button>
     </div>
+
+    <!-- Logout Confirmation Modal (Glassmorphism) -->
+    <transition name="fade">
+      <div v-if="showLogoutModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div class="bg-white/80 backdrop-blur-xl border border-white/40 p-6 rounded-3xl shadow-2xl max-w-sm w-full">
+          <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-4 shadow-inner">
+            <LogOut class="w-6 h-6" />
+          </div>
+          <h3 class="text-lg font-bold text-gray-900 mb-2">¿Cerrar sesión?</h3>
+          <p class="text-sm text-gray-600 mb-6">Tendrás que volver a ingresar tus credenciales para acceder a tus datos.</p>
+          <div class="flex gap-3">
+            <button @click="showLogoutModal = false" class="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors">
+              Cancelar
+            </button>
+            <button @click="confirmLogout" class="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 shadow-md transition-colors">
+              Salir
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 

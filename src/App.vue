@@ -4,18 +4,10 @@ import { useRouter } from 'vue-router'
 import AppLayout from './layouts/AppLayout.vue'
 import { auth } from './firebase'
 import { onAuthStateChanged } from 'firebase/auth'
-import { useUserStore } from './stores/user'
-import { useDietStore } from './stores/diet'
-import { useLogStore } from './stores/log'
 import { usePwaStore } from './stores/pwa'
 
 const isOffline = ref(!navigator.onLine)
 const isAuthReady = ref(false)
-const router = useRouter()
-
-const userStore = useUserStore()
-const dietStore = useDietStore()
-const logStore = useLogStore()
 const pwaStore = usePwaStore()
 
 function updateOnlineStatus() {
@@ -26,17 +18,7 @@ onMounted(() => {
   window.addEventListener('online', updateOnlineStatus)
   window.addEventListener('offline', updateOnlineStatus)
 
-  onAuthStateChanged(auth, (user) => {
-    if (isAuthReady.value && !user) {
-      userStore.reset()
-      dietStore.reset()
-      logStore.reset()
-      
-      if (router.currentRoute.value.meta.requiresAuth) {
-        router.push({ name: 'login', query: { expired: 'true' } })
-      }
-    }
-    
+  onAuthStateChanged(auth, () => {
     isAuthReady.value = true
   })
 
