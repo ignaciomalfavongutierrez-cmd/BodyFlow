@@ -117,7 +117,7 @@ function autoCalculate() {
 }
 
 function confirmLogout() {
-  authStore.logout()
+  authStore.handleLogout()
 }
 </script>
 

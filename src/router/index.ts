@@ -18,71 +18,68 @@ const router = createRouter({
       path: '/',
       name: 'dashboard',
       component: DashboardView,
-      meta: { layout: 'AppLayout', requiresAuth: true }
+      meta: { requiresAuth: true }
     },
     {
       path: '/profile',
       name: 'profile',
       component: ProfileView,
-      meta: { layout: 'AppLayout', requiresAuth: true }
+      meta: { requiresAuth: true }
     },
     {
       path: '/upload',
       name: 'upload',
       component: UploadView,
-      meta: { layout: 'AppLayout', requiresAuth: true }
+      meta: { requiresAuth: true }
     },
     {
       path: '/planner',
       name: 'planner',
       component: () => import('../views/PlannerView.vue'),
-      meta: { layout: 'AppLayout', requiresAuth: true }
+      meta: { requiresAuth: true }
     },
     {
       path: '/meal/:date/:mealId',
       name: 'mealDetail',
       component: () => import('../views/MealDetailView.vue'),
-      meta: { layout: 'AppLayout', requiresAuth: true }
+      meta: { requiresAuth: true }
     },
     {
       path: '/settings',
       name: 'settings',
       component: () => import('../views/SettingsView.vue'),
-      meta: { layout: 'AppLayout', requiresAuth: true }
+      meta: { requiresAuth: true }
     }
   ]
 })
 
-let isAuthInitialized = false
-let currentUser: any = null
+// Single promise that resolves once Firebase Auth emits its first event.
+// After that, auth.currentUser is always up-to-date — no need to re-await.
+let authReady: Promise<void>
+let resolveAuthReady: () => void
 
-const getCurrentUser = () => {
-  return new Promise((resolve, reject) => {
-    if (isAuthInitialized) {
-      resolve(currentUser)
-      return
-    }
-    const removeListener = onAuthStateChanged(
-      auth,
-      (user) => {
-        currentUser = user
-        isAuthInitialized = true
-        removeListener()
-        resolve(user)
-      },
-      reject
-    )
-  })
-}
+authReady = new Promise((resolve) => {
+  resolveAuthReady = resolve
+})
+
+onAuthStateChanged(auth, () => {
+  // Resolve on the very first event (page load)
+  resolveAuthReady()
+})
 
 router.beforeEach(async (to, _from, next) => {
-  const user = await getCurrentUser()
+  // Wait for Firebase to emit the first auth state before any navigation
+  await authReady
+
+  const user = auth.currentUser
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
   const guestOnly = to.matched.some(record => record.meta.guestOnly)
 
   if (requiresAuth && !user) {
+    // Not logged in → send to login with redirect param
     next({ name: 'login', query: { redirect: to.fullPath } })
   } else if (guestOnly && user) {
+    // Already logged in → skip login/register
     next({ name: 'dashboard' })
   } else {
     next()

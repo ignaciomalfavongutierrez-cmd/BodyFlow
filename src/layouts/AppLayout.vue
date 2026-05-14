@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { RouterView, useRoute } from 'vue-router'
 import { Home, Utensils, User, Settings } from 'lucide-vue-next'
-import { auth } from '../firebase'
+import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
+const authStore = useAuthStore()
 </script>
 
 <template>
   <div class="min-h-screen bg-gray-50 flex flex-col font-sans">
     <!-- Main content area -->
-    <main class="flex-1 overflow-y-auto" :class="{'pb-16': route.meta.requiresAuth && auth.currentUser}">
+    <main class="flex-1 overflow-y-auto" :class="{'pb-16': route.meta.requiresAuth && authStore.user}">
       <RouterView v-slot="{ Component }">
         <transition name="fade" mode="out-in">
           <component :is="Component" />
@@ -18,7 +19,7 @@ const route = useRoute()
     </main>
 
     <!-- Bottom Navigation (Mobile First) -->
-    <nav v-if="route.meta.requiresAuth && auth.currentUser" class="fixed bottom-0 w-full bg-white border-t border-gray-200 flex justify-around p-3 pb-safe shadow-[0_-2px_10px_rgba(0,0,0,0.05)] z-50">
+    <nav v-if="route.meta.requiresAuth && authStore.user" class="fixed bottom-0 w-full bg-white border-t border-gray-200 flex justify-around p-3 pb-safe shadow-[0_-2px_10px_rgba(0,0,0,0.05)] z-50">
       <router-link to="/" class="flex flex-col items-center text-gray-400 hover:text-emerald-600 active-nav-link">
         <Home class="h-6 w-6" />
         <span class="text-xs mt-1 font-medium">Home</span>
