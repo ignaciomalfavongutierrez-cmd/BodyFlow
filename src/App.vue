@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import AppLayout from './layouts/AppLayout.vue'
 import { auth } from './firebase'
-import { onAuthStateChanged } from 'firebase/auth'
 import { usePwaStore } from './stores/pwa'
+import { useAuthStore } from './stores/auth'
 
 const isOffline = ref(!navigator.onLine)
-const isAuthReady = ref(false)
+const authStore = useAuthStore()
 const pwaStore = usePwaStore()
+
+const isAuthReady = computed(() => !authStore.loading)
 
 function updateOnlineStatus() {
   isOffline.value = !navigator.onLine
@@ -16,10 +18,6 @@ function updateOnlineStatus() {
 onMounted(() => {
   window.addEventListener('online', updateOnlineStatus)
   window.addEventListener('offline', updateOnlineStatus)
-
-  onAuthStateChanged(auth, () => {
-    isAuthReady.value = true
-  })
 
   window.addEventListener('beforeinstallprompt', (e) => {
     pwaStore.capturePrompt(e)

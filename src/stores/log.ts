@@ -58,7 +58,7 @@ export const useLogStore = defineStore('log', () => {
           resolve()
         }
       }, (error) => {
-        console.error(`Error listening to logs ${date}:`, error)
+        console.error(`[FIREBASE ERROR] Path: users/${uid}/logs/${date}`, error)
         if (isFirstLoad) {
           isFirstLoad = false
           resolve()

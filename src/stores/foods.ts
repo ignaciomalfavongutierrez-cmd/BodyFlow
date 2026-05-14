@@ -42,7 +42,7 @@ export const useFoodsStore = defineStore('foods', () => {
           resolve()
         }
       }, (error) => {
-        console.error("Error listening to foods:", error)
+        console.error(`[FIREBASE ERROR] Path: users/${uid}/foods`, error)
         if (isFirstLoad) {
           isFirstLoad = false
           resolve()

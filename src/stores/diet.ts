@@ -48,7 +48,7 @@ export const useDietStore = defineStore('diet', () => {
           resolve()
         }
       }, (error) => {
-        console.error("Error listening to diet:", error)
+        console.error(`[FIREBASE ERROR] Path: users/${uid}/diet/current`, error)
         if (isFirstLoad) {
           isFirstLoad = false
           resolve()

@@ -21,24 +21,29 @@ export const useAuthStore = defineStore('auth', () => {
   // Listen to Auth changes
   onAuthStateChanged(auth, async (firebaseUser) => {
     user.value = firebaseUser;
-    loading.value = false;
     
-    if (firebaseUser) {
-      // Fetch user data from Firestore
-      await Promise.all([
-        userStore.fetchProfile(),
-        dietStore.fetchDiet(),
-        foodsStore.fetchMyFoods()
-      ]);
-    } else {
-      // Clear and reset stores on session expiry or logout
-      userStore.reset();
-      dietStore.reset();
-      foodsStore.reset();
-      logStore.reset();
-      if (router.currentRoute.value?.meta?.requiresAuth) {
-         router.push({ name: 'login', query: { expired: 'true' } });
+    try {
+      if (firebaseUser) {
+        // Fetch user data from Firestore
+        await Promise.all([
+          userStore.fetchProfile(),
+          dietStore.fetchDiet(),
+          foodsStore.fetchMyFoods()
+        ]);
+      } else {
+        // Clear and reset stores on session expiry or logout
+        userStore.reset();
+        dietStore.reset();
+        foodsStore.reset();
+        logStore.reset();
+        if (router.currentRoute.value?.meta?.requiresAuth) {
+           router.push({ name: 'login', query: { expired: 'true' } });
+        }
       }
+    } catch (error) {
+      console.error("[AUTH ERROR] Failed to initialize stores:", error);
+    } finally {
+      loading.value = false;
     }
   });
 

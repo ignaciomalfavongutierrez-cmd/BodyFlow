@@ -63,7 +63,7 @@ export const useUserStore = defineStore('user', () => {
           resolve()
         }
       }, (error) => {
-        console.error("Error listening to profile:", error)
+        console.error(`[FIREBASE ERROR] Path: users/${uid}`, error)
         if (isFirstLoad) {
           isFirstLoad = false
           resolve()
