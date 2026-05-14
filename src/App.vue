@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import AppLayout from './layouts/AppLayout.vue'
-import { auth } from './firebase'
 import { usePwaStore } from './stores/pwa'
 import { useAuthStore } from './stores/auth'
 
