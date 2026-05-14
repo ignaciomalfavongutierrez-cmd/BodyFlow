@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
 import AppLayout from './layouts/AppLayout.vue'
 import { auth } from './firebase'
 import { onAuthStateChanged } from 'firebase/auth'
