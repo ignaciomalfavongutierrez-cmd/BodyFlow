@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { db, auth } from '../firebase'
-import { doc, getDoc, setDoc, collection, addDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
+import { doc, setDoc, collection, addDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
 
 export interface MacroTargets {
   calories: number
