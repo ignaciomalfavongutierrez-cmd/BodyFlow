@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useUserStore } from '../stores/user'
 import { auth } from '../firebase'
-import { updateProfile as updateAuthProfile, updateEmail } from 'firebase/auth'
+import { updateProfile as updateAuthProfile } from 'firebase/auth'
 import BaseInput from '../components/BaseInput.vue'
 import { CheckCircle, AlertTriangle } from 'lucide-vue-next'
 
@@ -133,7 +133,7 @@ function autoCalculate() {
         <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Account</h2>
         <div class="space-y-4">
           <BaseInput label="Name" v-model="name" type="text" placeholder="Your name" />
-          <BaseInput label="Email" v-model="email" type="email" disabled placeholder="your@email.com" />
+          <BaseInput label="Email" v-model="email" type="text" disabled placeholder="your@email.com" />
         </div>
       </section>
 
