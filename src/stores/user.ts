@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { db, auth } from '../firebase'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { doc, getDoc, setDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore'
 
 export interface MacroTargets {
   calories: number
@@ -12,8 +12,13 @@ export interface MacroTargets {
 }
 
 export interface UserProfile {
+  name?: string
+  email?: string
   weight: number | null
   height: number | null
+  age: number | null
+  gender: 'male' | 'female' | null
+  activityFactor: number
   goal: string
   macroTargets: MacroTargets
 }
@@ -21,6 +26,9 @@ export interface UserProfile {
 const DEFAULT_PROFILE: UserProfile = {
   weight: null,
   height: null,
+  age: null,
+  gender: null,
+  activityFactor: 1.2,
   goal: '',
   macroTargets: {
     calories: 0,
@@ -47,11 +55,20 @@ export const useUserStore = defineStore('user', () => {
   }
 
   async function updateProfile(newProfile: Partial<UserProfile>) {
+    const oldWeight = profile.value.weight
     profile.value = { ...profile.value, ...newProfile }
     
     const uid = auth.currentUser?.uid
     if (uid) {
       await setDoc(doc(db, 'users', uid), profile.value, { merge: true })
+
+      if (newProfile.weight !== undefined && newProfile.weight !== oldWeight && newProfile.weight !== null) {
+        const historyRef = collection(db, 'users', uid, 'weight_history')
+        await addDoc(historyRef, {
+          weight: newProfile.weight,
+          date: serverTimestamp()
+        })
+      }
     }
   }
 

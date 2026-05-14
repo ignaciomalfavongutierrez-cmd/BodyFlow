@@ -74,6 +74,8 @@ export async function searchFoods(
     q:    query,
     max:  String(maxResults),
     page: String(page),
+    region: 'MX',
+    language: 'es'
   })
 
   return apiFetch<FoodSearchResult[]>(`api/foods/search?${qs}`)

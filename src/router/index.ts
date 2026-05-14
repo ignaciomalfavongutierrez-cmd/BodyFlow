@@ -42,6 +42,12 @@ const router = createRouter({
       name: 'mealDetail',
       component: () => import('../views/MealDetailView.vue'),
       meta: { layout: 'AppLayout', requiresAuth: true }
+    },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: () => import('../views/SettingsView.vue'),
+      meta: { layout: 'AppLayout', requiresAuth: true }
     }
   ]
 })

@@ -23,6 +23,7 @@ export interface LoggedMeal {
   completed: boolean
   actualMacros: LoggedMacros | null
   customFoods?: CustomFood[]
+  substitutedItems?: number[]
 }
 
 export interface DailyLog {
@@ -129,7 +130,28 @@ export const useLogStore = defineStore('log', () => {
     if (!meal) return
     
     meal.customFoods = []
+    meal.substitutedItems = []
     meal.actualMacros = macros
+    await saveDayLog(date)
+  }
+
+  async function toggleSubstitutedItem(date: string, mealId: string, itemIndex: number) {
+    if (!logs.value[date]) await fetchDayLog(date)
+    let meal = logs.value[date].meals.find(m => m.id === mealId)
+    if (!meal) {
+      meal = { id: mealId, completed: false, actualMacros: null }
+      logs.value[date].meals.push(meal)
+    }
+    
+    if (!meal.substitutedItems) meal.substitutedItems = []
+    
+    const idx = meal.substitutedItems.indexOf(itemIndex)
+    if (idx > -1) {
+      meal.substitutedItems.splice(idx, 1)
+    } else {
+      meal.substitutedItems.push(itemIndex)
+    }
+    
     await saveDayLog(date)
   }
 
@@ -141,6 +163,7 @@ export const useLogStore = defineStore('log', () => {
     addCustomFood,
     removeCustomFood,
     clearCustomFoods,
+    toggleSubstitutedItem,
     reset
   }
 })
