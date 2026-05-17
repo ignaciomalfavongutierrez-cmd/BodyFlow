@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RouterView, useRoute } from 'vue-router'
-import { Home, Utensils, User, Settings } from 'lucide-vue-next'
+import { Home, Utensils, User } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 
 const route = useRoute()
@@ -28,13 +28,9 @@ const authStore = useAuthStore()
         <Utensils class="h-6 w-6" />
         <span class="text-xs mt-1 font-medium">Planner</span>
       </router-link>
-      <router-link to="/profile" class="flex flex-col items-center text-gray-400 hover:text-emerald-600">
-        <User class="h-6 w-6" />
-        <span class="text-xs mt-1 font-medium">Profile</span>
-      </router-link>
       <router-link to="/settings" class="flex flex-col items-center text-gray-400 hover:text-emerald-600">
-        <Settings class="h-6 w-6" />
-        <span class="text-xs mt-1 font-medium">Settings</span>
+        <User class="h-6 w-6" />
+        <span class="text-xs mt-1 font-medium">Account</span>
       </router-link>
     </nav>
   </div>

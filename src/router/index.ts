@@ -2,7 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { auth } from '../firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import DashboardView from '../views/DashboardView.vue'
-import ProfileView from '../views/ProfileView.vue'
 import UploadView from '../views/UploadView.vue'
 
 const router = createRouter({
@@ -20,12 +19,7 @@ const router = createRouter({
       component: DashboardView,
       meta: { requiresAuth: true }
     },
-    {
-      path: '/profile',
-      name: 'profile',
-      component: ProfileView,
-      meta: { requiresAuth: true }
-    },
+
     {
       path: '/upload',
       name: 'upload',

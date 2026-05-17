@@ -247,8 +247,8 @@ function loadDemoDiet() {
         </div>
         <h3 class="font-bold text-gray-800 mb-1">Complete your profile</h3>
         <p class="text-sm text-gray-600 mb-4">Set your goals and macro targets to start tracking.</p>
-        <router-link to="/profile" class="inline-block bg-blue-600 text-white text-sm font-medium px-5 py-2 rounded-xl hover:bg-blue-700">
-          Go to Profile
+        <router-link to="/settings" class="inline-block bg-blue-600 text-white text-sm font-medium px-5 py-2 rounded-xl hover:bg-blue-700">
+          Go to Account
         </router-link>
       </div>
 
