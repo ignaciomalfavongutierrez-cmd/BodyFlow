@@ -133,7 +133,6 @@ watch(searchQuery, (newVal) => {
   showWakeUpMessage.value = false
   searchError.value = ''
   
-  // Set a timeout to display a "wake up" warning if the request takes more than 3 seconds
   wakeUpTimeout = setTimeout(() => {
     if (isSearching.value) {
       showWakeUpMessage.value = true
@@ -185,14 +184,13 @@ function saveManualEdits() {
   router.back()
 }
 
-// Multiplying logic
 const selectedFoodToAdd = ref<{ food: FoodSearchResult | SavedFood, quantity: number, unit: string } | null>(null)
 
 function openQuantityModal(food: FoodSearchResult | SavedFood) {
   selectedFoodToAdd.value = {
     food,
     quantity: 1,
-    unit: 'serving'
+    unit: 'porción'
   }
 }
 
@@ -241,13 +239,13 @@ function addManualFood() {
   logStore.addCustomFood(date.value, mealId.value, {
     id: `manual_${Date.now()}`,
     name: manualName.value,
-    quantity: manualQty.value || '1 serving',
+    quantity: manualQty.value || '1 porción',
     macros
   })
   if (saveToMyFoods.value) {
     foodsStore.saveFood({
       name: manualName.value,
-      description: manualQty.value || '1 serving',
+      description: manualQty.value || '1 porción',
       macros
     })
   }
@@ -274,43 +272,46 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
   if (!plannedMeal.value?.plannedMacros || !loggedMeal.value?.actualMacros) return false;
   return loggedMeal.value.actualMacros[type] > plannedMeal.value.plannedMacros[type] * 1.05;
 }
-
 </script>
 
 <template>
-  <div class="h-full flex flex-col relative max-w-md mx-auto w-full bg-gray-50 min-h-[calc(100vh-64px)] pb-16">
-    <header class="sticky top-0 z-10 bg-white/70 backdrop-blur-md border-b border-gray-100 shadow-sm flex items-center px-4 py-4">
-      <button @click="router.back()" class="p-2 -ml-2 text-gray-500 hover:text-gray-800 transition-colors">
+  <div class="h-full flex flex-col relative max-w-md mx-auto w-full min-h-[calc(100vh-64px)] pb-16" style="background: var(--surface-container-lowest);">
+    <!-- Sticky Header -->
+    <header class="sticky top-0 z-10 px-4 py-4 flex items-center backdrop-blur-md" style="background: rgba(14, 14, 16, 0.8); border-bottom: 1px solid var(--glass-border);">
+      <button @click="router.back()" class="p-2 -ml-2 transition-colors" style="color: var(--on-surface-muted); hover: color: var(--on-surface);">
         <ChevronLeft class="w-6 h-6" />
       </button>
-      <h1 class="text-xl font-bold text-gray-900 ml-2">Meal Details</h1>
+      <h1 class="text-xl font-bold ml-2" style="font-family: var(--font-display); color: var(--on-surface);">Detalle de Comida</h1>
     </header>
 
     <div v-if="plannedMeal" class="flex-1 p-4 overflow-y-auto">
       
       <!-- Meal Info Card -->
-      <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-6">
+      <div class="glass-card p-5 mb-6">
         <div class="flex justify-between items-start mb-4">
-          <div>
-            <h2 class="text-2xl font-bold text-gray-800">{{ plannedMeal.name }}</h2>
-            <p class="text-sm font-medium text-gray-500 mt-1">{{ date }}</p>
+          <div class="flex-1 min-w-0">
+            <h2 class="text-2xl font-bold truncate" style="font-family: var(--font-display); color: var(--on-surface);">{{ plannedMeal.name }}</h2>
+            <p class="text-xs font-semibold mt-1" style="color: var(--on-surface-muted);">{{ date }}</p>
             
-            <div v-if="plannedMeal.items && plannedMeal.items.length > 0" class="mt-4">
-              <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Ingredients</h3>
-              <p class="text-[10px] text-gray-400 mb-2">Tap an ingredient to mark it as substituted.</p>
-              <ul class="text-sm text-gray-600 space-y-2">
+            <div v-if="plannedMeal.items && plannedMeal.items.length > 0" class="mt-5">
+              <h3 class="text-[10px] font-bold uppercase tracking-wider mb-2" style="color: var(--on-surface-muted);">Ingredientes planificados</h3>
+              <p class="text-[9px] mb-2.5" style="color: var(--on-surface-muted);">Presiona un ingrediente para marcarlo como omitido/sustituido.</p>
+              <ul class="space-y-2 text-sm">
                 <li 
                   v-for="(item, idx) in plannedMeal.items" 
                   :key="idx" 
                   @click="toggleIngredient(idx)"
                   class="cursor-pointer transition-all flex items-start gap-2"
-                  :class="{'opacity-50 line-through': isSubstituted(idx)}"
+                  :style="{ opacity: isSubstituted(idx) ? 0.4 : 1 }"
                 >
-                  <div class="w-4 h-4 rounded-full border border-gray-300 mt-0.5 flex items-center justify-center flex-shrink-0 transition-colors"
-                       :class="{'bg-emerald-500 border-emerald-500': isSubstituted(idx)}">
-                    <CheckCircle v-if="isSubstituted(idx)" class="w-3 h-3 text-white" />
+                  <div class="w-4 h-4 rounded-full border mt-0.5 flex items-center justify-center flex-shrink-0 transition-colors"
+                       :style="{
+                         borderColor: isSubstituted(idx) ? 'var(--primary-container)' : 'var(--outline)',
+                         backgroundColor: isSubstituted(idx) ? 'var(--primary-container)' : 'transparent'
+                       }">
+                    <CheckCircle v-if="isSubstituted(idx)" class="w-3 h-3" style="color: var(--on-primary);" />
                   </div>
-                  <span>{{ item }}</span>
+                  <span :class="{'line-through': isSubstituted(idx)}" :style="{ color: isSubstituted(idx) ? 'var(--on-surface-muted)' : 'var(--on-surface)' }">{{ item }}</span>
                 </li>
               </ul>
             </div>
@@ -318,93 +319,101 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
           
           <button 
             @click="toggleCompletion"
-            class="flex items-center gap-2 px-3 py-1.5 rounded-full border transition-colors text-sm font-medium"
-            :class="isCompleted ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'"
+            class="flex items-center gap-2 px-3.5 py-2 rounded-full border transition-colors text-xs font-bold shrink-0 ml-3"
+            :style="isCompleted ? {
+              background: 'rgba(25, 232, 13, 0.15)',
+              color: 'var(--primary)',
+              borderColor: 'rgba(25, 232, 13, 0.3)'
+            } : {
+              background: 'rgba(255,255,255,0.02)',
+              color: 'var(--on-surface-muted)',
+              borderColor: 'var(--glass-border)'
+            }"
           >
             <CheckCircle v-if="isCompleted" class="w-4 h-4" />
-            <div v-else class="w-4 h-4 rounded-full border border-gray-400"></div>
-            {{ isCompleted ? 'Completed' : 'Mark Complete' }}
+            <div v-else class="w-4 h-4 rounded-full border" style="border-color: var(--outline);"></div>
+            {{ isCompleted ? 'Completado' : 'Completar' }}
           </button>
         </div>
 
-        <div v-if="plannedMeal.plannedMacros" class="pt-4 border-t border-gray-100">
+        <div v-if="plannedMeal.plannedMacros" class="pt-4 border-t" style="border-color: var(--glass-border);">
           <div class="flex justify-between items-center mb-3">
-             <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider">Planned Targets</h3>
-             <span v-if="customFoods.length > 0" class="text-xs font-medium bg-amber-100 text-amber-800 px-2 py-0.5 rounded">Replaced</span>
+             <h3 class="text-[10px] font-bold uppercase tracking-wider" style="color: var(--on-surface-muted);">Objetivos Planeados</h3>
+             <span v-if="customFoods.length > 0" class="text-[10px] font-bold px-2 py-0.5 rounded" style="background: rgba(251, 191, 36, 0.15); color: #fbbf24;">Sustituido</span>
           </div>
-          <div class="grid grid-cols-4 gap-2" :class="{'opacity-50': customFoods.length > 0}">
-            <div class="bg-gray-50 rounded-lg p-2 text-center">
-              <div class="text-[10px] text-gray-500 mb-0.5">Kcal</div>
-              <div class="font-bold text-gray-800">{{ plannedMeal.plannedMacros.calories }}</div>
+          <div class="grid grid-cols-4 gap-2" :class="{'opacity-40': customFoods.length > 0}">
+            <div class="rounded-lg p-2 text-center" style="background: rgba(0,0,0,0.2);">
+              <div class="text-[9px] mb-0.5 font-bold uppercase tracking-wider" style="color: var(--on-surface-muted);">Kcal</div>
+              <div class="font-bold text-sm" style="color: var(--on-surface);">{{ plannedMeal.plannedMacros.calories }}</div>
             </div>
-            <div class="bg-gray-50 rounded-lg p-2 text-center">
-              <div class="text-[10px] text-gray-500 mb-0.5">Pro</div>
-              <div class="font-bold text-gray-800">{{ plannedMeal.plannedMacros.protein }}g</div>
+            <div class="rounded-lg p-2 text-center" style="background: rgba(0,0,0,0.2);">
+              <div class="text-[9px] mb-0.5 font-bold uppercase tracking-wider" style="color: var(--on-surface-muted);">Prot</div>
+              <div class="font-bold text-sm" style="color: var(--on-surface);">{{ plannedMeal.plannedMacros.protein }}g</div>
             </div>
-            <div class="bg-gray-50 rounded-lg p-2 text-center">
-              <div class="text-[10px] text-gray-500 mb-0.5">Carb</div>
-              <div class="font-bold text-gray-800">{{ plannedMeal.plannedMacros.carbs }}g</div>
+            <div class="rounded-lg p-2 text-center" style="background: rgba(0,0,0,0.2);">
+              <div class="text-[9px] mb-0.5 font-bold uppercase tracking-wider" style="color: var(--on-surface-muted);">Carb</div>
+              <div class="font-bold text-sm" style="color: var(--on-surface);">{{ plannedMeal.plannedMacros.carbs }}g</div>
             </div>
-            <div class="bg-gray-50 rounded-lg p-2 text-center">
-              <div class="text-[10px] text-gray-500 mb-0.5">Fat</div>
-              <div class="font-bold text-gray-800">{{ plannedMeal.plannedMacros.fat }}g</div>
+            <div class="rounded-lg p-2 text-center" style="background: rgba(0,0,0,0.2);">
+              <div class="text-[9px] mb-0.5 font-bold uppercase tracking-wider" style="color: var(--on-surface-muted);">Grasa</div>
+              <div class="font-bold text-sm" style="color: var(--on-surface);">{{ plannedMeal.plannedMacros.fat }}g</div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Warning Banner Glassmorphism -->
+      <!-- Warning Banner -->
       <transition name="fade">
-        <div v-if="isCompleted && isMacrosExceeded" class="bg-white/10 backdrop-blur-md border border-red-500/30 p-4 rounded-2xl shadow-[0_4px_30px_rgba(255,0,0,0.05)] mb-6 flex items-start gap-3">
-          <AlertTriangle class="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
-          <div class="text-sm text-red-800 font-medium leading-snug">
-            Watch out! You have exceeded some of your planned macros for this meal.
+        <div v-if="isCompleted && isMacrosExceeded" class="border p-4 rounded-2xl mb-6 flex items-start gap-3" style="background: rgba(255, 180, 171, 0.1); border-color: rgba(255, 180, 171, 0.25);">
+          <AlertTriangle class="w-5 h-5 mt-0.5 flex-shrink-0" style="color: var(--error);" />
+          <div class="text-xs font-semibold leading-snug" style="color: var(--error);">
+            ¡Cuidado! Has excedido los macros planeados para esta comida en más del 5%.
           </div>
         </div>
       </transition>
 
       <!-- Actual Consumption Card -->
-      <div v-if="isCompleted" class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-6">
+      <div v-if="isCompleted" class="glass-card p-5 mb-6">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="text-sm font-bold text-gray-800 flex items-center">
-            <CheckCircle class="w-4 h-4 text-emerald-500 mr-2" />
-            Actual Macros
+          <h3 class="text-sm font-bold flex items-center" style="color: var(--on-surface);">
+            <CheckCircle class="w-4 h-4 mr-2" style="color: var(--primary-container);" />
+            Macros Consumidos Reales
           </h3>
-          <button v-if="customFoods.length > 0" @click="resetToPlanned" class="text-xs text-red-500 font-medium hover:text-red-700">
-            Reset to Planned
+          <button v-if="customFoods.length > 0" @click="resetToPlanned" class="text-xs font-bold hover:underline" style="color: var(--error);">
+            Restablecer Plan
           </button>
         </div>
 
-        <div v-if="customFoods.length > 0" class="mb-4 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-          <p class="text-xs text-emerald-700 font-medium">
-            Macros are dynamically locked and calculated from your custom substitutions.
+        <div v-if="customFoods.length > 0" class="mb-4 p-3 rounded-xl border" style="background: rgba(25, 232, 13, 0.1); border-color: rgba(25, 232, 13, 0.2); color: var(--primary);">
+          <p class="text-[11px] font-semibold">
+            Los macros están calculados dinámicamente según tus sustituciones de alimentos.
           </p>
         </div>
-        <p v-else class="text-xs text-gray-500 mb-4">
-          Did you eat exactly what was planned? If not, adjust below or use substitutions.
+        <p v-else class="text-xs mb-4" style="color: var(--on-surface-muted);">
+          ¿Comiste exactamente lo planeado? Si no, edita los valores reales a continuación.
         </p>
 
-        <div class="space-y-3" :class="{'opacity-75 pointer-events-none': customFoods.length > 0}">
+        <div class="space-y-4" :class="{'opacity-50 pointer-events-none': customFoods.length > 0}">
           <div class="flex flex-col">
-            <label class="text-sm font-medium mb-1" :class="isMacroExceeded('calories') ? 'text-red-600' : 'text-gray-700'">Calories (kcal)</label>
-            <input type="number" v-model="editCalories" class="px-4 py-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none w-full" :class="isMacroExceeded('calories') ? 'border-red-300 text-red-700 font-bold' : 'border-gray-200 text-gray-900'" />
+            <label class="text-[11px] font-bold uppercase tracking-wider mb-1.5 ml-1" :style="{ color: isMacroExceeded('calories') ? 'var(--error)' : 'var(--on-surface-muted)' }">Calorías (kcal)</label>
+            <input type="number" v-model="editCalories" class="w-full input-field" :style="isMacroExceeded('calories') ? { borderColor: 'var(--error)', color: 'var(--error)' } : {}" />
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div class="flex flex-col">
-              <label class="text-sm font-medium mb-1" :class="isMacroExceeded('protein') ? 'text-red-600' : 'text-gray-700'">Protein (g)</label>
-              <input type="number" v-model="editProtein" class="px-4 py-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none w-full" :class="isMacroExceeded('protein') ? 'border-red-300 text-red-700 font-bold' : 'border-gray-200 text-gray-900'" />
+              <label class="text-[11px] font-bold uppercase tracking-wider mb-1.5 ml-1" :style="{ color: isMacroExceeded('protein') ? 'var(--error)' : 'var(--on-surface-muted)' }">Proteínas (g)</label>
+              <input type="number" v-model="editProtein" class="w-full input-field" :style="isMacroExceeded('protein') ? { borderColor: 'var(--error)', color: 'var(--error)' } : {}" />
             </div>
             <div class="flex flex-col">
-              <label class="text-sm font-medium mb-1" :class="isMacroExceeded('carbs') ? 'text-red-600' : 'text-gray-700'">Carbs (g)</label>
-              <input type="number" v-model="editCarbs" class="px-4 py-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none w-full" :class="isMacroExceeded('carbs') ? 'border-red-300 text-red-700 font-bold' : 'border-gray-200 text-gray-900'" />
+              <label class="text-[11px] font-bold uppercase tracking-wider mb-1.5 ml-1" :style="{ color: isMacroExceeded('carbs') ? 'var(--error)' : 'var(--on-surface-muted)' }">Carbs (g)</label>
+              <input type="number" v-model="editCarbs" class="w-full input-field" :style="isMacroExceeded('carbs') ? { borderColor: 'var(--error)', color: 'var(--error)' } : {}" />
             </div>
             <div class="flex flex-col">
-              <label class="text-sm font-medium mb-1" :class="isMacroExceeded('fat') ? 'text-red-600' : 'text-gray-700'">Fat (g)</label>
-              <input type="number" v-model="editFat" class="px-4 py-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none w-full" :class="isMacroExceeded('fat') ? 'border-red-300 text-red-700 font-bold' : 'border-gray-200 text-gray-900'" />
+              <label class="text-[11px] font-bold uppercase tracking-wider mb-1.5 ml-1" :style="{ color: isMacroExceeded('fat') ? 'var(--error)' : 'var(--on-surface-muted)' }">Grasas (g)</label>
+              <input type="number" v-model="editFat" class="w-full input-field" :style="isMacroExceeded('fat') ? { borderColor: 'var(--error)', color: 'var(--error)' } : {}" />
             </div>
             <div class="flex flex-col">
-              <label class="text-sm font-medium mb-1 text-gray-700">Sugar (g)</label>
-              <input type="number" v-model="editSugar" class="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none w-full text-gray-900" />
+              <label class="text-[11px] font-bold uppercase tracking-wider mb-1.5 ml-1" style="color: var(--on-surface-muted);">Azúcar (g)</label>
+              <input type="number" v-model="editSugar" class="w-full input-field" />
             </div>
           </div>
         </div>
@@ -412,70 +421,74 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
         <button 
           v-if="customFoods.length === 0"
           @click="saveManualEdits"
-          class="w-full mt-4 py-3 bg-gray-900 text-white rounded-xl font-bold text-sm hover:bg-black transition-colors shadow-sm"
+          class="w-full mt-5 py-3.5 btn-primary text-sm shadow-md"
         >
-          Save Manual Changes
+          Guardar Cambios Manuales
         </button>
       </div>
 
       <!-- Substitution Section -->
-      <div v-if="isCompleted" class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-6">
-        <h3 class="text-sm font-bold text-gray-800 mb-1">Substitutions</h3>
-        <p class="text-xs text-gray-500 mb-4">Replace your planned meal with real foods.</p>
+      <div v-if="isCompleted" class="glass-card p-5 mb-6">
+        <h3 class="text-sm font-bold mb-1" style="color: var(--on-surface);">Sustituir Alimentos</h3>
+        <p class="text-xs mb-4" style="color: var(--on-surface-muted);">Reemplaza los alimentos planificados por comida real.</p>
         
+        <!-- List of substitutions -->
         <div v-if="customFoods.length > 0" class="space-y-3 mb-6">
-          <div v-for="food in customFoods" :key="food.id" class="flex justify-between items-center p-3 bg-gray-50 rounded-xl border border-gray-100">
+          <div v-for="food in customFoods" :key="food.id" class="flex justify-between items-center p-3 rounded-xl border" style="background: rgba(255,255,255,0.02); border-color: var(--glass-border);">
             <div>
-              <div class="font-semibold text-sm text-gray-800">{{ food.name }}</div>
-              <div class="text-[10px] text-gray-500 flex gap-2 mt-1">
+              <div class="font-semibold text-sm" style="color: var(--on-surface);">{{ food.name }}</div>
+              <div class="text-[10px] flex gap-2 mt-1" style="color: var(--on-surface-muted);">
                 <span>{{ food.quantity }}</span>
                 <span>•</span>
-                <span>{{ food.macros.calories }} kcal</span>
+                <span class="font-semibold" style="color: var(--primary);">{{ food.macros.calories }} kcal</span>
                 <span>P: {{ food.macros.protein }}g</span>
               </div>
             </div>
-            <button @click="removeFood(food.id)" class="p-2 text-red-400 hover:text-red-600 transition-colors">
+            <button @click="removeFood(food.id)" class="p-2 transition-colors" style="color: var(--error); hover: color: #ff3b30;">
               <X class="w-5 h-5" />
             </button>
           </div>
         </div>
 
         <div>
-          <div class="relative mb-3">
-            <Search class="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <!-- Search Bar -->
+          <div class="relative mb-4">
+            <Search class="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2" style="color: var(--on-surface-muted);" />
             <input 
               v-model="searchQuery"
               type="text" 
-              placeholder="Search foods or My Foods..." 
-              class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+              placeholder="Buscar alimentos..." 
+              class="w-full pl-9 pr-4 py-3 input-field text-sm"
             >
           </div>
 
-          <div class="flex bg-gray-100 rounded-xl p-1 mb-3">
-            <button @click="activeTab = 'search'" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors" :class="activeTab === 'search' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'">Database</button>
-            <button @click="activeTab = 'my'" class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-colors" :class="activeTab === 'my' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'">
-              My Foods <span v-if="foodsStore.myFoods.length > 0" class="ml-1 bg-emerald-500 text-white rounded-full px-1.5 text-[10px]">{{ foodsStore.myFoods.length }}</span>
+          <!-- Tabs -->
+          <div class="flex rounded-xl p-1 mb-4" style="background: var(--surface-container-lowest); border: 1px solid var(--glass-border);">
+            <button @click="activeTab = 'search'" class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors" :class="activeTab === 'search' ? 'bg-white/10 text-white shadow-sm' : 'text-zinc-500'">Base de Datos</button>
+            <button @click="activeTab = 'my'" class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors flex justify-center items-center" :class="activeTab === 'my' ? 'bg-white/10 text-white shadow-sm' : 'text-zinc-500'">
+              Mis Guardados <span v-if="foodsStore.myFoods.length > 0" class="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full" style="background: var(--primary-container); color: var(--on-primary);">{{ foodsStore.myFoods.length }}</span>
             </button>
           </div>
 
-          <div v-if="selectedFoodToAdd" class="bg-emerald-50 border border-emerald-200 p-4 rounded-xl mb-4 shadow-sm animate-fade-in">
+          <!-- Quantity popup form inside search block -->
+          <div v-if="selectedFoodToAdd" class="p-4 rounded-xl mb-4 shadow-md animate-fade-in border" style="background: rgba(25, 232, 13, 0.05); border-color: rgba(25, 232, 13, 0.2);">
              <div class="flex justify-between items-start mb-3">
                <div>
-                 <h4 class="font-bold text-sm text-emerald-900">{{ selectedFoodToAdd.food.name }}</h4>
-                 <p class="text-[10px] text-emerald-700">{{ selectedFoodToAdd.food.description }}</p>
+                 <h4 class="font-bold text-sm" style="color: var(--primary);">{{ selectedFoodToAdd.food.name }}</h4>
+                 <p class="text-[10px]" style="color: var(--on-surface-muted);">{{ selectedFoodToAdd.food.description }}</p>
                </div>
-               <button @click="selectedFoodToAdd = null" class="text-emerald-500 hover:text-emerald-700"><X class="w-4 h-4"/></button>
+               <button @click="selectedFoodToAdd = null" style="color: var(--on-surface-muted);"><X class="w-4 h-4"/></button>
              </div>
              
              <div class="grid grid-cols-2 gap-3 mb-4">
                <div>
-                 <label class="text-xs font-medium text-emerald-800 mb-1 block">Quantity</label>
-                 <input type="number" v-model="selectedFoodToAdd.quantity" min="0.1" step="any" class="w-full px-3 py-2 rounded-lg border border-emerald-200 text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
+                 <label class="text-[10px] font-bold uppercase tracking-wider mb-1.5 block" style="color: var(--on-surface-muted);">Cantidad</label>
+                 <input type="number" v-model="selectedFoodToAdd.quantity" min="0.1" step="any" class="w-full input-field text-sm bg-black/40">
                </div>
                <div>
-                 <label class="text-xs font-medium text-emerald-800 mb-1 block">Unit</label>
-                 <select v-model="selectedFoodToAdd.unit" class="w-full px-3 py-2 rounded-lg border border-emerald-200 text-sm focus:ring-2 focus:ring-emerald-500 outline-none bg-white">
-                   <option value="serving">serving</option>
+                 <label class="text-[10px] font-bold uppercase tracking-wider mb-1.5 block" style="color: var(--on-surface-muted);">Unidad</label>
+                 <select v-model="selectedFoodToAdd.unit" class="w-full input-field text-sm bg-black/40 appearance-none" style="background-image: url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3e%3cpath stroke=\'%23a1a1aa\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3e%3c/svg%3e'); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.2em 1.2em; padding-right: 2rem;">
+                   <option value="porción">porción</option>
                    <option value="pza">pza</option>
                    <option value="g">g</option>
                    <option value="ml">ml</option>
@@ -484,108 +497,115 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
              </div>
              
              <!-- Totals preview -->
-             <div class="flex gap-3 text-[10px] text-emerald-800 font-medium mb-3 justify-center">
+             <div class="flex gap-4 text-[10px] font-bold justify-center mb-4" style="color: var(--primary);">
                <span>Kcal: {{ Math.round(selectedFoodToAdd.food.macros.calories * selectedFoodToAdd.quantity) }}</span>
-               <span>Pro: {{ Math.round(selectedFoodToAdd.food.macros.protein * selectedFoodToAdd.quantity) }}g</span>
+               <span>Prot: {{ Math.round(selectedFoodToAdd.food.macros.protein * selectedFoodToAdd.quantity) }}g</span>
                <span>Carb: {{ Math.round(selectedFoodToAdd.food.macros.carbs * selectedFoodToAdd.quantity) }}g</span>
-               <span>Fat: {{ Math.round(selectedFoodToAdd.food.macros.fat * selectedFoodToAdd.quantity) }}g</span>
+               <span>Grasa: {{ Math.round(selectedFoodToAdd.food.macros.fat * selectedFoodToAdd.quantity) }}g</span>
              </div>
 
-             <button @click="confirmAddFood" class="w-full bg-emerald-600 text-white font-bold text-sm py-2.5 rounded-xl hover:bg-emerald-700 shadow-sm transition-colors">
-               Add Item
+             <button @click="confirmAddFood" class="w-full btn-primary py-2.5 text-sm shadow-md">
+               Añadir a la Comida
              </button>
           </div>
 
-          <div v-if="activeTab === 'search' && !selectedFoodToAdd" class="bg-white border border-gray-100 rounded-xl shadow-sm max-h-60 overflow-y-auto mb-4">
-            <div v-if="isSearching" class="p-4 text-center text-xs text-gray-500 flex flex-col items-center gap-2">
-              <span class="animate-pulse">Buscando en la base de datos...</span>
-              <span v-if="showWakeUpMessage" class="text-[10px] text-amber-600 font-medium max-w-[250px] leading-tight mt-1 bg-amber-50 p-2 rounded-lg border border-amber-100">
-                ⏳ El servidor en la nube (Render) está despertando. Esto puede tardar hasta 50 segundos. Gracias por tu paciencia.
+          <!-- Database Results -->
+          <div v-if="activeTab === 'search' && !selectedFoodToAdd" class="rounded-xl shadow-inner max-h-60 overflow-y-auto mb-4 border" style="background: rgba(0,0,0,0.15); border-color: var(--glass-border);">
+            <div v-if="isSearching" class="p-5 text-center text-xs flex flex-col items-center gap-2" style="color: var(--on-surface-muted);">
+              <span class="animate-pulse">Buscando en la base de datos de alimentos...</span>
+              <span v-if="showWakeUpMessage" class="text-[10px] font-semibold max-w-[280px] leading-tight mt-1 p-2 rounded-lg border" style="background: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.25); color: #fbbf24;">
+                ⏳ El servidor de Render se está despertando. Esto puede demorar hasta 50 segundos.
               </span>
             </div>
-            <div v-else-if="searchError" class="p-4 text-center text-xs text-red-500">
+            <div v-else-if="searchError" class="p-4 text-center text-xs" style="color: var(--error);">
               ⚠️ {{ searchError }}
             </div>
-            <div v-else-if="searchQuery && searchResults.length === 0" class="p-4 text-center text-xs text-gray-500">No results found.</div>
-            <div v-else-if="!searchQuery" class="p-4 text-center text-xs text-gray-400">Type to search food database...</div>
-            <div v-else v-for="res in searchResults" :key="res.id" class="flex items-center justify-between p-3 border-b border-gray-50 last:border-0 hover:bg-gray-50">
-              <div class="flex-1 min-w-0" @click="openQuantityModal(res)" role="button">
-                <div class="font-medium text-sm text-gray-800">{{ res.name }}</div>
-                <div class="text-[10px] text-gray-500 mt-0.5">{{ res.description }} • {{ res.macros.calories }} kcal, P: {{ res.macros.protein }}g</div>
+            <div v-else-if="searchQuery && searchResults.length === 0" class="p-4 text-center text-xs" style="color: var(--on-surface-muted);">No se encontraron resultados.</div>
+            <div v-else-if="!searchQuery" class="p-4 text-center text-xs" style="color: var(--on-surface-muted);">Escribe para buscar alimentos...</div>
+            <div v-else v-for="res in searchResults" :key="res.id" class="flex items-center justify-between p-3 border-b last:border-0 hover:bg-white/5 transition-colors" style="border-color: var(--glass-border);">
+              <div class="flex-1 min-w-0 pr-2 cursor-pointer" @click="openQuantityModal(res)" role="button">
+                <div class="font-semibold text-sm truncate" style="color: var(--on-surface);">{{ res.name }}</div>
+                <div class="text-[10px] mt-0.5 truncate" style="color: var(--on-surface-muted);">{{ res.description }} • <span style="color: var(--primary);">{{ res.macros.calories }} kcal</span></div>
               </div>
-              <div class="flex items-center gap-1 ml-2">
-                <button @click="saveApiResultToMyFoods(res)" class="p-1.5 text-gray-400 hover:text-emerald-600 transition-colors" title="Save to My Foods">
+              <div class="flex items-center gap-1.5 ml-2">
+                <button @click="saveApiResultToMyFoods(res)" class="p-1.5 transition-colors" style="color: var(--on-surface-muted); hover: color: var(--primary);" title="Guardar en Mis Alimentos">
                   <BookmarkPlus class="w-4 h-4" />
                 </button>
-                <button @click="openQuantityModal(res)" class="p-1.5 text-gray-400 hover:text-blue-600 transition-colors" title="Add to meal">
+                <button @click="openQuantityModal(res)" class="p-1.5 transition-colors" style="color: var(--on-surface-muted); hover: color: var(--primary);" title="Añadir a comida">
                   <Plus class="w-4 h-4" />
                 </button>
               </div>
             </div>
           </div>
 
-          <div v-if="activeTab === 'my' && !selectedFoodToAdd" class="bg-white border border-gray-100 rounded-xl shadow-sm max-h-60 overflow-y-auto mb-4">
-            <div v-if="myFoodsResults.length === 0" class="p-4 text-center text-xs text-gray-400">
-              {{ searchQuery ? 'No saved foods match your search.' : 'No foods saved yet.' }}
+          <!-- My Foods Results -->
+          <div v-if="activeTab === 'my' && !selectedFoodToAdd" class="rounded-xl shadow-inner max-h-60 overflow-y-auto mb-4 border" style="background: rgba(0,0,0,0.15); border-color: var(--glass-border);">
+            <div v-if="myFoodsResults.length === 0" class="p-4 text-center text-xs" style="color: var(--on-surface-muted);">
+              {{ searchQuery ? 'No hay alimentos guardados que coincidan.' : 'Aún no tienes alimentos guardados.' }}
             </div>
-            <div v-for="food in myFoodsResults" :key="food.id" class="flex items-center justify-between p-3 border-b border-gray-50 last:border-0 hover:bg-gray-50">
-              <div class="flex-1 min-w-0" @click="openQuantityModal(food)" role="button">
-                <div class="font-medium text-sm text-gray-800">{{ food.name }}</div>
-                <div class="text-[10px] text-gray-500 mt-0.5">{{ food.description }} • {{ food.macros.calories }} kcal, P: {{ food.macros.protein }}g</div>
+            <div v-for="food in myFoodsResults" :key="food.id" class="flex items-center justify-between p-3 border-b last:border-0 hover:bg-white/5 transition-colors" style="border-color: var(--glass-border);">
+              <div class="flex-1 min-w-0 pr-2 cursor-pointer" @click="openQuantityModal(food)" role="button">
+                <div class="font-semibold text-sm truncate" style="color: var(--on-surface);">{{ food.name }}</div>
+                <div class="text-[10px] mt-0.5 truncate" style="color: var(--on-surface-muted);">{{ food.description }} • <span style="color: var(--primary);">{{ food.macros.calories }} kcal</span></div>
               </div>
-              <div class="flex items-center gap-1 ml-2">
-                <button @click="foodsStore.removeFood(food.id)" class="p-1.5 text-gray-300 hover:text-red-500 transition-colors" title="Remove from My Foods">
+              <div class="flex items-center gap-1.5 ml-2">
+                <button @click="foodsStore.removeFood(food.id)" class="p-1.5 transition-colors" style="color: var(--outline); hover: color: var(--error);" title="Eliminar de Mis Alimentos">
                   <BookmarkMinus class="w-4 h-4" />
                 </button>
-                <button @click="openQuantityModal(food)" class="p-1.5 text-gray-400 hover:text-blue-600 transition-colors" title="Add to meal">
+                <button @click="openQuantityModal(food)" class="p-1.5 transition-colors" style="color: var(--on-surface-muted); hover: color: var(--primary);" title="Añadir a comida">
                   <Plus class="w-4 h-4" />
                 </button>
               </div>
             </div>
           </div>
 
-          <button v-if="!selectedFoodToAdd" @click="showManualAdd = !showManualAdd" class="text-xs font-medium text-blue-600 hover:text-blue-800 mb-2">
-            {{ showManualAdd ? '- Cancel manual entry' : '+ Add food manually' }}
+          <!-- Add Manual Food Trigger -->
+          <button v-if="!selectedFoodToAdd" @click="showManualAdd = !showManualAdd" class="text-xs font-semibold hover:underline" style="color: var(--primary);">
+            {{ showManualAdd ? '- Cancelar ingreso manual' : '+ Añadir comida manualmente' }}
           </button>
 
-          <div v-if="showManualAdd && !selectedFoodToAdd" class="bg-blue-50 border border-blue-100 p-4 rounded-xl mt-2 space-y-3">
+          <!-- Manual Food form -->
+          <div v-if="showManualAdd && !selectedFoodToAdd" class="p-4 rounded-xl mt-3 space-y-4 border" style="background: var(--glass-bg); border-color: var(--glass-border);">
             <div class="grid grid-cols-2 gap-3">
-              <BaseInput label="Name" v-model="manualName" placeholder="e.g. Rice" />
-              <BaseInput label="Quantity" v-model="manualQty" placeholder="e.g. 100g" />
+              <BaseInput label="Nombre" v-model="manualName" placeholder="Ej. Arroz cocido" />
+              <BaseInput label="Porción/Detalle" v-model="manualQty" placeholder="Ej. 100g" />
             </div>
             <div class="grid grid-cols-5 gap-2">
               <BaseInput label="Kcal" v-model="manualCals" type="number" />
-              <BaseInput label="Pro" v-model="manualPro" type="number" />
+              <BaseInput label="Prot" v-model="manualPro" type="number" />
               <BaseInput label="Carb" v-model="manualCarb" type="number" />
-              <BaseInput label="Fat" v-model="manualFat" type="number" />
-              <BaseInput label="Sug" v-model="manualSug" type="number" />
+              <BaseInput label="Grasa" v-model="manualFat" type="number" />
+              <BaseInput label="Azúcar" v-model="manualSug" type="number" />
             </div>
+            
             <label class="flex items-center gap-2 cursor-pointer select-none">
               <div class="relative">
                 <input type="checkbox" v-model="saveToMyFoods" class="sr-only" />
-                <div class="w-8 h-4 rounded-full transition-colors" :class="saveToMyFoods ? 'bg-emerald-500' : 'bg-gray-300'"></div>
+                <div class="w-8 h-4 rounded-full transition-colors" :class="saveToMyFoods ? 'bg-emerald-500' : 'bg-zinc-700'"></div>
                 <div class="absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform" :class="saveToMyFoods ? 'translate-x-4' : ''"></div>
               </div>
-              <span class="text-xs text-gray-600">Save to My Foods for later</span>
+              <span class="text-xs" style="color: var(--on-surface-muted);">Guardar en Mis Alimentos para el futuro</span>
             </label>
-            <button @click="addManualFood" class="w-full py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700">
-              Add to Meal
+            
+            <button @click="addManualFood" class="w-full py-2.5 btn-primary text-xs shadow-sm">
+              Agregar a la Comida
             </button>
           </div>
         </div>
       </div>
 
-      <div v-if="!isCompleted" class="bg-blue-50 border border-blue-100 rounded-2xl p-6 text-center">
-        <div class="w-12 h-12 bg-white text-blue-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm">
+      <!-- Wait / Uncompleted State -->
+      <div v-if="!isCompleted" class="glass-card p-6 text-center">
+        <div class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 shadow-sm" style="background: rgba(255,255,255,0.02); color: var(--outline);">
           <CheckCircle class="w-6 h-6" />
         </div>
-        <h3 class="font-bold text-gray-800 mb-1">Waiting for meal</h3>
-        <p class="text-sm text-gray-600 mb-4">Mark this meal as complete when you eat it to log the macros.</p>
+        <h3 class="font-bold mb-1" style="color: var(--on-surface);">Esperando comida</h3>
+        <p class="text-xs mb-4" style="color: var(--on-surface-muted);">Marca esta comida como completada cuando la consumas para registrar tus macros reales.</p>
         <button 
           @click="toggleCompletion"
-          class="inline-block bg-blue-600 text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-blue-700 shadow-sm"
+          class="w-full py-3.5 btn-primary text-sm shadow-md"
         >
-          Mark as Completed
+          Marcar como Completada
         </button>
       </div>
 
@@ -595,13 +615,13 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
 
 <style scoped>
 .fade-enter-active, .fade-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity 0.2s ease;
 }
 .fade-enter-from, .fade-leave-to {
   opacity: 0;
 }
 .animate-fade-in {
-  animation: fadeIn 0.2s ease-out forwards;
+  animation: fadeIn 0.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-4px); }

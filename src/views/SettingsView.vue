@@ -18,10 +18,6 @@ const showLogoutModal = ref(false)
 const isSaved = ref(false)
 const validationError = ref('')
 
-// --- Draft State ---
-// Each field is a local ref that starts as a default and gets populated by the
-// watcher below once Firestore resolves. Using individual refs (not a single
-// reactive object) keeps v-model bindings simple in the template.
 const name = ref('')
 const email = ref('')
 const weight = ref<number | null>(null)
@@ -36,17 +32,8 @@ const carbs = ref(0)
 const fat = ref(0)
 const sugar = ref(0)
 
-// isDirty: true once the user has touched any field. While false, incoming
-// Firestore snapshots are allowed to re-hydrate the form (safe initial load).
-// Once true, we stop overwriting to avoid clobbering active user edits.
 const isDirty = ref(false)
 
-// Hydrate form from async store.
-// PROBLEM THIS SOLVES: Previously refs were initialized with `ref(userStore.profile.weight)`.
-// Because Firestore is async, the store holds null/defaults at mount time.
-// The ref captured null and was never updated again — form always showed empty.
-// NOW: this watcher fires once immediately (with defaults) and again when
-// Firestore resolves, safely populating the form without overwriting edits.
 watch(
   () => userStore.profile,
   (p) => {
@@ -78,7 +65,7 @@ const isFormValid = computed(() => {
 
 async function saveProfile() {
   if (!isFormValid.value) {
-    validationError.value = 'Values cannot be negative.'
+    validationError.value = 'Los valores no pueden ser negativos.'
     return
   }
 
@@ -111,14 +98,11 @@ async function saveProfile() {
     }
   })
 
-  // After saving, allow Firestore to re-hydrate (clear dirty flag)
   isDirty.value = false
   isSaved.value = true
   setTimeout(() => { isSaved.value = false }, 2000)
 }
 
-// Auto-calculate uses the canonical nutrition service (Mifflin-St Jeor).
-// All business logic lives in src/services/nutrition/ — never in components.
 function autoCalculate() {
   const physicalData: PhysicalData = {
     weight: weight.value ? Number(weight.value) : null,
@@ -154,134 +138,136 @@ function confirmLogout() {
 </script>
 
 <template>
-  <div class="max-w-md mx-auto w-full flex flex-col h-full bg-gray-50 min-h-[calc(100vh-64px)]">
-    <header class="sticky top-0 z-10 bg-white/70 backdrop-blur-md border-b border-gray-100 px-4 py-4 flex justify-between items-center shadow-sm">
-      <h1 class="text-xl font-bold text-gray-900">Account</h1>
+  <div class="max-w-md mx-auto w-full flex flex-col h-full min-h-[calc(100vh-64px)]" style="background: var(--surface-container-lowest);">
+    <!-- Header -->
+    <header class="sticky top-0 z-10 px-4 py-4 flex justify-between items-center backdrop-blur-md" style="background: rgba(14, 14, 16, 0.8); border-bottom: 1px solid var(--glass-border);">
+      <h1 class="text-xl font-bold" style="font-family: var(--font-display); color: var(--on-surface);">Cuenta</h1>
       <transition name="fade">
-        <span v-if="isSaved" class="flex items-center gap-1 text-sm font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md">
-          <CheckCircle class="w-4 h-4" /> Saved!
+        <span v-if="isSaved" class="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full" style="background: rgba(25, 232, 13, 0.15); color: var(--primary);">
+          <CheckCircle class="w-3.5 h-3.5" /> ¡Guardado!
         </span>
       </transition>
     </header>
 
     <div class="p-4 flex-1 pb-24 overflow-y-auto space-y-6">
-      <div v-if="validationError" class="p-3 bg-red-50 text-red-600 text-sm rounded-xl flex items-center gap-2">
+      <div v-if="validationError" class="p-3 text-sm rounded-xl flex items-center gap-2" style="background: var(--error-container); color: var(--error); border: 1px solid rgba(255, 180, 171, 0.15);">
         <AlertTriangle class="w-5 h-5 flex-shrink-0" />
         {{ validationError }}
       </div>
 
       <!-- PWA Install -->
-      <section v-if="pwaStore.isInstallable" class="bg-emerald-50 rounded-2xl p-5 shadow-sm border border-emerald-100 flex items-center justify-between">
+      <section v-if="pwaStore.isInstallable" class="glass-card p-5 flex items-center justify-between" style="border-color: rgba(25, 232, 13, 0.3);">
         <div>
-          <h2 class="text-sm font-bold text-emerald-900">Install BodyFlow</h2>
-          <p class="text-xs text-emerald-700">Add to your home screen.</p>
+          <h2 class="text-sm font-bold" style="color: var(--primary);">Instalar BodyFlow</h2>
+          <p class="text-xs" style="color: var(--on-surface-muted);">Añádelo a tu pantalla de inicio.</p>
         </div>
-        <button @click="pwaStore.promptInstall" class="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow hover:bg-emerald-700 transition">
-          Install
+        <button @click="pwaStore.promptInstall" class="px-4 py-2 btn-primary text-xs font-bold shadow transition">
+          Instalar
         </button>
       </section>
 
       <!-- Account Info -->
-      <section class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-        <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Account</h2>
+      <section class="glass-card p-5 space-y-4">
+        <h2 class="text-[11px] font-bold uppercase tracking-wider mb-2" style="color: var(--on-surface-muted);">Información de Cuenta</h2>
         <div class="space-y-4">
-          <BaseInput label="Name" v-model="name" type="text" placeholder="Your name" @input="markDirty" />
-          <BaseInput label="Email" v-model="email" type="text" disabled placeholder="your@email.com" />
+          <BaseInput label="Nombre" v-model="name" type="text" placeholder="Tu nombre" @input="markDirty" />
+          <BaseInput label="Email" v-model="email" type="text" disabled placeholder="tu@email.com" />
         </div>
       </section>
 
       <!-- Physical Data -->
-      <section class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-        <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Physical Data</h2>
+      <section class="glass-card p-5">
+        <h2 class="text-[11px] font-bold uppercase tracking-wider mb-4" style="color: var(--on-surface-muted);">Datos Físicos</h2>
+        
         <div class="grid grid-cols-2 gap-4 mb-4">
-          <BaseInput label="Weight (kg)" v-model="weight" type="number" placeholder="e.g. 70" @input="markDirty" />
-          <BaseInput label="Height (cm)" v-model="height" type="number" placeholder="e.g. 175" @input="markDirty" />
-          <BaseInput label="Age" v-model="age" type="number" placeholder="e.g. 25" @input="markDirty" />
+          <BaseInput label="Peso (kg)" v-model="weight" type="number" placeholder="Ej. 70" @input="markDirty" />
+          <BaseInput label="Estatura (cm)" v-model="height" type="number" placeholder="Ej. 175" @input="markDirty" />
+          <BaseInput label="Edad" v-model="age" type="number" placeholder="Ej. 25" @input="markDirty" />
+          
           <div class="flex flex-col">
-            <label class="text-sm font-medium text-gray-700 mb-1">Biological Sex</label>
-            <select v-model="gender" @change="markDirty" class="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all outline-none text-sm text-gray-900 appearance-none">
-              <option :value="null" disabled>Select...</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
+            <label class="text-[11px] font-bold uppercase tracking-wider mb-1.5 ml-1" style="color: var(--on-surface-muted);">Sexo Biológico</label>
+            <select v-model="gender" @change="markDirty" class="input-field text-sm w-full appearance-none">
+              <option :value="null" disabled>Selecciona...</option>
+              <option value="male">Hombre</option>
+              <option value="female">Mujer</option>
             </select>
           </div>
         </div>
 
         <div class="flex flex-col mb-4">
-          <label class="text-sm font-medium text-gray-700 mb-1">Activity Level</label>
-          <select v-model="activityFactor" @change="markDirty" class="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all outline-none text-sm text-gray-900 appearance-none">
-            <option :value="1.2">Sedentary (Little/No Exercise)</option>
-            <option :value="1.375">Lightly Active (1-3 days/wk)</option>
-            <option :value="1.55">Moderately Active (3-5 days/wk)</option>
-            <option :value="1.725">Very Active (6-7 days/wk)</option>
-            <option :value="1.9">Extremely Active (Physical job)</option>
+          <label class="text-[11px] font-bold uppercase tracking-wider mb-1.5 ml-1" style="color: var(--on-surface-muted);">Nivel de Actividad</label>
+          <select v-model="activityFactor" @change="markDirty" class="input-field text-sm w-full appearance-none">
+            <option :value="1.2">Sedentario (Poco/Sin Ejercicio)</option>
+            <option :value="1.375">Ligero (1-3 días/sem)</option>
+            <option :value="1.55">Moderado (3-5 días/sem)</option>
+            <option :value="1.725">Activo (6-7 días/sem)</option>
+            <option :value="1.9">Muy Activo (Trabajo físico/Doble entreno)</option>
           </select>
         </div>
 
         <div class="flex flex-col">
-          <label class="text-sm font-medium text-gray-700 mb-1">Goal</label>
-          <select v-model="goal" @change="markDirty" class="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 transition-all outline-none text-sm text-gray-900 appearance-none">
-            <option value="cut">Cut (Lose fat)</option>
-            <option value="maintain">Maintain</option>
-            <option value="bulk">Bulk (Build muscle)</option>
+          <label class="text-[11px] font-bold uppercase tracking-wider mb-1.5 ml-1" style="color: var(--on-surface-muted);">Objetivo</label>
+          <select v-model="goal" @change="markDirty" class="input-field text-sm w-full appearance-none">
+            <option value="cut">Definición (Perder grasa)</option>
+            <option value="maintain">Mantenimiento</option>
+            <option value="bulk">Volumen (Ganar músculo)</option>
           </select>
         </div>
       </section>
 
       <!-- Macro Targets -->
-      <section class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+      <section class="glass-card p-5">
         <div class="flex justify-between items-center mb-4">
-          <h2 class="text-sm font-bold text-gray-400 uppercase tracking-wider">Macro Targets</h2>
-          <button @click="autoCalculate" class="text-xs font-medium text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition-colors">
-            Auto-calculate
+          <h2 class="text-[11px] font-bold uppercase tracking-wider" style="color: var(--on-surface-muted);">Metas de Macros</h2>
+          <button @click="autoCalculate" class="text-xs font-semibold px-3 py-1.5 rounded-lg btn-secondary">
+            Auto-calcular
           </button>
         </div>
 
-        <BaseInput label="Calories (kcal)" v-model="calories" type="number" placeholder="e.g. 2000" class="mb-4" @input="markDirty" />
+        <BaseInput label="Calorías (kcal)" v-model="calories" type="number" placeholder="Ej. 2000" class="mb-4" @input="markDirty" />
 
         <div class="grid grid-cols-2 gap-4">
-          <BaseInput label="Protein (g)" v-model="protein" type="number" placeholder="e.g. 150" @input="markDirty" />
-          <BaseInput label="Carbs (g)" v-model="carbs" type="number" placeholder="e.g. 200" @input="markDirty" />
-          <BaseInput label="Fat (g)" v-model="fat" type="number" placeholder="e.g. 60" @input="markDirty" />
-          <BaseInput label="Sugar (g)" v-model="sugar" type="number" placeholder="e.g. 30" @input="markDirty" />
+          <BaseInput label="Proteína (g)" v-model="protein" type="number" placeholder="Ej. 150" @input="markDirty" />
+          <BaseInput label="Carbs (g)" v-model="carbs" type="number" placeholder="Ej. 200" @input="markDirty" />
+          <BaseInput label="Grasa (g)" v-model="fat" type="number" placeholder="Ej. 60" @input="markDirty" />
+          <BaseInput label="Azúcar (g)" v-model="sugar" type="number" placeholder="Ej. 30" @input="markDirty" />
         </div>
       </section>
 
       <!-- Logout Button -->
       <section class="mt-6 mb-8">
-        <button @click="showLogoutModal = true" class="w-full flex items-center justify-center gap-2 py-4 bg-red-50 text-red-600 rounded-2xl font-bold text-sm border border-red-100 hover:bg-red-100 transition-colors">
+        <button @click="showLogoutModal = true" class="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-sm transition-colors" style="background: rgba(255, 180, 171, 0.1); color: var(--error); border: 1px solid rgba(255, 180, 171, 0.15);">
           <LogOut class="w-5 h-5" />
           Cerrar Sesión
         </button>
       </section>
-
     </div>
 
     <!-- Fixed Bottom Save Button -->
-    <div class="fixed bottom-16 left-0 right-0 p-4 bg-white/70 backdrop-blur-md border-t border-gray-100 md:max-w-md md:mx-auto z-10">
+    <div class="fixed bottom-16 left-0 right-0 p-4 border-t md:max-w-md md:mx-auto z-10 backdrop-blur-md" style="background: rgba(14, 14, 16, 0.85); border-top: 1px solid var(--glass-border);">
       <button
         @click="saveProfile"
-        class="w-full py-4 bg-gray-900 text-white rounded-xl font-bold text-lg hover:bg-black active:scale-[0.98] transition-all shadow-sm disabled:opacity-50"
+        class="w-full py-4 btn-primary text-lg rounded-xl active:scale-[0.98] transition-all disabled:opacity-50"
         :disabled="!isFormValid"
       >
-        Save Settings
+        Guardar Configuración
       </button>
     </div>
 
     <!-- Logout Confirmation Modal -->
     <transition name="fade">
-      <div v-if="showLogoutModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-        <div class="bg-white/80 backdrop-blur-xl border border-white/40 p-6 rounded-3xl shadow-2xl max-w-sm w-full">
-          <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-4 shadow-inner">
+      <div v-if="showLogoutModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div class="glass-card p-6 max-w-sm w-full" style="background: var(--surface-container-high); border-color: var(--glass-border-hover);">
+          <div class="w-12 h-12 rounded-full flex items-center justify-center mb-4" style="background: rgba(255, 180, 171, 0.15); color: var(--error);">
             <LogOut class="w-6 h-6" />
           </div>
-          <h3 class="text-lg font-bold text-gray-900 mb-2">¿Cerrar sesión?</h3>
-          <p class="text-sm text-gray-600 mb-6">Tendrás que volver a ingresar tus credenciales para acceder a tus datos.</p>
+          <h3 class="text-lg font-bold mb-2" style="color: var(--on-surface);">¿Cerrar sesión?</h3>
+          <p class="text-sm mb-6" style="color: var(--on-surface-muted);">Tendrás que volver a ingresar tus credenciales para acceder a tu planificador.</p>
           <div class="flex gap-3">
-            <button @click="showLogoutModal = false" class="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors">
+            <button @click="showLogoutModal = false" class="flex-1 py-3 rounded-xl font-bold transition-colors" style="background: var(--surface-container-highest); color: var(--on-surface);">
               Cancelar
             </button>
-            <button @click="confirmLogout" class="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 shadow-md transition-colors">
+            <button @click="confirmLogout" class="flex-1 py-3 text-white rounded-xl font-bold hover:bg-red-700 transition-colors shadow-md" style="background: var(--error-container);">
               Salir
             </button>
           </div>
@@ -293,14 +279,14 @@ function confirmLogout() {
 
 <style scoped>
 select {
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23a1a1aa' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
   background-position: right 0.75rem center;
   background-repeat: no-repeat;
   background-size: 1.5em 1.5em;
   padding-right: 2.5rem;
 }
 .fade-enter-active, .fade-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity 0.25s ease;
 }
 .fade-enter-from, .fade-leave-to {
   opacity: 0;
