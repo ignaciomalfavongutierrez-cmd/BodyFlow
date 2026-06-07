@@ -50,14 +50,7 @@ const displayDateTitle = computed(() => {
 
 // Find the plan for the selected real-world date
 const todayPlan = computed(() => {
-  const currentDayOfWeek = selectedDateObj.value.getDay() // 0=Sun, 1=Mon, ..., 6=Sat
-  
-  // Find by recurrences (assignedDays)
-  const assignedPlan = dietStore.week.find(d => d.assignedDays && d.assignedDays.includes(currentDayOfWeek))
-  if (assignedPlan) return assignedPlan
-  
-  // Fallback to strict string match (e.g. legacy or manual mapped dates)
-  return dietStore.week.find(d => d.date === selectedDateStr.value) || null
+  return dietStore.getDayPlanForDate(selectedDateStr.value)
 })
 
 const todayMeals = computed(() => {

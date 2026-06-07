@@ -54,6 +54,9 @@ const isSearching = ref(false)
 const showManualAdd = ref(false)
 const activeTab = ref<'search' | 'my'>('search')
 
+const showWakeUpMessage = ref(false)
+const searchError = ref('')
+
 const myFoodsResults = computed(() => foodsStore.searchMyFoods(searchQuery.value))
 
 const manualName = ref('')
@@ -112,17 +115,42 @@ watch([loggedMeal, plannedMeal], () => {
 }, { deep: true })
 
 let searchTimeout: any = null
+let wakeUpTimeout: any = null
+
 watch(searchQuery, (newVal) => {
   if (searchTimeout) clearTimeout(searchTimeout)
+  if (wakeUpTimeout) clearTimeout(wakeUpTimeout)
+  
   if (!newVal.trim()) {
     searchResults.value = []
     isSearching.value = false
+    showWakeUpMessage.value = false
+    searchError.value = ''
     return
   }
+  
   isSearching.value = true
+  showWakeUpMessage.value = false
+  searchError.value = ''
+  
+  // Set a timeout to display a "wake up" warning if the request takes more than 3 seconds
+  wakeUpTimeout = setTimeout(() => {
+    if (isSearching.value) {
+      showWakeUpMessage.value = true
+    }
+  }, 3000)
+
   searchTimeout = setTimeout(async () => {
-    searchResults.value = await searchFoods(newVal)
-    isSearching.value = false
+    try {
+      searchResults.value = await searchFoods(newVal)
+    } catch (err: any) {
+      console.error(err)
+      searchError.value = 'Error al consultar la base de datos. Inténtalo de nuevo.'
+    } finally {
+      isSearching.value = false
+      showWakeUpMessage.value = false
+      if (wakeUpTimeout) clearTimeout(wakeUpTimeout)
+    }
   }, 500)
 })
 
@@ -469,7 +497,15 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
           </div>
 
           <div v-if="activeTab === 'search' && !selectedFoodToAdd" class="bg-white border border-gray-100 rounded-xl shadow-sm max-h-60 overflow-y-auto mb-4">
-            <div v-if="isSearching" class="p-4 text-center text-xs text-gray-500">Searching...</div>
+            <div v-if="isSearching" class="p-4 text-center text-xs text-gray-500 flex flex-col items-center gap-2">
+              <span class="animate-pulse">Buscando en la base de datos...</span>
+              <span v-if="showWakeUpMessage" class="text-[10px] text-amber-600 font-medium max-w-[250px] leading-tight mt-1 bg-amber-50 p-2 rounded-lg border border-amber-100">
+                ⏳ El servidor en la nube (Render) está despertando. Esto puede tardar hasta 50 segundos. Gracias por tu paciencia.
+              </span>
+            </div>
+            <div v-else-if="searchError" class="p-4 text-center text-xs text-red-500">
+              ⚠️ {{ searchError }}
+            </div>
             <div v-else-if="searchQuery && searchResults.length === 0" class="p-4 text-center text-xs text-gray-500">No results found.</div>
             <div v-else-if="!searchQuery" class="p-4 text-center text-xs text-gray-400">Type to search food database...</div>
             <div v-else v-for="res in searchResults" :key="res.id" class="flex items-center justify-between p-3 border-b border-gray-50 last:border-0 hover:bg-gray-50">

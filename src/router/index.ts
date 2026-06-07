@@ -61,7 +61,7 @@ onAuthStateChanged(auth, () => {
   resolveAuthReady()
 })
 
-router.beforeEach(async (to, _from, next) => {
+router.beforeEach(async (to) => {
   // Wait for Firebase to emit the first auth state before any navigation
   await authReady
 
@@ -71,12 +71,10 @@ router.beforeEach(async (to, _from, next) => {
 
   if (requiresAuth && !user) {
     // Not logged in → send to login with redirect param
-    next({ name: 'login', query: { redirect: to.fullPath } })
+    return { name: 'login', query: { redirect: to.fullPath } }
   } else if (guestOnly && user) {
     // Already logged in → skip login/register
-    next({ name: 'dashboard' })
-  } else {
-    next()
+    return { name: 'dashboard' }
   }
 })
 
