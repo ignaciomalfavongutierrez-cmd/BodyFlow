@@ -33,6 +33,8 @@ const fat = ref(0)
 const sugar = ref(0)
 
 const isDirty = ref(false)
+const weightOrHeightClicked = ref(false)
+const isLoggingOut = ref(false)
 
 watch(
   () => userStore.profile,
@@ -99,6 +101,7 @@ async function saveProfile() {
   })
 
   isDirty.value = false
+  weightOrHeightClicked.value = false
   isSaved.value = true
   setTimeout(() => { isSaved.value = false }, 2000)
 }
@@ -122,6 +125,7 @@ function autoCalculate() {
     sugar.value = targets.sugar
     validationError.value = ''
     isDirty.value = true
+    weightOrHeightClicked.value = true
     saveProfile()
   } catch (e: any) {
     validationError.value = e.message
@@ -132,7 +136,9 @@ function markDirty() {
   isDirty.value = true
 }
 
-function confirmLogout() {
+async function confirmLogout() {
+  isLoggingOut.value = true
+  await new Promise(resolve => setTimeout(resolve, 1500))
   authStore.handleLogout()
 }
 </script>
@@ -180,8 +186,8 @@ function confirmLogout() {
         <h2 class="text-[11px] font-bold uppercase tracking-wider mb-4" style="color: var(--on-surface-muted);">Datos Físicos</h2>
         
         <div class="grid grid-cols-2 gap-4 mb-4">
-          <BaseInput label="Peso (kg)" v-model="weight" type="number" placeholder="Ej. 70" @input="markDirty" />
-          <BaseInput label="Estatura (cm)" v-model="height" type="number" placeholder="Ej. 175" @input="markDirty" />
+          <BaseInput label="Peso (kg)" v-model="weight" type="number" placeholder="Ej. 70" @input="markDirty" @click="weightOrHeightClicked = true" @focusin="weightOrHeightClicked = true" />
+          <BaseInput label="Estatura (cm)" v-model="height" type="number" placeholder="Ej. 175" @input="markDirty" @click="weightOrHeightClicked = true" @focusin="weightOrHeightClicked = true" />
           <BaseInput label="Edad" v-model="age" type="number" placeholder="Ej. 25" @input="markDirty" />
           
           <div class="flex flex-col">
@@ -248,7 +254,7 @@ function confirmLogout() {
       <button
         @click="saveProfile"
         class="w-full py-4 btn-primary text-lg rounded-xl active:scale-[0.98] transition-all disabled:opacity-50"
-        :disabled="!isFormValid"
+        :disabled="!isFormValid || !weightOrHeightClicked"
       >
         Guardar Configuración
       </button>
@@ -257,19 +263,28 @@ function confirmLogout() {
     <!-- Logout Confirmation Modal -->
     <transition name="fade">
       <div v-if="showLogoutModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-        <div class="glass-card p-6 max-w-sm w-full" style="background: var(--surface-container-high); border-color: var(--glass-border-hover);">
-          <div class="w-12 h-12 rounded-full flex items-center justify-center mb-4" style="background: rgba(255, 180, 171, 0.15); color: var(--error);">
-            <LogOut class="w-6 h-6" />
+        <div class="glass-card p-6 max-w-sm w-full transition-all duration-300" style="background: var(--surface-container-high); border-color: var(--glass-border-hover);">
+          <div v-if="isLoggingOut" class="flex flex-col items-center py-6">
+            <!-- Loading Spinner -->
+            <div class="w-12 h-12 rounded-full border-4 border-t-transparent animate-spin mb-4" style="border-color: rgba(25, 232, 13, 0.1); border-top-color: var(--primary);"></div>
+            <h3 class="text-lg font-bold mb-1" style="color: var(--on-surface);">Cerrando sesión...</h3>
+            <p class="text-xs text-center" style="color: var(--on-surface-muted);">Saliendo de tu cuenta de forma segura.</p>
           </div>
-          <h3 class="text-lg font-bold mb-2" style="color: var(--on-surface);">¿Cerrar sesión?</h3>
-          <p class="text-sm mb-6" style="color: var(--on-surface-muted);">Tendrás que volver a ingresar tus credenciales para acceder a tu planificador.</p>
-          <div class="flex gap-3">
-            <button @click="showLogoutModal = false" class="flex-1 py-3 rounded-xl font-bold transition-colors" style="background: var(--surface-container-highest); color: var(--on-surface);">
-              Cancelar
-            </button>
-            <button @click="confirmLogout" class="flex-1 py-3 text-white rounded-xl font-bold hover:bg-red-700 transition-colors shadow-md" style="background: var(--error-container);">
-              Salir
-            </button>
+          
+          <div v-else>
+            <div class="w-12 h-12 rounded-full flex items-center justify-center mb-4" style="background: rgba(255, 180, 171, 0.15); color: var(--error);">
+              <LogOut class="w-6 h-6" />
+            </div>
+            <h3 class="text-lg font-bold mb-2" style="color: var(--on-surface);">¿Cerrar sesión?</h3>
+            <p class="text-sm mb-6" style="color: var(--on-surface-muted);">Tendrás que volver a ingresar tus credenciales para acceder a tu planificador.</p>
+            <div class="flex gap-3">
+              <button @click="showLogoutModal = false" class="flex-1 py-3 rounded-xl font-bold transition-colors" style="background: var(--surface-container-highest); color: var(--on-surface);">
+                Cancelar
+              </button>
+              <button @click="confirmLogout" class="flex-1 py-3 text-white rounded-xl font-bold hover:bg-red-700 transition-colors shadow-md" style="background: var(--error-container);">
+                Salir
+              </button>
+            </div>
           </div>
         </div>
       </div>
