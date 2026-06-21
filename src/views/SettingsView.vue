@@ -33,7 +33,6 @@ const fat = ref(0)
 const sugar = ref(0)
 
 const isDirty = ref(false)
-const weightOrHeightClicked = ref(false)
 const isLoggingOut = ref(false)
 
 watch(
@@ -101,7 +100,6 @@ async function saveProfile() {
   })
 
   isDirty.value = false
-  weightOrHeightClicked.value = false
   isSaved.value = true
   setTimeout(() => { isSaved.value = false }, 2000)
 }
@@ -125,7 +123,6 @@ function autoCalculate() {
     sugar.value = targets.sugar
     validationError.value = ''
     isDirty.value = true
-    weightOrHeightClicked.value = true
     saveProfile()
   } catch (e: any) {
     validationError.value = e.message
@@ -134,6 +131,14 @@ function autoCalculate() {
 
 function markDirty() {
   isDirty.value = true
+}
+
+async function toggleMacroSource() {
+  if (userStore.profile.useMealPlanOverride) {
+    await userStore.clearMealPlanOverride()
+  } else if (userStore.profile.mealPlanTargets) {
+    await userStore.applyMealPlanOverride(userStore.profile.mealPlanTargets)
+  }
 }
 
 async function confirmLogout() {
@@ -186,8 +191,8 @@ async function confirmLogout() {
         <h2 class="text-[11px] font-bold uppercase tracking-wider mb-4" style="color: var(--on-surface-muted);">Datos Físicos</h2>
         
         <div class="grid grid-cols-2 gap-4 mb-4">
-          <BaseInput label="Peso (kg)" v-model="weight" type="number" placeholder="Ej. 70" @input="markDirty" @click="weightOrHeightClicked = true" @focusin="weightOrHeightClicked = true" />
-          <BaseInput label="Estatura (cm)" v-model="height" type="number" placeholder="Ej. 175" @input="markDirty" @click="weightOrHeightClicked = true" @focusin="weightOrHeightClicked = true" />
+          <BaseInput label="Peso (kg)" v-model="weight" type="number" placeholder="Ej. 70" @input="markDirty" />
+          <BaseInput label="Estatura (cm)" v-model="height" type="number" placeholder="Ej. 175" @input="markDirty" />
           <BaseInput label="Edad" v-model="age" type="number" placeholder="Ej. 25" @input="markDirty" />
           
           <div class="flex flex-col">
@@ -240,6 +245,37 @@ async function confirmLogout() {
         </div>
       </section>
 
+      <!-- Macro Source Toggle (visible when a plan has been imported) -->
+      <section v-if="userStore.profile.mealPlanTargets" class="glass-card p-5">
+        <h2 class="text-[11px] font-bold uppercase tracking-wider mb-3" style="color: var(--on-surface-muted);">Fuente de Metas</h2>
+        
+        <div class="flex items-center justify-between">
+          <div class="flex-1 mr-3">
+            <p class="text-sm font-bold" style="color: var(--on-surface);">
+              {{ userStore.profile.useMealPlanOverride ? 'Plan de Nutrióloga' : 'Calculadas por App' }}
+            </p>
+            <p class="text-[11px] mt-0.5" style="color: var(--on-surface-muted);">
+              {{ userStore.profile.useMealPlanOverride 
+                ? 'Las metas reflejan los macros de tu plan importado.' 
+                : 'Las metas se calculan con Mifflin-St Jeor (TDEE).' }}
+            </p>
+          </div>
+          
+          <!-- Toggle Switch -->
+          <button 
+            @click="toggleMacroSource"
+            class="relative w-12 h-7 rounded-full transition-colors duration-200 focus:outline-none shrink-0"
+            :style="{ background: userStore.profile.useMealPlanOverride ? 'var(--primary)' : 'var(--surface-container-highest)' }"
+          >
+            <span 
+              class="absolute top-0.5 w-6 h-6 rounded-full shadow transition-transform duration-200"
+              :class="userStore.profile.useMealPlanOverride ? 'translate-x-5' : 'translate-x-0.5'"
+              style="background: var(--on-primary);"
+            ></span>
+          </button>
+        </div>
+      </section>
+
       <!-- Logout Button -->
       <section class="mt-6 mb-8">
         <button @click="showLogoutModal = true" class="w-full flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-sm transition-colors" style="background: rgba(255, 180, 171, 0.1); color: var(--error); border: 1px solid rgba(255, 180, 171, 0.15);">
@@ -250,15 +286,27 @@ async function confirmLogout() {
     </div>
 
     <!-- Fixed Bottom Save Button -->
-    <div class="fixed bottom-16 left-0 right-0 p-4 border-t md:max-w-md md:mx-auto z-10 backdrop-blur-md" style="background: rgba(14, 14, 16, 0.85); border-top: 1px solid var(--glass-border);">
-      <button
-        @click="saveProfile"
-        class="w-full py-4 btn-primary text-lg rounded-xl active:scale-[0.98] transition-all disabled:opacity-50"
-        :disabled="!isFormValid || !weightOrHeightClicked"
-      >
-        Guardar Configuración
-      </button>
-    </div>
+    <transition name="fade">
+      <div v-if="isDirty" class="fixed bottom-16 left-0 right-0 p-4 border-t md:max-w-md md:mx-auto z-10 backdrop-blur-md" style="background: rgba(14, 14, 16, 0.85); border-top: 1px solid var(--glass-border);">
+        <button
+          @click="saveProfile"
+          class="w-full py-4 btn-primary text-lg rounded-xl active:scale-[0.98] transition-all disabled:opacity-50"
+          :disabled="!isFormValid"
+        >
+          Guardar Configuración
+        </button>
+      </div>
+    </transition>
+
+    <!-- Floating Success Toast -->
+    <transition name="fade">
+      <div v-if="isSaved" class="fixed bottom-20 left-4 right-4 md:max-w-md md:mx-auto z-50 flex items-center justify-center pointer-events-none">
+        <div class="flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg border border-emerald-500/20 backdrop-blur-md" style="background: rgba(20, 20, 25, 0.95); color: var(--primary);">
+          <CheckCircle class="w-5 h-5 text-emerald-400" />
+          <span class="text-sm font-bold">Configuración guardada correctamente</span>
+        </div>
+      </div>
+    </transition>
 
     <!-- Logout Confirmation Modal -->
     <transition name="fade">

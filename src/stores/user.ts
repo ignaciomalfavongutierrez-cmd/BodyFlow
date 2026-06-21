@@ -85,6 +85,31 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  // Replaces the active macroTargets with the imported meal plan totals.
+  // Backs up the current TDEE-based targets so they can be restored later.
+  async function applyMealPlanOverride(planMacros: import('../services/nutrition/models').MacroTargets) {
+    // Only backup TDEE targets if we haven't already (avoid overwriting backup with plan data)
+    const tdeeBackup = profile.value.tdeeTargets || { ...profile.value.macroTargets }
+
+    await updateProfile({
+      tdeeTargets: tdeeBackup,
+      mealPlanTargets: { ...planMacros },
+      macroTargets: { ...planMacros },
+      useMealPlanOverride: true
+    })
+  }
+
+  // Restores the active macroTargets from the TDEE backup.
+  async function clearMealPlanOverride() {
+    const tdeeTargets = profile.value.tdeeTargets
+    if (!tdeeTargets) return
+
+    await updateProfile({
+      macroTargets: { ...tdeeTargets },
+      useMealPlanOverride: false
+    })
+  }
+
   // Called by authStore.handleLogout() BEFORE signOut() to cleanly detach the
   // Firestore listener. Without this, the listener fires after the UID becomes
   // null and produces "Insufficient Permissions" console errors.
@@ -100,6 +125,8 @@ export const useUserStore = defineStore('user', () => {
     profile,
     fetchProfile,
     updateProfile,
+    applyMealPlanOverride,
+    clearMealPlanOverride,
     reset
   }
 })

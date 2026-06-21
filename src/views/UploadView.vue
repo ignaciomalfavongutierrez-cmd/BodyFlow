@@ -4,9 +4,12 @@ import { useRouter } from 'vue-router'
 import { extractTextFromPDF } from '../services/pdfParser'
 import { generatePrompt, parseManualJson } from '../services/aiParser'
 import { useDietStore, type DayPlan } from '../stores/diet'
+import { useUserStore } from '../stores/user'
+import { summarizePlanMacros } from '../services/nutrition/reconciliation'
 
 const router = useRouter()
 const dietStore = useDietStore()
+const userStore = useUserStore()
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const selectedFile = ref<File | null>(null)
@@ -118,10 +121,18 @@ function processManualJson() {
   }
 }
 
-function savePlan() {
+async function savePlan() {
   if (!parsedPreview.value) return
   
-  dietStore.setDiet(parsedPreview.value)
+  await dietStore.setDiet(parsedPreview.value)
+
+  // Reconciliation: compute daily average macros from the imported plan
+  // and override the Dashboard targets so completing all meals = 100%
+  const planMacros = summarizePlanMacros(parsedPreview.value)
+  if (planMacros.calories > 0) {
+    await userStore.applyMealPlanOverride(planMacros)
+  }
+
   router.push('/')
 }
 
