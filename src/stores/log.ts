@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { db, auth } from '../firebase'
-import { doc, getDoc, setDoc, collection, getDocs, query, where } from 'firebase/firestore'
+import { doc, getDoc, setDoc } from 'firebase/firestore'
 
 export interface LoggedMacros {
   calories: number
@@ -105,6 +105,29 @@ export const useLogStore = defineStore('log', () => {
     meal.actualMacros = totals
   }
 
+  async function removeCustomFood(date: string, mealId: string, foodId: string) {
+    if (!logs.value[date]) return
+    const meal = logs.value[date].meals.find(m => m.id === mealId)
+    if (!meal || !meal.customFoods) return
+    meal.customFoods = meal.customFoods.filter(f => f.id !== foodId)
+    if (meal.customFoods.length === 0) {
+      meal.customFoods = []
+      // We don't have planned macros here, so actualMacros stays as last total unless overridden
+    } else {
+      recalculateMacrosFromCustomFoods(meal)
+    }
+    await saveDayLog(date)
+  }
+
+  async function clearCustomFoods(date: string, mealId: string, plannedMacros: LoggedMacros) {
+    if (!logs.value[date]) return
+    const meal = logs.value[date].meals.find(m => m.id === mealId)
+    if (!meal) return
+    meal.customFoods = []
+    meal.actualMacros = plannedMacros
+    await saveDayLog(date)
+  }
+
   function reset() {
     logs.value = {}
   }
@@ -115,6 +138,8 @@ export const useLogStore = defineStore('log', () => {
     toggleMeal,
     setMealMacros,
     addCustomFood,
+    removeCustomFood,
+    clearCustomFoods,
     reset
   }
 })

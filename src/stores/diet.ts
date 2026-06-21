@@ -52,10 +52,25 @@ export const useDietStore = defineStore('diet', () => {
     week.value = []
   }
 
+  function toggleAssignedDay(date: string, dayIndex: number) {
+    const dayPlan = week.value.find(d => d.date === date)
+    if (!dayPlan) return
+    if (!dayPlan.assignedDays) dayPlan.assignedDays = []
+    
+    if (dayPlan.assignedDays.includes(dayIndex)) {
+      dayPlan.assignedDays = dayPlan.assignedDays.filter(d => d !== dayIndex)
+    } else {
+      dayPlan.assignedDays.push(dayIndex)
+    }
+    
+    setDiet(week.value)
+  }
+
   return {
     week,
     fetchDiet,
     setDiet,
+    toggleAssignedDay,
     reset
   }
 })

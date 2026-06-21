@@ -54,7 +54,7 @@ onUnmounted(() => {
         <!-- El src apunta a la carpeta public (/splashscreen2.mp4) lo que evita errores de build (import) -->
         <video 
           ref="splashVideo"
-          src="/splashscreen2.mp4" 
+          src="/splashscreen.mp4" 
           class="w-48 h-48 object-cover rounded-3xl mb-6 shadow-2xl"
           muted 
           playsinline
