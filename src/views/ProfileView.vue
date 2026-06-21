@@ -29,6 +29,20 @@ const isFormValid = computed(() => {
   return true
 })
 
+const hasChanges = computed(() => {
+  if (Number(weight.value) !== (userStore.profile.weight || 0) && (weight.value || userStore.profile.weight)) return true
+  if (Number(height.value) !== (userStore.profile.height || 0) && (height.value || userStore.profile.height)) return true
+  if (goal.value !== (userStore.profile.goal || 'maintain')) return true
+  
+  if (Number(calories.value) !== userStore.profile.macroTargets.calories) return true
+  if (Number(protein.value) !== userStore.profile.macroTargets.protein) return true
+  if (Number(carbs.value) !== userStore.profile.macroTargets.carbs) return true
+  if (Number(fat.value) !== userStore.profile.macroTargets.fat) return true
+  if (Number(sugar.value) !== userStore.profile.macroTargets.sugar) return true
+  
+  return false
+})
+
 function saveProfile() {
   if (!isFormValid.value) {
     validationError.value = 'Values cannot be negative.'
@@ -257,19 +271,31 @@ function handleImport(event: Event) {
     </div>
 
     <!-- Fixed Bottom Save Button -->
-    <div class="fixed bottom-16 left-0 right-0 p-4 bg-white border-t border-gray-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] md:max-w-md md:mx-auto">
-      <button 
-        @click="saveProfile"
-        class="w-full py-4 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-700 active:bg-emerald-800 transition-colors shadow-sm disabled:opacity-50"
-        :disabled="!isFormValid"
-      >
-        Save Profile
-      </button>
-    </div>
+    <transition name="slide-up">
+      <div v-if="hasChanges" class="fixed bottom-16 left-0 right-0 p-4 bg-white border-t border-gray-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] md:max-w-md md:mx-auto">
+        <button 
+          @click="saveProfile"
+          class="w-full py-4 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-700 active:bg-emerald-800 transition-colors shadow-sm disabled:opacity-50"
+          :disabled="!isFormValid"
+        >
+          Save Profile
+        </button>
+      </div>
+    </transition>
   </div>
 </template>
 
 <style scoped>
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease-out;
+}
+.slide-up-enter-from,
+.slide-up-leave-to {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
 /* Custom select chevron using background image since we use appearance-none */
 select {
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
