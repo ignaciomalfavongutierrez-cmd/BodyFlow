@@ -3,10 +3,14 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import AppLayout from './layouts/AppLayout.vue'
 import { usePwaStore } from './stores/pwa'
 import { useAuthStore } from './stores/auth'
+import splashVideo from './assets/splashscreen2.mp4'
 
 const isOffline = ref(!navigator.onLine)
-const showSplash = ref(true)
-const splashVideo = ref<HTMLVideoElement | null>(null)
+const authStore = useAuthStore()
+const pwaStore = usePwaStore()
+
+const isAuthReady = computed(() => !authStore.loading)
+const splashActive = ref(true)
 
 function updateOnlineStatus() {
   isOffline.value = !navigator.onLine
@@ -23,16 +27,24 @@ function handleVideoLoaded() {
 onMounted(() => {
   window.addEventListener('online', updateOnlineStatus)
   window.addEventListener('offline', updateOnlineStatus)
-  
-  // Ocultar el splash screen después de 1.9 segundos exactos
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    pwaStore.capturePrompt(e)
+  })
+
+  // Muestra el splash screen al menos por 2.5 segundos
   setTimeout(() => {
-    showSplash.value = false
-  }, 1900)
+    splashActive.value = false
+  }, 2500)
 })
 
 onUnmounted(() => {
   window.removeEventListener('online', updateOnlineStatus)
   window.removeEventListener('offline', updateOnlineStatus)
+})
+
+const isSplashVisible = computed(() => {
+  return !isAuthReady.value || splashActive.value
 })
 </script>
 
@@ -41,45 +53,35 @@ onUnmounted(() => {
     <!-- Offline Banner -->
     <div 
       v-if="isOffline" 
-      class="fixed top-0 left-0 right-0 bg-red-500 text-white text-xs font-bold py-1.5 text-center z-50 shadow-sm"
+      class="fixed top-0 left-0 right-0 text-xs font-bold py-1.5 text-center z-50 shadow-sm"
+      style="background: var(--error-container); color: var(--error);"
     >
-      You are offline. Showing saved data.
+      Estás sin conexión. Mostrando datos guardados.
     </div>
 
-    <!-- Splash Screen con el video -->
-    <transition name="fade">
-      <div 
-        v-if="showSplash" 
-        class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-gray-900"
-      >
-        <!-- El src apunta a la carpeta public (/splashscreen2.mp4) lo que evita errores de build (import) -->
-        <video 
-          ref="splashVideo"
-          src="/splashscreen.mp4" 
-          class="w-48 h-48 object-cover rounded-3xl mb-6 shadow-2xl"
-          muted 
+    <!-- Splash Screen with Video -->
+    <transition name="fade-splash">
+      <div v-if="isSplashVisible" class="fixed inset-0 z-[100] flex items-center justify-center bg-black">
+        <video
+          :src="splashVideo"
+          autoplay
+          muted
           playsinline
-          @loadedmetadata="handleVideoLoaded"
+          loop
+          class="w-full h-full object-cover"
         ></video>
-        <h1 class="text-3xl font-bold text-emerald-500 tracking-tight">BodyFlow</h1>
-        <p class="text-emerald-600 font-medium text-sm mt-2 animate-pulse">Cargando...</p>
       </div>
     </transition>
     
-    <AppLayout v-if="!showSplash" :class="{'pt-6': isOffline}" />
-    
-    <InstallPrompt />
+    <AppLayout v-if="!isSplashVisible" :class="{'pt-6': isOffline}" />
   </div>
 </template>
 
 <style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.5s ease;
+.fade-splash-leave-active {
+  transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
-
-.fade-enter-from,
-.fade-leave-to {
+.fade-splash-leave-to {
   opacity: 0;
 }
 </style>

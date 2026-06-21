@@ -4,6 +4,7 @@ defineProps<{
   modelValue: string | number | null
   type?: 'text' | 'number'
   placeholder?: string
+  disabled?: boolean
 }>()
 
 defineEmits<{
@@ -12,14 +13,15 @@ defineEmits<{
 </script>
 
 <template>
-  <div class="flex flex-col mb-4">
-    <label class="text-sm font-medium text-gray-700 mb-1">{{ label }}</label>
+  <div class="flex flex-col">
+    <label class="text-[11px] font-bold uppercase tracking-wider mb-1.5 ml-1" style="color: var(--on-surface-muted);">{{ label }}</label>
     <input
       :type="type || 'text'"
       :value="modelValue"
       @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
       :placeholder="placeholder"
-      class="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all outline-none w-full text-gray-900"
+      :disabled="disabled"
+      class="input-field w-full text-sm disabled:opacity-50"
     />
   </div>
 </template>

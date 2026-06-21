@@ -78,12 +78,10 @@ router.beforeEach(async (to, _from, next) => {
 
   if (requiresAuth && !user) {
     // Not logged in → send to login with redirect param
-    next({ name: 'login', query: { redirect: to.fullPath } })
+    return { name: 'login', query: { redirect: to.fullPath } }
   } else if (guestOnly && user) {
     // Already logged in → skip login/register
-    next({ name: 'dashboard' })
-  } else {
-    next()
+    return { name: 'dashboard' }
   }
 })
 

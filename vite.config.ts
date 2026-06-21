@@ -15,10 +15,10 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Macro Tracker',
-        short_name: 'Macros',
-        theme_color: '#000000',
-        background_color: '#ffffff',
+        name: 'BodyFlow',
+        short_name: 'BodyFlow',
+        theme_color: '#19e80dff',
+        background_color: '#000000',
         display: 'standalone',
         icons: [
           {

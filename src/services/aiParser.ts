@@ -1,24 +1,41 @@
 import type { DayPlan } from '../stores/diet'
 
 export function generatePrompt(text: string): string {
-  return `Extract a weekly diet plan from this text and calculate the estimated nutritional macros for each meal.
+  return `Eres un nutriólogo experto. Extrae el plan de dieta semanal del siguiente texto y calcula los macronutrientes estimados para cada comida.
 
-Return ONLY valid JSON.
+Devuelve ÚNICAMENTE un JSON válido, sin explicaciones ni bloques de código markdown.
 
-Format:
+INSTRUCCIONES CRÍTICAS PARA EXTRAER LOS DÍAS:
+
+1. Los días en el PDF pueden venir en CUALQUIERA de estos formatos:
+   - Numerados: "DIA 1", "DIA 2", "DIA 3", etc.
+   - Por nombre de día: "LUNES", "MARTES", "MIÉRCOLES", etc.
+   - Mixto: "DIA 1 (LUNES)", etc.
+
+2. Para cada día, extrae TODAS las comidas que aparecen debajo de esa columna/sección.
+
+3. Los nombres de comidas comunes son: DESAYUNO, ALMUERZO/MEDIA MAÑANA, COMIDA, COLACIÓN/SNACK, CENA. Pero pueden variar; extrae lo que encuentres.
+
+4. Para la propiedad "date", genera un identificador normalizado:
+   - Si el PDF dice "DIA 1", "DIA 2"... → usa "dia_1", "dia_2", etc.
+   - Si el PDF dice "LUNES", "MARTES"... → usa "lunes", "martes", etc.
+   
+5. Para "dayName", usa el nombre EXACTO como aparece en el PDF (ej: "DIA 1", "LUNES").
+
+Formato del JSON:
 {
   "week": [
     {
       "dayName": "DIA 1",
-      "date": "lunes", // Usa solo el nombre del día de la semana (ej. "lunes", "martes") o "dia 1"
+      "date": "dia_1",
       "meals": [
         {
-          "id": "unique-meal-id-123",
+          "id": "meal-dia1-desayuno",
           "name": "DESAYUNO",
           "items": [
-            "3 claras + 1 huevo entero",
-            "50 g avena",
-            "1 fruta"
+            "Avena 40g",
+            "Fruta 1 pieza",
+            "Leche proteina 250ml"
           ],
           "plannedMacros": {
             "calories": 350,
@@ -33,25 +50,16 @@ Format:
   ]
 }
 
-Rules:
+Reglas:
+- NO incluyas explicaciones ni texto adicional.
+- NO uses bloques markdown como \\\`\\\`\\\`json.
+- SOLO devuelve el objeto JSON crudo.
+- Extrae los items de comida específicos como strings individuales en el array "items".
+- Extrae TODAS las comidas de cada día (pueden ser 3, 4, 5 o más por día).
+- CRÍTICO: Actúa como nutriólogo experto. Estima y calcula las calorías totales (kcal), proteína (g), carbohidratos (g), grasa (g), y azúcar (g) para los ingredientes combinados de cada comida.
+- Genera IDs únicos para cada comida (formato: "meal-dia1-desayuno", "meal-dia2-comida", etc.).
 
-Do NOT include explanations.
-
-Do NOT include markdown blocks like \`\`\`json.
-
-ONLY return the raw JSON object.
-
-Extract the specific food items into the "items" array for each meal as individual strings.
-
-Ensure you extract all 5 meals per day (DESAYUNO, ALMUERZO, COMIDA, COLACIÓN, CENA).
-
-CRITICAL: Act as an expert nutritionist. Estimate and calculate the total calories (kcal), protein (g), carbs (g), fat (g), and sugar (g) for the combined ingredients in each meal, and populate the plannedMacros object with these calculated estimates.
-
-Generate unique meal IDs.
-
-Para la propiedad "date", NO uses formato YYYY-MM-DD. Usa únicamente el nombre del día que le corresponde en la dieta (ej. "lunes", "martes") o "dia 1", "dia 2", etc.
-
-Text:
+Texto extraído del PDF:
 ${text}`
 }
 

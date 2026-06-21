@@ -119,15 +119,16 @@ async function callFatSecret(apiParams) {
 // ---------------------------------------------------------------------------
 
 function parseMacros(description = '') {
-  const extract = label => {
-    const m = description.match(new RegExp(`${label}:\\s*([\\d.]+)`))
+  const extract = pattern => {
+    // Matches labels case-insensitively, supporting e.g. Calories/Calorías, Fat/Grasa
+    const m = description.match(new RegExp(`(?:${pattern})\\s*:\\s*([\\d.]+)`, 'i'))
     return m ? parseFloat(m[1]) : 0
   }
   return {
-    calories: extract('Calories'),
-    fat: extract('Fat'),
-    carbs: extract('Carbs'),
-    protein: extract('Protein'),
+    calories: extract('Calories|Calor[íi]as'),
+    fat: extract('Fat|Grasa'),
+    carbs: extract('Carbs|Carbohydrate|Carbohidratos'),
+    protein: extract('Protein|Prote[íi]na'),
     sugar: 0,
   }
 }

@@ -75,8 +75,15 @@ export const useLogStore = defineStore('log', () => {
     await setDoc(docRef, logs.value[date])
   }
 
+  function ensureLogExists(date: string) {
+    if (!logs.value[date]) {
+      logs.value[date] = { date, meals: [] }
+    }
+  }
+
   async function toggleMeal(date: string, mealId: string) {
     if (!logs.value[date]) await fetchDayLog(date)
+    ensureLogExists(date)
     
     let meal = logs.value[date].meals.find(m => m.id === mealId)
     if (!meal) {
@@ -90,6 +97,8 @@ export const useLogStore = defineStore('log', () => {
 
   async function setMealMacros(date: string, mealId: string, macros: LoggedMacros) {
     if (!logs.value[date]) await fetchDayLog(date)
+    ensureLogExists(date)
+    
     let meal = logs.value[date].meals.find(m => m.id === mealId)
     if (!meal) {
       meal = { id: mealId, completed: false, actualMacros: null }
@@ -101,6 +110,8 @@ export const useLogStore = defineStore('log', () => {
 
   async function addCustomFood(date: string, mealId: string, food: CustomFood) {
     if (!logs.value[date]) await fetchDayLog(date)
+    ensureLogExists(date)
+    
     let meal = logs.value[date].meals.find(m => m.id === mealId)
     if (!meal) {
       meal = { id: mealId, completed: false, actualMacros: null, customFoods: [] }
@@ -155,7 +166,7 @@ export const useLogStore = defineStore('log', () => {
   }
 
   async function removeCustomFood(date: string, mealId: string, foodId: string) {
-    if (!logs.value[date]) return
+    ensureLogExists(date)
     const meal = logs.value[date].meals.find(m => m.id === mealId)
     if (!meal || !meal.customFoods) return
     
@@ -169,7 +180,7 @@ export const useLogStore = defineStore('log', () => {
   }
 
   async function clearCustomFoods(date: string, mealId: string, macros: LoggedMacros) {
-    if (!logs.value[date]) return
+    ensureLogExists(date)
     const meal = logs.value[date].meals.find(m => m.id === mealId)
     if (!meal) return
     
@@ -181,6 +192,8 @@ export const useLogStore = defineStore('log', () => {
 
   async function toggleSubstitutedItem(date: string, mealId: string, itemIndex: number) {
     if (!logs.value[date]) await fetchDayLog(date)
+    ensureLogExists(date)
+    
     let meal = logs.value[date].meals.find(m => m.id === mealId)
     if (!meal) {
       meal = { id: mealId, completed: false, actualMacros: null }
