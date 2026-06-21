@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import AppLayout from './layouts/AppLayout.vue'
 import { usePwaStore } from './stores/pwa'
 import { useAuthStore } from './stores/auth'
-import splashVideo from './assets/splashscreen2.mp4'
+import splashVideoSrc from './assets/splashscreen.mp4'
 
 const isOffline = ref(!navigator.onLine)
 const authStore = useAuthStore()
@@ -11,16 +11,17 @@ const pwaStore = usePwaStore()
 
 const isAuthReady = computed(() => !authStore.loading)
 const splashActive = ref(true)
+const videoRef = ref<HTMLVideoElement | null>(null)
 
 function updateOnlineStatus() {
   isOffline.value = !navigator.onLine
 }
 
 function handleVideoLoaded() {
-  if (splashVideo.value) {
+  if (videoRef.value) {
     // Recortar los primeros 2 segundos como se solicitó antes
-    splashVideo.value.currentTime = 2;
-    splashVideo.value.play().catch(e => console.warn('Autoplay prevented:', e));
+    videoRef.value.currentTime = 2;
+    videoRef.value.play().catch(e => console.warn('Autoplay prevented:', e));
   }
 }
 
@@ -63,7 +64,9 @@ const isSplashVisible = computed(() => {
     <transition name="fade-splash">
       <div v-if="isSplashVisible" class="fixed inset-0 z-[100] flex items-center justify-center bg-black">
         <video
-          :src="splashVideo"
+          ref="videoRef"
+          :src="splashVideoSrc"
+          @loadedmetadata="handleVideoLoaded"
           autoplay
           muted
           playsinline
