@@ -62,6 +62,13 @@ onAuthStateChanged(auth, () => {
 })
 
 router.beforeEach(async (to, _from, next) => {
+  if (to.matched.some((record) => record.meta.requiresAuth)) {
+    if (await getCurrentUser()) {
+      next()
+    } else {
+      next('/login')
+    }
+router.beforeEach(async (to, _from, next) => {
   // Wait for Firebase to emit the first auth state before any navigation
   await authReady
 
