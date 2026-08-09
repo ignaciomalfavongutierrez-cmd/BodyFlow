@@ -5,8 +5,16 @@ import { useDietStore } from '../stores/diet'
 import { useLogStore } from '../stores/log'
 import { useFoodsStore, type SavedFood } from '../stores/foods'
 import { searchFoods, type FoodSearchResult } from '../services/foodApi'
+import { 
+  getSingleItemSubstitution, 
+  getWholeMealAdjustment, 
+  type SubstitutionResult 
+} from '../services/aiParser'
 import BaseInput from '../components/BaseInput.vue'
-import { AlertTriangle, CheckCircle, X, Search, ChevronLeft, BookmarkPlus, Plus, BookmarkMinus } from 'lucide-vue-next'
+import { 
+  AlertTriangle, CheckCircle, X, Search, ChevronLeft, BookmarkPlus, Plus, BookmarkMinus, 
+  Sparkles, Wand2, Scale, AlertCircle, RefreshCw 
+} from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -67,6 +75,128 @@ const manualCarb = ref(0)
 const manualFat = ref(0)
 const manualSug = ref(0)
 const saveToMyFoods = ref(false)
+
+// AI Smart Substitution state
+const showAiModal = ref(false)
+const aiMode = ref<'single' | 'whole'>('single')
+const selectedOriginalItem = ref<string>('')
+const selectedOriginalIndex = ref<number>(-1)
+const replacementInput = ref('')
+const availableFoodsInput = ref('')
+
+const isAiProcessing = ref(false)
+const aiError = ref('')
+const aiResult = ref<SubstitutionResult | null>(null)
+
+function openSingleItemAiSubstitution(item: string, idx: number) {
+  selectedOriginalItem.value = item
+  selectedOriginalIndex.value = idx
+  replacementInput.value = ''
+  aiResult.value = null
+  aiError.value = ''
+  aiMode.value = 'single'
+  showAiModal.value = true
+}
+
+function openWholeMealAiAdjustment() {
+  availableFoodsInput.value = ''
+  aiResult.value = null
+  aiError.value = ''
+  aiMode.value = 'whole'
+  showAiModal.value = true
+}
+
+async function runAiSubstitution() {
+  if (!plannedMeal.value) return
+  isAiProcessing.value = true
+  aiError.value = ''
+  aiResult.value = null
+
+  try {
+    if (aiMode.value === 'single') {
+      if (!selectedOriginalItem.value || !replacementInput.value.trim()) {
+        throw new Error('Por favor indica el alimento que deseas utilizar como sustituto.')
+      }
+      aiResult.value = await getSingleItemSubstitution(
+        selectedOriginalItem.value,
+        replacementInput.value.trim(),
+        plannedMeal.value.name,
+        plannedMeal.value.plannedMacros
+      )
+    } else {
+      if (!availableFoodsInput.value.trim()) {
+        throw new Error('Por favor escribe los alimentos con los que cuentas.')
+      }
+      aiResult.value = await getWholeMealAdjustment(
+        plannedMeal.value.name,
+        plannedMeal.value.items || [],
+        plannedMeal.value.plannedMacros || { calories: 0, protein: 0, carbs: 0, fat: 0 },
+        availableFoodsInput.value.trim()
+      )
+    }
+  } catch (err: any) {
+    console.error('Error en Asistente IA de Sustitución:', err)
+    aiError.value = err.message || 'Error al comunicarse con la IA.'
+  } finally {
+    isAiProcessing.value = false
+  }
+}
+
+async function applyAiSubstitution() {
+  if (!aiResult.value || !plannedMeal.value) return
+
+  if (!isCompleted.value) {
+    logStore.toggleMeal(date.value, mealId.value)
+  }
+
+  if (aiMode.value === 'single' && selectedOriginalIndex.value >= 0) {
+    if (!isSubstituted(selectedOriginalIndex.value)) {
+      logStore.toggleSubstitutedItem(date.value, mealId.value, selectedOriginalIndex.value)
+    }
+  } else if (aiMode.value === 'whole') {
+    plannedMeal.value.items?.forEach((_, idx) => {
+      if (!isSubstituted(idx)) {
+        logStore.toggleSubstitutedItem(date.value, mealId.value, idx)
+      }
+    })
+  }
+
+  for (const item of aiResult.value.replacementFoods) {
+    logStore.addCustomFood(date.value, mealId.value, {
+      id: `ai_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      name: item.name,
+      quantity: item.quantity,
+      macros: {
+        calories: Math.round(item.macros.calories),
+        protein: Math.round(item.macros.protein),
+        carbs: Math.round(item.macros.carbs),
+        fat: Math.round(item.macros.fat),
+        sugar: Math.round(item.macros.sugar || 0)
+      }
+    })
+  }
+
+  showAiModal.value = false
+  aiResult.value = null
+}
+
+const macroProgress = computed(() => {
+  if (!plannedMeal.value?.plannedMacros || !loggedMeal.value?.actualMacros) return null
+  const p = plannedMeal.value.plannedMacros
+  const a = loggedMeal.value.actualMacros
+
+  const calcPct = (actual: number, target: number) => {
+    if (!target || target <= 0) return 0
+    return Math.min(Math.round((actual / target) * 100), 200)
+  }
+
+  return {
+    calories: { actual: a.calories, target: p.calories, pct: calcPct(a.calories, p.calories) },
+    protein:  { actual: a.protein,  target: p.protein,  pct: calcPct(a.protein, p.protein) },
+    carbs:    { actual: a.carbs,    target: p.carbs,    pct: calcPct(a.carbs, p.carbs) },
+    fat:      { actual: a.fat,      target: p.fat,      pct: calcPct(a.fat, p.fat) },
+  }
+})
 
 const isMacrosExceeded = computed(() => {
   if (!plannedMeal.value?.plannedMacros || !loggedMeal.value?.actualMacros) return false
@@ -295,23 +425,35 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
             
             <div v-if="plannedMeal.items && plannedMeal.items.length > 0" class="mt-5">
               <h3 class="text-[10px] font-bold uppercase tracking-wider mb-2" style="color: var(--on-surface-muted);">Ingredientes planificados</h3>
-              <p class="text-[9px] mb-2.5" style="color: var(--on-surface-muted);">Presiona un ingrediente para marcarlo como omitido/sustituido.</p>
+              <p class="text-[9px] mb-2.5" style="color: var(--on-surface-muted);">Presiona un ingrediente para omitirlo o usa la IA para sustituirlo.</p>
               <ul class="space-y-2 text-sm">
                 <li 
                   v-for="(item, idx) in plannedMeal.items" 
                   :key="idx" 
-                  @click="toggleIngredient(idx)"
-                  class="cursor-pointer transition-all flex items-start gap-2"
-                  :style="{ opacity: isSubstituted(idx) ? 0.4 : 1 }"
+                  class="transition-all flex items-center justify-between gap-2 p-2 rounded-xl"
+                  style="background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border);"
+                  :style="{ opacity: isSubstituted(idx) ? 0.5 : 1 }"
                 >
-                  <div class="w-4 h-4 rounded-full border mt-0.5 flex items-center justify-center flex-shrink-0 transition-colors"
-                       :style="{
-                         borderColor: isSubstituted(idx) ? 'var(--primary-container)' : 'var(--outline)',
-                         backgroundColor: isSubstituted(idx) ? 'var(--primary-container)' : 'transparent'
-                       }">
-                    <CheckCircle v-if="isSubstituted(idx)" class="w-3 h-3" style="color: var(--on-primary);" />
+                  <div @click="toggleIngredient(idx)" class="cursor-pointer flex items-center gap-2 flex-1 min-w-0">
+                    <div class="w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors"
+                         :style="{
+                           borderColor: isSubstituted(idx) ? 'var(--primary-container)' : 'var(--outline)',
+                           backgroundColor: isSubstituted(idx) ? 'var(--primary-container)' : 'transparent'
+                         }">
+                      <CheckCircle v-if="isSubstituted(idx)" class="w-3 h-3" style="color: var(--on-primary);" />
+                    </div>
+                    <span :class="{'line-through': isSubstituted(idx)}" class="truncate text-xs font-medium" :style="{ color: isSubstituted(idx) ? 'var(--on-surface-muted)' : 'var(--on-surface)' }">{{ item }}</span>
                   </div>
-                  <span :class="{'line-through': isSubstituted(idx)}" :style="{ color: isSubstituted(idx) ? 'var(--on-surface-muted)' : 'var(--on-surface)' }">{{ item }}</span>
+
+                  <button 
+                    @click.stop="openSingleItemAiSubstitution(item, idx)"
+                    class="px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 shrink-0 border transition-all hover:scale-105"
+                    style="background: rgba(25, 232, 13, 0.12); color: var(--primary); border-color: rgba(25, 232, 13, 0.25);"
+                    title="Sustituir este ingrediente con IA"
+                  >
+                    <Sparkles class="w-3 h-3" />
+                    Sustituir
+                  </button>
                 </li>
               </ul>
             </div>
@@ -393,6 +535,66 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
           ¿Comiste exactamente lo planeado? Si no, edita los valores reales a continuación.
         </p>
 
+        <!-- Macro Progress Bars (Comparativa de metas) -->
+        <div v-if="macroProgress" class="mb-5 p-3.5 rounded-xl border space-y-2.5" style="background: rgba(0,0,0,0.25); border-color: var(--glass-border);">
+          <div class="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider mb-1" style="color: var(--on-surface-muted);">
+            <span>Balance Nutricional</span>
+            <span>Real / Meta</span>
+          </div>
+
+          <!-- Calories Progress -->
+          <div>
+            <div class="flex justify-between text-[11px] font-semibold mb-1">
+              <span style="color: var(--on-surface);">Calorías</span>
+              <span :style="{ color: macroProgress.calories.pct > 105 ? 'var(--error)' : 'var(--primary)' }">
+                {{ macroProgress.calories.actual }} / {{ macroProgress.calories.target }} kcal ({{ macroProgress.calories.pct }}%)
+              </span>
+            </div>
+            <div class="w-full h-1.5 rounded-full overflow-hidden" style="background: rgba(255,255,255,0.08);">
+              <div class="h-full rounded-full transition-all duration-500" :style="{ width: `${Math.min(macroProgress.calories.pct, 100)}%`, backgroundColor: macroProgress.calories.pct > 105 ? 'var(--error)' : 'var(--primary)' }"></div>
+            </div>
+          </div>
+
+          <!-- Protein Progress -->
+          <div>
+            <div class="flex justify-between text-[11px] font-semibold mb-1">
+              <span style="color: var(--on-surface);">Proteínas</span>
+              <span :style="{ color: macroProgress.protein.pct > 105 ? 'var(--error)' : 'var(--primary)' }">
+                {{ macroProgress.protein.actual }} / {{ macroProgress.protein.target }}g ({{ macroProgress.protein.pct }}%)
+              </span>
+            </div>
+            <div class="w-full h-1.5 rounded-full overflow-hidden" style="background: rgba(255,255,255,0.08);">
+              <div class="h-full rounded-full transition-all duration-500" :style="{ width: `${Math.min(macroProgress.protein.pct, 100)}%`, backgroundColor: macroProgress.protein.pct > 105 ? 'var(--error)' : 'var(--primary)' }"></div>
+            </div>
+          </div>
+
+          <!-- Carbs Progress -->
+          <div>
+            <div class="flex justify-between text-[11px] font-semibold mb-1">
+              <span style="color: var(--on-surface);">Carbohidratos</span>
+              <span :style="{ color: macroProgress.carbs.pct > 105 ? 'var(--error)' : 'var(--primary)' }">
+                {{ macroProgress.carbs.actual }} / {{ macroProgress.carbs.target }}g ({{ macroProgress.carbs.pct }}%)
+              </span>
+            </div>
+            <div class="w-full h-1.5 rounded-full overflow-hidden" style="background: rgba(255,255,255,0.08);">
+              <div class="h-full rounded-full transition-all duration-500" :style="{ width: `${Math.min(macroProgress.carbs.pct, 100)}%`, backgroundColor: macroProgress.carbs.pct > 105 ? 'var(--error)' : 'var(--primary)' }"></div>
+            </div>
+          </div>
+
+          <!-- Fat Progress -->
+          <div>
+            <div class="flex justify-between text-[11px] font-semibold mb-1">
+              <span style="color: var(--on-surface);">Grasas</span>
+              <span :style="{ color: macroProgress.fat.pct > 105 ? 'var(--error)' : 'var(--primary)' }">
+                {{ macroProgress.fat.actual }} / {{ macroProgress.fat.target }}g ({{ macroProgress.fat.pct }}%)
+              </span>
+            </div>
+            <div class="w-full h-1.5 rounded-full overflow-hidden" style="background: rgba(255,255,255,0.08);">
+              <div class="h-full rounded-full transition-all duration-500" :style="{ width: `${Math.min(macroProgress.fat.pct, 100)}%`, backgroundColor: macroProgress.fat.pct > 105 ? 'var(--error)' : 'var(--primary)' }"></div>
+            </div>
+          </div>
+        </div>
+
         <div class="space-y-4" :class="{'opacity-50 pointer-events-none': customFoods.length > 0}">
           <div class="flex flex-col">
             <label class="text-[11px] font-bold uppercase tracking-wider mb-1.5 ml-1" :style="{ color: isMacroExceeded('calories') ? 'var(--error)' : 'var(--on-surface-muted)' }">Calorías (kcal)</label>
@@ -429,8 +631,20 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
 
       <!-- Substitution Section -->
       <div v-if="isCompleted" class="glass-card p-5 mb-6">
-        <h3 class="text-sm font-bold mb-1" style="color: var(--on-surface);">Sustituir Alimentos</h3>
-        <p class="text-xs mb-4" style="color: var(--on-surface-muted);">Reemplaza los alimentos planificados por comida real.</p>
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <h3 class="text-sm font-bold mb-0.5" style="color: var(--on-surface);">Sustituir Alimentos</h3>
+            <p class="text-xs" style="color: var(--on-surface-muted);">Reemplaza los alimentos planificados por comida real.</p>
+          </div>
+          <button 
+            @click="openWholeMealAiAdjustment" 
+            class="px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border shadow-sm transition-all hover:scale-105 shrink-0 ml-2"
+            style="background: linear-gradient(135deg, rgba(25, 232, 13, 0.2), rgba(16, 185, 129, 0.1)); color: var(--primary); border-color: rgba(25, 232, 13, 0.35);"
+          >
+            <Sparkles class="w-4 h-4" />
+            Asistente IA
+          </button>
+        </div>
         
         <!-- List of substitutions -->
         <div v-if="customFoods.length > 0" class="space-y-3 mb-6">
@@ -610,6 +824,146 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
       </div>
 
     </div>
+
+    <!-- AI Substitution Modal -->
+    <transition name="fade">
+      <div v-if="showAiModal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 backdrop-blur-md" style="background: rgba(0,0,0,0.8);">
+        <div class="glass-card w-full max-w-md p-5 rounded-3xl animate-fade-in space-y-4 max-h-[90vh] overflow-y-auto border shadow-2xl" style="background: var(--surface-container-lowest); border-color: var(--glass-border);">
+          
+          <!-- Modal Header -->
+          <div class="flex justify-between items-center pb-3 border-b" style="border-color: var(--glass-border);">
+            <div class="flex items-center gap-2">
+              <div class="p-2 rounded-xl" style="background: rgba(25, 232, 13, 0.15); color: var(--primary);">
+                <Sparkles class="w-5 h-5" />
+              </div>
+              <div>
+                <h3 class="font-bold text-base" style="font-family: var(--font-display); color: var(--on-surface);">Asistente de Sustitución IA</h3>
+                <p class="text-[10px]" style="color: var(--on-surface-muted);">Calcula porciones y ajusta tu comida con Gemini</p>
+              </div>
+            </div>
+            <button @click="showAiModal = false" class="p-1.5 rounded-full hover:bg-white/10" style="color: var(--on-surface-muted);">
+              <X class="w-5 h-5" />
+            </button>
+          </div>
+
+          <!-- Mode Selector Tabs -->
+          <div class="flex rounded-xl p-1 border" style="background: rgba(0,0,0,0.2); border-color: var(--glass-border);">
+            <button 
+              @click="aiMode = 'single'; aiResult = null;" 
+              class="flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5" 
+              :class="aiMode === 'single' ? 'bg-white/10 text-white shadow-sm' : 'text-zinc-500'"
+            >
+              <Scale class="w-3.5 h-3.5" />
+              1 Ingrediente
+            </button>
+            <button 
+              @click="aiMode = 'whole'; aiResult = null;" 
+              class="flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5" 
+              :class="aiMode === 'whole' ? 'bg-white/10 text-white shadow-sm' : 'text-zinc-500'"
+            >
+              <Wand2 class="w-3.5 h-3.5" />
+              Comida Completa ("Solo tengo...")
+            </button>
+          </div>
+
+          <!-- Mode Single Form -->
+          <div v-if="aiMode === 'single' && !aiResult" class="space-y-3">
+            <div>
+              <label class="text-[10px] font-bold uppercase tracking-wider mb-1 block" style="color: var(--on-surface-muted);">Ingrediente Original a sustituir</label>
+              <select v-model="selectedOriginalItem" class="w-full input-field text-xs bg-black/40">
+                <option v-for="(item, idx) in plannedMeal?.items || []" :key="idx" :value="item">{{ item }}</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="text-[10px] font-bold uppercase tracking-wider mb-1 block" style="color: var(--on-surface-muted);">Alimento sustituto disponible</label>
+              <input 
+                v-model="replacementInput" 
+                type="text" 
+                placeholder="Ej. Atún en agua, Huevo entero, Pechuga de pavo" 
+                class="w-full input-field text-xs"
+              />
+            </div>
+          </div>
+
+          <!-- Mode Whole Form -->
+          <div v-if="aiMode === 'whole' && !aiResult" class="space-y-3">
+            <div>
+              <label class="text-[10px] font-bold uppercase tracking-wider mb-1 block" style="color: var(--on-surface-muted);">Alimentos disponibles en tu cocina</label>
+              <textarea 
+                v-model="availableFoodsInput" 
+                placeholder="Escribe lo que tienes disponible. Ej: 3 huevos, 1 lata de atún, 100g de arroz cocido, aguacate, tortilla de maíz..." 
+                class="w-full h-24 p-3 text-xs input-field resize-none"
+              ></textarea>
+            </div>
+          </div>
+
+          <!-- Error Alert -->
+          <div v-if="aiError" class="p-3 rounded-xl flex items-start gap-2 border text-xs" style="background: var(--error-container); border-color: rgba(255,180,171,0.2); color: var(--error);">
+            <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{{ aiError }}</span>
+          </div>
+
+          <!-- AI Action Button -->
+          <button 
+            v-if="!aiResult" 
+            @click="runAiSubstitution" 
+            :disabled="isAiProcessing"
+            class="w-full py-3.5 btn-primary text-sm flex items-center justify-center gap-2 shadow-md"
+          >
+            <RefreshCw v-if="isAiProcessing" class="w-4 h-4 animate-spin" />
+            <Sparkles v-else class="w-4 h-4" />
+            {{ isAiProcessing ? 'Calculando Porciones con IA...' : 'Calcular Porciones con IA' }}
+          </button>
+
+          <!-- AI Result View -->
+          <div v-if="aiResult" class="space-y-4 animate-fade-in">
+            <!-- Explanation Box -->
+            <div class="p-3.5 rounded-xl border" style="background: rgba(25, 232, 13, 0.1); border-color: rgba(25, 232, 13, 0.25);">
+              <p class="text-xs font-semibold leading-relaxed" style="color: var(--primary);">
+                💡 {{ aiResult.explanation }}
+              </p>
+            </div>
+
+            <!-- Warning Banner if macro difference exists or alertMessage exists -->
+            <div v-if="aiResult.alertMessage" class="p-3.5 rounded-xl border flex items-start gap-2.5" style="background: rgba(251, 191, 36, 0.12); border-color: rgba(251, 191, 36, 0.3); color: #fbbf24;">
+              <AlertCircle class="w-5 h-5 shrink-0 mt-0.5" />
+              <div class="text-xs font-semibold leading-snug">
+                {{ aiResult.alertMessage }}
+              </div>
+            </div>
+
+            <!-- Replacement Items List -->
+            <div>
+              <h4 class="text-[10px] font-bold uppercase tracking-wider mb-2" style="color: var(--on-surface-muted);">Porciones Sugeridas por IA</h4>
+              <div class="space-y-2">
+                <div v-for="(item, idx) in aiResult.replacementFoods" :key="idx" class="p-3 rounded-xl border flex justify-between items-center" style="background: rgba(255,255,255,0.02); border-color: var(--glass-border);">
+                  <div>
+                    <div class="font-semibold text-xs" style="color: var(--on-surface);">{{ item.name }}</div>
+                    <div class="text-[10px] font-bold" style="color: var(--primary);">{{ item.quantity }}</div>
+                  </div>
+                  <div class="text-right text-[10px]" style="color: var(--on-surface-muted);">
+                    <div class="font-bold" style="color: var(--on-surface);">{{ Math.round(item.macros.calories) }} kcal</div>
+                    <div>P: {{ Math.round(item.macros.protein) }}g | C: {{ Math.round(item.macros.carbs) }}g | G: {{ Math.round(item.macros.fat) }}g</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-2 pt-2">
+              <button @click="aiResult = null" class="flex-1 py-3 btn-secondary text-xs">
+                Recalcular
+              </button>
+              <button @click="applyAiSubstitution" class="flex-1 py-3 btn-primary text-xs shadow-md">
+                Aplicar Sustitución
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 

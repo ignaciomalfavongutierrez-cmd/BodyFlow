@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { extractTextFromPDF } from '../services/pdfParser'
-import { generatePrompt, parseManualJson } from '../services/aiParser'
+import { generatePrompt, parseManualJson, parsePdfWithGemini } from '../services/aiParser'
 import { useDietStore, type DayPlan } from '../stores/diet'
 
 const router = useRouter()
@@ -25,7 +25,10 @@ function onFileSelected(event: Event) {
   const target = event.target as HTMLInputElement
   if (target.files && target.files.length > 0) {
     const file = target.files[0]
-    if (file.type !== 'application/pdf') {
+    const isPdfType = file.type === 'application/pdf' || file.type === 'application/x-pdf' || file.type === 'application/acrobat' || file.type === ''
+    const isPdfExtension = file.name.toLowerCase().endsWith('.pdf')
+
+    if (!isPdfType && !isPdfExtension) {
       error.value = 'Por favor selecciona un archivo PDF válido.'
       selectedFile.value = null
       return
@@ -43,6 +46,7 @@ async function processPdf() {
   isParsing.value = true
   error.value = ''
   parsedPreview.value = null
+  manualPrompt.value = ''
   
   try {
     const text = await extractTextFromPDF(selectedFile.value)
@@ -51,9 +55,48 @@ async function processPdf() {
       throw new Error('El PDF parece estar vacío o no contiene texto legible.')
     }
     
-    manualPrompt.value = generatePrompt(text)
+    // Invocación a la API de Gemini vía backend proxy
+    const parsedData = await parsePdfWithGemini(text)
+    
+    const WEEKDAY_SEQUENCE = [1, 2, 3, 4, 5, 6, 0] // Lun → Sáb → Dom
+    parsedData.forEach((day, index) => {
+      const lowerName = (day.date || day.dayName || '').toLowerCase()
+      const assignments: number[] = []
+
+      if (lowerName.includes('lunes')    || lowerName.includes('monday'))    assignments.push(1)
+      if (lowerName.includes('martes')   || lowerName.includes('tuesday'))   assignments.push(2)
+      if (lowerName.includes('miércoles') || lowerName.includes('miercoles') || lowerName.includes('wednesday')) assignments.push(3)
+      if (lowerName.includes('jueves')   || lowerName.includes('thursday'))  assignments.push(4)
+      if (lowerName.includes('viernes')  || lowerName.includes('friday'))    assignments.push(5)
+      if (lowerName.includes('sábado')   || lowerName.includes('sabado') || lowerName.includes('saturday'))  assignments.push(6)
+      if (lowerName.includes('domingo')  || lowerName.includes('sunday'))    assignments.push(0)
+
+      if (assignments.length === 0) {
+        const match = lowerName.match(/\d+/)
+        if (match) {
+          const n = parseInt(match[0], 10) - 1
+          if (n >= 0 && n < WEEKDAY_SEQUENCE.length) {
+            assignments.push(WEEKDAY_SEQUENCE[n])
+          }
+        } else {
+          assignments.push(WEEKDAY_SEQUENCE[index % WEEKDAY_SEQUENCE.length])
+        }
+      }
+
+      day.assignedDays = assignments
+    })
+    
+    parsedPreview.value = parsedData
   } catch (err: any) {
-    error.value = err.message || 'Ocurrió un error desconocido al procesar el archivo.'
+    console.error('Error procesando PDF con Gemini:', err)
+    error.value = err.message || 'Ocurrió un error al procesar el archivo.'
+    // Fallback a prompt manual en caso de error
+    try {
+      const text = await extractTextFromPDF(selectedFile.value)
+      if (text && text.length >= 50) {
+        manualPrompt.value = generatePrompt(text)
+      }
+    } catch { /* ignore */ }
   } finally {
     isParsing.value = false
   }
@@ -166,7 +209,7 @@ function discardPlan() {
         
         <input 
           type="file" 
-          accept=".pdf" 
+          accept="application/pdf,.pdf" 
           class="hidden" 
           ref="fileInput"
           @change="onFileSelected"
@@ -196,7 +239,7 @@ function discardPlan() {
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
-        {{ isParsing ? 'Extrayendo Texto...' : 'Generar Prompt' }}
+        {{ isParsing ? 'Procesando con IA (Gemini)...' : 'Procesar PDF con IA' }}
       </button>
 
       <!-- Manual AI workflow -->
