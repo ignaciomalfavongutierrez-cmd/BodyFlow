@@ -25,11 +25,11 @@ function onFileSelected(event: Event) {
   const target = event.target as HTMLInputElement
   if (target.files && target.files.length > 0) {
     const file = target.files[0]
-    const isPdfType = file.type === 'application/pdf' || file.type === 'application/x-pdf' || file.type === 'application/acrobat' || file.type === '' || file.type.includes('pdf')
-    const isPdfExtension = file.name.toLowerCase().endsWith('.pdf') || file.name.toLowerCase().includes('.pdf')
+    const isPdfType = file.type === 'application/pdf' || file.type === 'application/x-pdf' || file.type === 'application/acrobat' || file.type === '' || file.type.includes('pdf') || file.type.startsWith('image/')
+    const isPdfExtension = file.name.toLowerCase().endsWith('.pdf') || file.name.toLowerCase().includes('.pdf') || /\.(png|jpg|jpeg|webp)$/i.test(file.name)
 
     if (!isPdfType && !isPdfExtension) {
-      error.value = 'Por favor selecciona un archivo PDF válido.'
+      error.value = 'Por favor selecciona un archivo PDF o imagen válido.'
       selectedFile.value = null
       return
     }
@@ -49,23 +49,34 @@ async function processPdf() {
   manualPrompt.value = ''
   
   try {
-    let text = ''
-    try {
-      text = await extractTextFromPDF(selectedFile.value)
-    } catch (pdfErr) {
-      console.warn('La extracción de texto cliente falló o fue incompleta:', pdfErr)
-    }
+    const file = selectedFile.value
+    const isImage = file.type.startsWith('image/') || /\.(png|jpg|jpeg|webp)$/i.test(file.name)
 
     let parsedData: DayPlan[]
-    
-    if (text && text.trim().length >= 50) {
-      // Invocación a Gemini con el texto extraído del PDF
-      parsedData = await parsePdfWithGemini(text)
+
+    if (isImage) {
+      console.log('Enviando imagen de dieta directamente a Gemini...')
+      const base64 = await fileToBase64(file)
+      const mimeType = file.type || 'image/png'
+      parsedData = await parsePdfDirectWithGemini(base64, mimeType)
     } else {
-      // Fallback para iOS / Safari / PDFs de Apple o escaneados: Enviar PDF directo a Gemini (multimodal)
-      console.log('Enviando el archivo PDF directamente a Gemini...')
-      const base64 = await fileToBase64(selectedFile.value)
-      parsedData = await parsePdfDirectWithGemini(base64)
+      let text = ''
+      try {
+        text = await extractTextFromPDF(file)
+      } catch (pdfErr) {
+        console.warn('La extracción de texto cliente falló o fue incompleta:', pdfErr)
+      }
+
+      if (text && text.trim().length >= 50) {
+        // Invocación a Gemini con el texto extraído del PDF
+        parsedData = await parsePdfWithGemini(text)
+      } else {
+        // Fallback para iOS / Safari / PDFs de Apple o escaneados: Enviar PDF directo a Gemini (multimodal)
+        console.log('Enviando el archivo PDF directamente a Gemini...')
+        const base64 = await fileToBase64(file)
+        const mimeType = file.type || 'application/pdf'
+        parsedData = await parsePdfDirectWithGemini(base64, mimeType)
+      }
     }
     
     const WEEKDAY_SEQUENCE = [1, 2, 3, 4, 5, 6, 0] // Lun → Sáb → Dom
@@ -214,12 +225,12 @@ function discardPlan() {
           </svg>
         </div>
         
-        <h2 class="text-lg font-bold mb-2" style="font-family: var(--font-display); color: var(--on-surface);">Sube tu dieta en PDF</h2>
-        <p class="text-sm mb-6" style="color: var(--on-surface-muted);">Selecciona el PDF de tu nutriólogo para extraer el texto y generar el prompt.</p>
+        <h2 class="text-lg font-bold mb-2" style="font-family: var(--font-display); color: var(--on-surface);">Sube tu dieta (PDF o Imagen)</h2>
+        <p class="text-sm mb-6" style="color: var(--on-surface-muted);">Selecciona el PDF o captura de pantalla de tu dieta para procesarla con IA.</p>
         
         <input 
           type="file" 
-          accept="application/pdf, .pdf, application/x-pdf" 
+          accept="application/pdf, .pdf, application/x-pdf, image/png, image/jpeg, image/webp" 
           class="hidden" 
           ref="fileInput"
           @change="onFileSelected"
@@ -230,7 +241,7 @@ function discardPlan() {
           class="px-6 py-3 btn-secondary text-sm mb-4"
           :disabled="isParsing"
         >
-          Seleccionar Archivo PDF
+          Seleccionar Archivo (PDF / Imagen)
         </button>
 
         <div v-if="selectedFile" class="text-xs font-bold py-2.5 px-4 rounded-lg inline-block w-full truncate" style="background: rgba(25, 232, 13, 0.1); color: var(--primary);">

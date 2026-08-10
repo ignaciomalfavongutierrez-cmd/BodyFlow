@@ -1,28 +1,28 @@
 import type { DayPlan } from '../stores/diet'
 
 export function generatePrompt(text: string): string {
-  return `Eres un nutriólogo experto. Extrae el plan de dieta semanal del siguiente texto y calcula los macronutrientes estimados para cada comida.
+  return `Eres un nutriólogo experto y analista de planes de alimentación. Extrae el plan de dieta semanal del siguiente documento/texto y estructura la información en un formato JSON preciso.
 
-Devuelve ÚNICAMENTE un JSON válido, sin explicaciones ni bloques de código markdown.
+Devuelve ÚNICAMENTE un JSON válido, sin explicaciones adicionales ni bloques de código markdown.
 
-INSTRUCCIONES CRÍTICAS PARA EXTRAER LOS DÍAS:
+INSTRUCCIONES CRÍTICAS PARA EXTRAER DÍAS, COMIDAS Y ALIMENTOS:
 
-1. Los días en el PDF pueden venir en CUALQUIERA de estos formatos:
-   - Numerados: "DIA 1", "DIA 2", "DIA 3", etc.
-   - Por nombre de día: "LUNES", "MARTES", "MIÉRCOLES", etc.
-   - Mixto: "DIA 1 (LUNES)", etc.
+1. DÍAS Y SECCIONES:
+   - Extrae los días tal como aparezcan: numerados ("DIA 1", "DIA 2"...), por nombre de día ("LUNES", "MARTES"...), o combinados.
+   - Propiedad "date": identificador normalizado (ej: "dia_1", "lunes").
+   - Propiedad "dayName": nombre exacto tal cual está impreso (ej: "DIA 1", "LUNES").
 
-2. Para cada día, extrae TODAS las comidas que aparecen debajo de esa columna/sección.
+2. COMIDAS Y ALIMENTOS ESPECÍFICOS:
+   - Extrae TODAS las comidas presentadas para cada día (ej: DESAYUNO, ALMUERZO / MEDIA MAÑANA, COMIDA, COLACIÓN, CENA).
+   - En el array "items", incluye los alimentos con sus CANTIDADES EXACTAS y ESPECÍFICAS impresas en el documento (ej: ["150 g de pechuga de pollo", "180 g de arroz cocido", "Ensalada grande", "1 cucharada de aceite de oliva"]).
 
-3. Los nombres de comidas comunes son: DESAYUNO, ALMUERZO/MEDIA MAÑANA, COMIDA, COLACIÓN/SNACK, CENA. Pero pueden variar; extrae lo que encuentres.
+3. MANEJO DE MACRONUTRIENTES Y CALORÍAS (REGLA FUNDAMENTAL):
+   - REGLA A (Si el PDF/imagen ya incluye recuadro o información explícita de macros):
+     Si el plan contiene un recuadro o tabla con los totales diarios (ej: "1,900 kcal", "155 g de proteína", "180 g de carbohidratos", "55 g de grasa") o especifica macros explícitos por comida, USA ESOS VALORES IMPRESOS. Distribuye o asigna esos valores entre las comidas del día de modo que la suma de plannedMacros de las comidas coincida exactamente con los totales dados en el recuadro de la dieta.
+   - REGLA B (Si el PDF/imagen NO incluye macros explícitos):
+     Si la dieta solo enumera los alimentos y porciones sin indicar los gramos de macros ni calorías totales, actúa como nutriólogo experto y ESTIMA/CALCULA nutricionalmente las calorías (calories), proteína (protein), carbohidratos (carbs), grasa (fat) y azúcar (sugar) de cada comida sumando sus ingredientes.
 
-4. Para la propiedad "date", genera un identificador normalizado:
-   - Si el PDF dice "DIA 1", "DIA 2"... → usa "dia_1", "dia_2", etc.
-   - Si el PDF dice "LUNES", "MARTES"... → usa "lunes", "martes", etc.
-   
-5. Para "dayName", usa el nombre EXACTO como aparece en el PDF (ej: "DIA 1", "LUNES").
-
-Formato del JSON:
+4. FORMATO DEL JSON:
 {
   "week": [
     {
@@ -33,16 +33,17 @@ Formato del JSON:
           "id": "meal-dia1-desayuno",
           "name": "DESAYUNO",
           "items": [
-            "Avena 40g",
-            "Fruta 1 pieza",
-            "Leche proteina 250ml"
+            "150 g de pechuga de pollo",
+            "180 g de arroz cocido",
+            "Ensalada grande",
+            "1 cucharada de aceite de oliva"
           ],
           "plannedMacros": {
-            "calories": 350,
-            "protein": 24,
-            "carbs": 40,
-            "fat": 10,
-            "sugar": 15
+            "calories": 450,
+            "protein": 42,
+            "carbs": 45,
+            "fat": 12,
+            "sugar": 2
           }
         }
       ]
@@ -50,26 +51,23 @@ Formato del JSON:
   ]
 }
 
-Reglas:
-- NO incluyas explicaciones ni texto adicional.
-- NO uses bloques markdown como \\\`\\\`\\\`json.
+Reglas estrictas:
+- NO incluyas explicaciones ni texto fuera del JSON.
+- NO uses bloques markdown como \`\`\`json.
 - SOLO devuelve el objeto JSON crudo.
-- Extrae los items de comida específicos como strings individuales en el array "items".
-- Extrae TODAS las comidas de cada día (pueden ser 3, 4, 5 o más por día).
-- CRÍTICO: Actúa como nutriólogo experto. Estima y calcula las calorías totales (kcal), proteína (g), carbohidratos (g), grasa (g), y azúcar (g) para los ingredientes combinados de cada comida.
-- Genera IDs únicos para cada comida (formato: "meal-dia1-desayuno", "meal-dia2-comida", etc.).
+- Genera IDs únicos para cada comida (ej: "meal-dia1-desayuno", "meal-dia1-comida").
 
-Texto extraído del PDF:
+Contenido del plan de dieta:
 ${text}`
 }
 
 export function parseManualJson(jsonStr: string): DayPlan[] {
   try {
     let cleanJsonStr = jsonStr.trim()
-    if (cleanJsonStr.startsWith('\`\`\`json')) {
-      cleanJsonStr = cleanJsonStr.replace(/^\`\`\`json\n/, '').replace(/\n\`\`\`$/, '')
-    } else if (cleanJsonStr.startsWith('\`\`\`')) {
-      cleanJsonStr = cleanJsonStr.replace(/^\`\`\`\n/, '').replace(/\n\`\`\`$/, '')
+    if (cleanJsonStr.startsWith('```json')) {
+      cleanJsonStr = cleanJsonStr.replace(/^```json\n/, '').replace(/\n```$/, '')
+    } else if (cleanJsonStr.startsWith('```')) {
+      cleanJsonStr = cleanJsonStr.replace(/^```\n/, '').replace(/\n```$/, '')
     }
 
     const parsed = JSON.parse(cleanJsonStr)
@@ -137,13 +135,13 @@ export async function parsePdfWithGemini(pdfText: string): Promise<DayPlan[]> {
   return parseManualJson(rawResponse)
 }
 
-export async function parsePdfDirectWithGemini(base64Pdf: string): Promise<DayPlan[]> {
-  const promptText = generatePrompt('Procesa el archivo PDF adjunto y extrae el plan de dieta semanal con todos sus macronutrientes.')
+export async function parsePdfDirectWithGemini(base64Data: string, mimeType: string = 'application/pdf'): Promise<DayPlan[]> {
+  const promptText = generatePrompt('Procesa el archivo PDF o imagen adjunta de la dieta. Analiza cuidadosamente la tabla, comidas, cantidades y cualquier recuadro de macros totales impreso para extraer la estructura semanal exacta.')
   const contents = [
     {
       inlineData: {
-        mimeType: 'application/pdf',
-        data: base64Pdf
+        mimeType: mimeType || 'application/pdf',
+        data: base64Data
       }
     },
     {

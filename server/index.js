@@ -42,7 +42,8 @@ app.use(cors({
     cb(new Error(`CORS: origin '${origin}' not allowed`))
   },
 }))
-app.use(express.json())
+app.use(express.json({ limit: '50mb' }))
+app.use(express.urlencoded({ limit: '50mb', extended: true }))
 
 // ---------------------------------------------------------------------------
 // OAuth 2.0 - Token Management
