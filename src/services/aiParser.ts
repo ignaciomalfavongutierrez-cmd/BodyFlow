@@ -152,6 +152,23 @@ export async function parsePdfDirectWithGemini(base64Data: string, mimeType: str
   return parseManualJson(rawResponse)
 }
 
+export async function parseDirectImagesWithGemini(images: { mimeType: string; data: string }[]): Promise<DayPlan[]> {
+  const promptText = generatePrompt('Procesa las imágenes de la dieta adjuntas. Analiza cuidadosamente la tabla, comidas, cantidades de alimentos y cualquier recuadro de macros totales impreso para extraer la estructura semanal exacta en JSON.')
+  const contents = [
+    ...images.map(img => ({
+      inlineData: {
+        mimeType: img.mimeType,
+        data: img.data
+      }
+    })),
+    {
+      text: promptText
+    }
+  ]
+  const rawResponse = await sendContentsToGemini(contents)
+  return parseManualJson(rawResponse)
+}
+
 export interface SubstitutionResult {
   replacementFoods: Array<{
     name: string

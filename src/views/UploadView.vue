@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { extractTextFromPDF, fileToBase64 } from '../services/pdfParser'
-import { generatePrompt, parseManualJson, parsePdfWithGemini, parsePdfDirectWithGemini } from '../services/aiParser'
+import { extractTextFromPDF, compressImageFile, renderPdfPagesToCompressedImages } from '../services/pdfParser'
+import { generatePrompt, parseManualJson, parsePdfWithGemini, parseDirectImagesWithGemini } from '../services/aiParser'
 import { useDietStore, type DayPlan } from '../stores/diet'
 
 const router = useRouter()
@@ -55,10 +55,9 @@ async function processPdf() {
     let parsedData: DayPlan[]
 
     if (isImage) {
-      console.log('Enviando imagen de dieta directamente a Gemini...')
-      const base64 = await fileToBase64(file)
-      const mimeType = file.type || 'image/png'
-      parsedData = await parsePdfDirectWithGemini(base64, mimeType)
+      console.log('Comprimiendo y optimizando imagen para Gemini...')
+      const compressedImage = await compressImageFile(file)
+      parsedData = await parseDirectImagesWithGemini([compressedImage])
     } else {
       let text = ''
       try {
@@ -68,14 +67,17 @@ async function processPdf() {
       }
 
       if (text && text.trim().length >= 50) {
-        // Invocación a Gemini con el texto extraído del PDF
+        // Invocación a Gemini con el texto extraído del PDF (peso ligero ~2KB)
         parsedData = await parsePdfWithGemini(text)
       } else {
-        // Fallback para iOS / Safari / PDFs de Apple o escaneados: Enviar PDF directo a Gemini (multimodal)
-        console.log('Enviando el archivo PDF directamente a Gemini...')
-        const base64 = await fileToBase64(file)
-        const mimeType = file.type || 'application/pdf'
-        parsedData = await parsePdfDirectWithGemini(base64, mimeType)
+        // Fallback optimizado para iOS / Safari / PDFs de Apple o escaneados:
+        // Renderizar páginas a canvas JPEG comprimido (peso ~200KB por página)
+        console.log('Renderizando y comprimiendo páginas de PDF para Gemini...')
+        const compressedPages = await renderPdfPagesToCompressedImages(file)
+        if (!compressedPages || compressedPages.length === 0) {
+          throw new Error('No se pudieron renderizar las páginas del PDF.')
+        }
+        parsedData = await parseDirectImagesWithGemini(compressedPages)
       }
     }
     
