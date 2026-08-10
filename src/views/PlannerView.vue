@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useDietStore, type DayPlan } from '../stores/diet'
 import { useLogStore } from '../stores/log'
 import MealCard from '../components/MealCard.vue'
+import { FileUp } from 'lucide-vue-next'
 
 const dietStore = useDietStore()
 const logStore = useLogStore()
@@ -132,7 +133,20 @@ function closePlanPicker() {
     <!-- Sticky Header & Day Selector -->
     <header class="sticky top-0 z-10 backdrop-blur-md" style="background: rgba(14, 14, 16, 0.8); border-bottom: 1px solid var(--glass-border);">
       <div class="px-4 pt-6 pb-3">
-        <h1 class="text-xl font-bold mb-4" style="font-family: var(--font-display); color: var(--on-surface);">Planificador Semanal</h1>
+        <div class="flex justify-between items-center mb-4">
+          <h1 class="text-xl font-bold" style="font-family: var(--font-display); color: var(--on-surface);">Planificador Semanal</h1>
+          
+          <router-link 
+            v-if="dietStore.week.length > 0"
+            to="/upload" 
+            class="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all hover:scale-105 shadow-sm"
+            style="background: rgba(25, 232, 13, 0.1); color: var(--primary); border-color: rgba(25, 232, 13, 0.25);"
+            title="Reemplazar plan de dieta PDF"
+          >
+            <FileUp class="w-3.5 h-3.5" />
+            <span>Reemplazar PDF</span>
+          </router-link>
+        </div>
         
         <!-- Day Navigation — real week -->
         <div class="flex overflow-x-auto pb-1 hide-scrollbar snap-x">
@@ -221,7 +235,15 @@ function closePlanPicker() {
               </tr>
             </tbody>
           </table>
-          <p class="text-[10px] mt-3.5" style="color: var(--on-surface-muted);">Marca los días de la semana a los que quieres asignar cada plan. Un día solo puede tener un plan activo.</p>
+          <p class="text-[10px] mt-3.5 mb-3" style="color: var(--on-surface-muted);">Marca los días de la semana a los que quieres asignar cada plan. Un día solo puede tener un plan activo.</p>
+        </div>
+
+        <div class="pt-2 border-t flex justify-between items-center mt-2" style="border-color: var(--glass-border);">
+          <span class="text-[11px] font-medium" style="color: var(--on-surface-muted);">¿Tienes una nueva dieta?</span>
+          <router-link to="/upload" class="text-xs font-bold flex items-center gap-1 hover:underline" style="color: var(--primary);">
+            <FileUp class="w-3.5 h-3.5" />
+            Reemplazar plan PDF
+          </router-link>
         </div>
       </div>
 
