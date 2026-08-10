@@ -216,10 +216,10 @@ app.get('/api/foods/:id', async (req, res) => {
 })
 
 app.post('/api/chat', async (req, res) => {
-  const { prompt } = req.body
+  const { prompt, contents } = req.body
 
-  if (!prompt || typeof prompt !== 'string') {
-    return res.status(400).json({ error: 'El campo "prompt" es requerido.' })
+  if (!prompt && !contents) {
+    return res.status(400).json({ error: 'El campo "prompt" o "contents" es requerido.' })
   }
 
   const geminiKey = process.env.GEMINI_API_KEY
@@ -232,7 +232,7 @@ app.post('/api/chat', async (req, res) => {
     const ai = new GoogleGenAI({ apiKey: geminiKey })
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: prompt,
+      contents: contents || prompt,
     })
 
     const text = response.text || ''

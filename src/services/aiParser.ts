@@ -109,9 +109,48 @@ export async function sendPromptToGemini(prompt: string): Promise<string> {
   return data.text || ''
 }
 
+export async function sendContentsToGemini(contents: any): Promise<string> {
+  const res = await fetch(`${API_BASE}/api/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ contents }),
+  })
+
+  if (!res.ok) {
+    let errorMsg = `Error HTTP ${res.status}`
+    try {
+      const data = await res.json()
+      if (data.error) errorMsg = data.error
+    } catch { /* ignore */ }
+    throw new Error(errorMsg)
+  }
+
+  const data = await res.json()
+  return data.text || ''
+}
+
 export async function parsePdfWithGemini(pdfText: string): Promise<DayPlan[]> {
   const prompt = generatePrompt(pdfText)
   const rawResponse = await sendPromptToGemini(prompt)
+  return parseManualJson(rawResponse)
+}
+
+export async function parsePdfDirectWithGemini(base64Pdf: string): Promise<DayPlan[]> {
+  const promptText = generatePrompt('Procesa el archivo PDF adjunto y extrae el plan de dieta semanal con todos sus macronutrientes.')
+  const contents = [
+    {
+      inlineData: {
+        mimeType: 'application/pdf',
+        data: base64Pdf
+      }
+    },
+    {
+      text: promptText
+    }
+  ]
+  const rawResponse = await sendContentsToGemini(contents)
   return parseManualJson(rawResponse)
 }
 

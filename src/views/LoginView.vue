@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { auth } from '../firebase'
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult
 } from 'firebase/auth'
 import { useRouter, useRoute } from 'vue-router'
 import logoImg from '../assets/logo.png'
@@ -17,6 +19,19 @@ const password = ref('')
 const isRegister = ref(false)
 const error = ref('')
 const loading = ref(false)
+
+onMounted(async () => {
+  try {
+    const result = await getRedirectResult(auth)
+    if (result && result.user) {
+      const redirect = route.query.redirect as string || '/'
+      router.push(redirect)
+    }
+  } catch (err: any) {
+    console.error('Error procesando resultado de redirect Google Auth:', err)
+    error.value = err.message || 'Error al iniciar sesión con Google.'
+  }
+})
 
 async function handleSubmit() {
   if (!email.value || !password.value) return
@@ -40,12 +55,37 @@ async function handleSubmit() {
 
 async function loginWithGoogle() {
   const provider = new GoogleAuthProvider()
-  try {
-    await signInWithPopup(auth, provider)
-    const redirect = route.query.redirect as string || '/'
-    router.push(redirect)
-  } catch (err: any) {
-    error.value = err.message
+  provider.setCustomParameters({ prompt: 'select_account' })
+  loading.value = true
+  error.value = ''
+  
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.matchMedia('(display-mode: standalone)').matches
+
+  if (isMobile) {
+    try {
+      await signInWithRedirect(auth, provider)
+    } catch (err: any) {
+      error.value = err.message
+      loading.value = false
+    }
+  } else {
+    try {
+      await signInWithPopup(auth, provider)
+      const redirect = route.query.redirect as string || '/'
+      router.push(redirect)
+    } catch (err: any) {
+      if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+        try {
+          await signInWithRedirect(auth, provider)
+        } catch (redirErr: any) {
+          error.value = redirErr.message
+          loading.value = false
+        }
+      } else {
+        error.value = err.message
+        loading.value = false
+      }
+    }
   }
 }
 </script>

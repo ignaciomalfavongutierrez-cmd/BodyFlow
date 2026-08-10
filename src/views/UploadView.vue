@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { extractTextFromPDF } from '../services/pdfParser'
-import { generatePrompt, parseManualJson, parsePdfWithGemini } from '../services/aiParser'
+import { extractTextFromPDF, fileToBase64 } from '../services/pdfParser'
+import { generatePrompt, parseManualJson, parsePdfWithGemini, parsePdfDirectWithGemini } from '../services/aiParser'
 import { useDietStore, type DayPlan } from '../stores/diet'
 
 const router = useRouter()
@@ -25,8 +25,8 @@ function onFileSelected(event: Event) {
   const target = event.target as HTMLInputElement
   if (target.files && target.files.length > 0) {
     const file = target.files[0]
-    const isPdfType = file.type === 'application/pdf' || file.type === 'application/x-pdf' || file.type === 'application/acrobat' || file.type === ''
-    const isPdfExtension = file.name.toLowerCase().endsWith('.pdf')
+    const isPdfType = file.type === 'application/pdf' || file.type === 'application/x-pdf' || file.type === 'application/acrobat' || file.type === '' || file.type.includes('pdf')
+    const isPdfExtension = file.name.toLowerCase().endsWith('.pdf') || file.name.toLowerCase().includes('.pdf')
 
     if (!isPdfType && !isPdfExtension) {
       error.value = 'Por favor selecciona un archivo PDF válido.'
@@ -49,14 +49,24 @@ async function processPdf() {
   manualPrompt.value = ''
   
   try {
-    const text = await extractTextFromPDF(selectedFile.value)
-    
-    if (!text || text.length < 50) {
-      throw new Error('El PDF parece estar vacío o no contiene texto legible.')
+    let text = ''
+    try {
+      text = await extractTextFromPDF(selectedFile.value)
+    } catch (pdfErr) {
+      console.warn('La extracción de texto cliente falló o fue incompleta:', pdfErr)
     }
+
+    let parsedData: DayPlan[]
     
-    // Invocación a la API de Gemini vía backend proxy
-    const parsedData = await parsePdfWithGemini(text)
+    if (text && text.trim().length >= 50) {
+      // Invocación a Gemini con el texto extraído del PDF
+      parsedData = await parsePdfWithGemini(text)
+    } else {
+      // Fallback para iOS / Safari / PDFs de Apple o escaneados: Enviar PDF directo a Gemini (multimodal)
+      console.log('Enviando el archivo PDF directamente a Gemini...')
+      const base64 = await fileToBase64(selectedFile.value)
+      parsedData = await parsePdfDirectWithGemini(base64)
+    }
     
     const WEEKDAY_SEQUENCE = [1, 2, 3, 4, 5, 6, 0] // Lun → Sáb → Dom
     parsedData.forEach((day, index) => {
@@ -209,7 +219,7 @@ function discardPlan() {
         
         <input 
           type="file" 
-          accept="application/pdf,.pdf" 
+          accept="application/pdf, .pdf, application/x-pdf" 
           class="hidden" 
           ref="fileInput"
           @change="onFileSelected"
