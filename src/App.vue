@@ -3,7 +3,6 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import AppLayout from './layouts/AppLayout.vue'
 import { usePwaStore } from './stores/pwa'
 import { useAuthStore } from './stores/auth'
-// import splashVideoSrc from './assets/splashscreen.mp4'
 
 const isOffline = ref(!navigator.onLine)
 const authStore = useAuthStore()
@@ -11,19 +10,23 @@ const pwaStore = usePwaStore()
 
 const isAuthReady = computed(() => !authStore.loading)
 const splashActive = ref(true)
-// const videoRef = ref<HTMLVideoElement | null>(null)
+const loadingProgress = ref(0)
+
+// Dynamic phrases about intelligent nutrition
+const nutritionPhrases = [
+  "Nutrición inteligente guiada por Inteligencia Artificial.",
+  "Optimizando tu energía y macronutrientes en tiempo real.",
+  "Alimentación calculada para tu máximo rendimiento bio-físico.",
+  "Tu cuerpo en equilibrio con decisiones nutricionales inteligentes."
+]
+
+const currentPhraseIndex = ref(0)
+let phraseInterval: ReturnType<typeof setInterval> | null = null
+let progressInterval: ReturnType<typeof setInterval> | null = null
 
 function updateOnlineStatus() {
   isOffline.value = !navigator.onLine
 }
-
-// function handleVideoLoaded() {
-//   if (videoRef.value) {
-//     // Recortar los primeros 2 segundos como se solicitó antes
-//     videoRef.value.currentTime = 2;
-//     videoRef.value.play().catch(e => console.warn('Autoplay prevented:', e));
-//   }
-// }
 
 onMounted(() => {
   window.addEventListener('online', updateOnlineStatus)
@@ -33,15 +36,37 @@ onMounted(() => {
     pwaStore.capturePrompt(e)
   })
 
-  // Muestra el splash screen al menos por 2.5 segundos
+  // Rotate phrases smoothly
+  phraseInterval = setInterval(() => {
+    currentPhraseIndex.value = (currentPhraseIndex.value + 1) % nutritionPhrases.length
+  }, 2200)
+
+  // Progress bar simulation up to 100%
+  const startTime = Date.now()
+  const duration = 2200 // 2.2 seconds total splash time
+
+  progressInterval = setInterval(() => {
+    const elapsed = Date.now() - startTime
+    const progress = Math.min(Math.round((elapsed / duration) * 100), 100)
+    loadingProgress.value = progress
+
+    if (progress >= 100) {
+      if (progressInterval) clearInterval(progressInterval)
+    }
+  }, 30)
+
+  // Ensure splash stays active for minimum 2.3s for visual enjoyment
   setTimeout(() => {
     splashActive.value = false
-  }, 2500)
+    if (phraseInterval) clearInterval(phraseInterval)
+  }, 2300)
 })
 
 onUnmounted(() => {
   window.removeEventListener('online', updateOnlineStatus)
   window.removeEventListener('offline', updateOnlineStatus)
+  if (phraseInterval) clearInterval(phraseInterval)
+  if (progressInterval) clearInterval(progressInterval)
 })
 
 const isSplashVisible = computed(() => {
@@ -54,53 +79,79 @@ const isSplashVisible = computed(() => {
     <!-- Offline Banner -->
     <div 
       v-if="isOffline" 
-      class="fixed top-0 left-0 right-0 text-xs font-bold py-1.5 text-center z-50 shadow-sm"
-      style="background: var(--error-container); color: var(--error);"
+      class="fixed top-0 left-0 right-0 text-xs font-bold py-1.5 text-center z-[110] shadow-md border-b border-red-500/20 backdrop-blur-md"
+      style="background: rgba(147, 0, 10, 0.9); color: #ffdad6;"
     >
-      Estás sin conexión. Mostrando datos guardados.
+      ⚡ Estás sin conexión. Mostrando datos guardados.
     </div>
 
-    <!-- Beautiful Text Splash Screen -->
+    <!-- Premium Intelligent Nutrition Splash Loading Screen -->
     <transition name="fade-splash">
-      <div v-if="isSplashVisible" class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#0a0a0c] p-6 text-white overflow-hidden">
-        
-        <!-- Glowing Ambient Lights in Background -->
-        <div class="absolute w-72 h-72 bg-emerald-500/10 rounded-full blur-[100px] -top-10 -left-10 pointer-events-none"></div>
-        <div class="absolute w-72 h-72 bg-teal-500/10 rounded-full blur-[100px] -bottom-10 -right-10 pointer-events-none"></div>
+      <div 
+        v-if="isSplashVisible" 
+        class="fixed inset-0 z-[100] flex flex-col items-center justify-between py-12 px-6 bg-[#09090b] text-white overflow-hidden select-none"
+      >
+        <!-- Background Glowing Orbs -->
+        <div class="absolute w-96 h-96 bg-[#19e80d]/10 rounded-full blur-[120px] -top-20 -left-20 pointer-events-none animate-pulse-glow"></div>
+        <div class="absolute w-96 h-96 bg-[#4edea3]/10 rounded-full blur-[120px] -bottom-20 -right-20 pointer-events-none animate-pulse-glow" style="animation-delay: 1.5s;"></div>
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(25,232,13,0.03)_0%,transparent_70%)] pointer-events-none"></div>
 
-        <!-- App Branding Container -->
-        <div class="flex flex-col items-center select-none text-center">
+        <!-- Header Space / Badge -->
+        <div class="w-full flex justify-center pt-4 z-10">
+          <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 backdrop-blur-md">
+            <span class="w-2 h-2 rounded-full bg-[#19e80d] animate-ping"></span>
+            <span class="text-[10px] font-bold tracking-[0.2em] uppercase text-[#87ff70]">
+              Nutrición Inteligente
+            </span>
+          </div>
+        </div>
+
+        <!-- Center Branding Container -->
+        <div class="flex flex-col items-center text-center max-w-sm px-4 z-10 my-auto">
           
-          <!-- Animated Icon Container -->
-          <div class="relative mb-6 flex items-center justify-center">
-            <div class="absolute w-24 h-24 bg-emerald-500/15 rounded-full blur-xl animate-pulse-glow"></div>
-            <div class="relative z-10 w-20 h-20 rounded-2xl flex items-center justify-center bg-gradient-to-tr from-[#10b981] to-[#06b6d4] shadow-[0_12px_40px_rgba(16,185,129,0.35)] border border-emerald-400/20">
-              <!-- Wavy lines or generic abstract logo representing health flow/nutrition -->
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-white animate-bounce-slow" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
+          <!-- Animated BioFlow Energy Icon -->
+          <div class="relative mb-8 flex items-center justify-center">
+            <div class="absolute w-28 h-28 bg-[#19e80d]/20 rounded-3xl blur-xl animate-pulse-glow"></div>
+            <div class="relative z-10 w-24 h-24 rounded-3xl flex items-center justify-center bg-gradient-to-br from-[#19e80d] via-[#00a572] to-[#0e0e10] p-[1.5px] shadow-[0_0_50px_rgba(25,232,13,0.3)]">
+              <div class="w-full h-full bg-[#0e0e10]/90 backdrop-blur-xl rounded-[22px] flex items-center justify-center relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-tr from-[#19e80d]/15 to-transparent"></div>
+                <!-- Abstract Bio/Leaf Spark Icon -->
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-11 h-11 text-[#87ff70] drop-shadow-[0_0_12px_rgba(135,255,112,0.6)] animate-float" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
             </div>
           </div>
 
-          <!-- Glowing App Name -->
-          <h1 class="text-4xl font-black tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400 animate-shimmer" style="font-family: var(--font-display, sans-serif);">
+          <!-- App Title BodyFlow -->
+          <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#87ff70] via-[#4edea3] to-[#19e80d] drop-shadow-[0_0_20px_rgba(25,232,13,0.3)]" style="font-family: var(--font-display, 'Outfit', sans-serif);">
             BodyFlow
           </h1>
 
-          <!-- Tagline -->
-          <p class="text-[11px] mt-2.5 tracking-[0.25em] text-gray-400 uppercase font-semibold">
-            Fluye con tu nutrición
-          </p>
+          <!-- Dynamic Intelligent Nutrition Phrase with Fade Animation -->
+          <div class="h-14 mt-4 flex items-center justify-center">
+            <transition name="phrase-fade" mode="out-in">
+              <p :key="currentPhraseIndex" class="text-sm sm:text-base font-medium text-gray-300 tracking-wide leading-relaxed">
+                "{{ nutritionPhrases[currentPhraseIndex] }}"
+              </p>
+            </transition>
+          </div>
         </div>
 
-        <!-- Animated Loading indicators -->
-        <div class="absolute bottom-16 flex flex-col items-center gap-3">
-          <div class="flex gap-2 justify-center items-center">
-            <span class="loading-dot"></span>
-            <span class="loading-dot"></span>
-            <span class="loading-dot"></span>
+        <!-- Footer Loading Bar & Status -->
+        <div class="w-full max-w-xs flex flex-col items-center gap-3 z-10 pb-4">
+          <!-- Sleek Glowing Progress Bar -->
+          <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden p-[1px] backdrop-blur-sm border border-white/5 shadow-inner">
+            <div 
+              class="h-full bg-gradient-to-r from-[#19e80d] to-[#4edea3] rounded-full transition-all duration-150 ease-out shadow-[0_0_12px_rgba(25,232,13,0.8)]"
+              :style="{ width: `${loadingProgress}%` }"
+            ></div>
           </div>
-          <span class="text-[9px] text-gray-500 font-bold tracking-[0.2em] uppercase">Iniciando</span>
+          
+          <div class="w-full flex justify-between items-center text-[10px] tracking-[0.15em] text-gray-400 font-mono">
+            <span class="uppercase font-semibold text-emerald-400/80">Inicializando IA...</span>
+            <span class="font-bold text-[#87ff70]">{{ loadingProgress }}%</span>
+          </div>
         </div>
 
       </div>
@@ -112,44 +163,42 @@ const isSplashVisible = computed(() => {
 
 <style scoped>
 .fade-splash-leave-active {
-  transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .fade-splash-leave-to {
   opacity: 0;
+  transform: scale(0.98);
 }
 
-/* Animations */
-@keyframes bounceSlow {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+.phrase-fade-enter-active,
+.phrase-fade-leave-active {
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.phrase-fade-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.phrase-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 
 @keyframes pulseGlow {
-  0%, 100% { transform: scale(1); opacity: 0.5; }
-  50% { transform: scale(1.15); opacity: 0.8; }
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.08); }
 }
 
-@keyframes dotPulse {
-  0%, 80%, 100% { transform: scale(0.6); opacity: 0.3; }
-  40% { transform: scale(1.25); opacity: 1; }
-}
-
-.animate-bounce-slow {
-  animation: bounceSlow 3.5s ease-in-out infinite;
+@keyframes floatAnim {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-4px) rotate(2deg); }
 }
 
 .animate-pulse-glow {
   animation: pulseGlow 3s ease-in-out infinite;
 }
 
-.loading-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: #10b981;
-  animation: dotPulse 1.4s infinite ease-in-out;
+.animate-float {
+  animation: floatAnim 3s ease-in-out infinite;
 }
-
-.loading-dot:nth-child(1) { animation-delay: -0.32s; }
-.loading-dot:nth-child(2) { animation-delay: -0.16s; }
 </style>
+
