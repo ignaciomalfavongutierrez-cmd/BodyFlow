@@ -1,7 +1,6 @@
 /**
- * BodyFlow – FatSecret Proxy Backend (Migrado a OAuth 2.0)
- * * Ahora usa Client Credentials Grant (OAuth 2.0) en lugar de 
- * las complejas firmas HMAC-SHA1 de OAuth 1.0a.
+ * BodyFlow – Proxy Backend & Gemini AI Server
+ * Handles FatSecret OAuth 2.0 and Gemini AI Requests.
  */
 
 import 'dotenv/config'
@@ -13,15 +12,13 @@ import { GoogleGenAI } from '@google/genai'
 // Config
 // ---------------------------------------------------------------------------
 
-const PORT = process.env.PORT || 3002
+const PORT = process.env.PORT || 3001
 
-// Usamos preferentemente CLIENT_ID, pero dejamos CONSUMER_KEY por compatibilidad
 const CLIENT_ID = process.env.FATSECRET_CLIENT_ID || process.env.FATSECRET_CONSUMER_KEY
 const CLIENT_SECRET = process.env.FATSECRET_CLIENT_SECRET || process.env.FATSECRET_CONSUMER_SECRET
 
 if (!CLIENT_ID || !CLIENT_SECRET) {
-  console.error('[server] FATSECRET_CLIENT_ID and FATSECRET_CLIENT_SECRET must be set in .env')
-  process.exit(1)
+  console.warn('[server] Warning: FATSECRET_CLIENT_ID and FATSECRET_CLIENT_SECRET are not set in server/.env. FatSecret food search will be unavailable until set.')
 }
 
 const FATSECRET_API_URL = 'https://platform.fatsecret.com/rest/server.api'
@@ -53,6 +50,10 @@ let accessToken = null;
 let tokenExpiry = 0;
 
 async function getAccessToken() {
+  if (!CLIENT_ID || !CLIENT_SECRET) {
+    throw new Error('Las credenciales de FatSecret no están configuradas en el servidor.')
+  }
+
   // Reutilizar el token si aún no expira
   if (accessToken && Date.now() < tokenExpiry) {
     return accessToken;
@@ -122,7 +123,6 @@ async function callFatSecret(apiParams) {
 
 function parseMacros(description = '') {
   const extract = pattern => {
-    // Matches labels case-insensitively, supporting e.g. Calories/Calorías, Fat/Grasa
     const m = description.match(new RegExp(`(?:${pattern})\\s*:\\s*([\\d.]+)`, 'i'))
     return m ? parseFloat(m[1]) : 0
   }
@@ -162,7 +162,7 @@ app.get('/api/foods/search', async (req, res) => {
 
   try {
     const data = await callFatSecret({
-      method: 'foods.search', // Mantenemos v2/v3 para obtener la descripción corta
+      method: 'foods.search',
       search_expression: q,
       max_results: max,
       page_number: page,
@@ -179,6 +179,7 @@ app.get('/api/foods/search', async (req, res) => {
     return res.status(err.status ?? 500).json({ error: err.message })
   }
 })
+
 app.get('/', async (_req, res) => {
   res.json({ message: 'Welcome to the BodyFlow API' })
 })
@@ -223,16 +224,16 @@ app.post('/api/chat', async (req, res) => {
     return res.status(400).json({ error: 'El campo "prompt" o "contents" es requerido.' })
   }
 
-  const geminiKey = process.env.GEMINI_API_KEY
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY
   if (!geminiKey) {
     console.error('[/api/chat] GEMINI_API_KEY no está configurada en .env del servidor')
-    return res.status(500).json({ error: 'La API Key de Gemini no está configurada en el servidor.' })
+    return res.status(500).json({ error: 'La API Key de Gemini (GEMINI_API_KEY) no está configurada en el servidor.' })
   }
 
   try {
     const ai = new GoogleGenAI({ apiKey: geminiKey })
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-flash-latest',
       contents: contents || prompt,
     })
 
@@ -248,4 +249,4 @@ app.get('/health', (_req, res) => res.json({ ok: true }))
 
 app.listen(PORT, () => {
   console.log(`[server] BodyFlow proxy running on http://localhost:${PORT}`)
-})
+})
