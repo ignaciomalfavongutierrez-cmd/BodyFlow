@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { extractTextFromPDF } from '../services/pdfParser'
-import { generatePrompt, parseManualJson } from '../services/aiParser'
+import { extractTextFromPDF, compressImageFile, renderPdfPagesToCompressedImages } from '../services/pdfParser'
+import { generatePrompt, parseManualJson, parsePdfWithGemini, parseDirectImagesWithGemini } from '../services/aiParser'
 import { useDietStore, type DayPlan } from '../stores/diet'
 import { useUserStore } from '../stores/user'
 import { summarizePlanMacros } from '../services/nutrition/reconciliation'
@@ -28,8 +28,11 @@ function onFileSelected(event: Event) {
   const target = event.target as HTMLInputElement
   if (target.files && target.files.length > 0) {
     const file = target.files[0]
-    if (file.type !== 'application/pdf') {
-      error.value = 'Por favor selecciona un archivo PDF válido.'
+    const isPdfType = file.type === 'application/pdf' || file.type === 'application/x-pdf' || file.type === 'application/acrobat' || file.type === '' || file.type.includes('pdf') || file.type.startsWith('image/')
+    const isPdfExtension = file.name.toLowerCase().endsWith('.pdf') || file.name.toLowerCase().includes('.pdf') || /\.(png|jpg|jpeg|webp)$/i.test(file.name)
+
+    if (!isPdfType && !isPdfExtension) {
+      error.value = 'Por favor selecciona un archivo PDF o imagen válido.'
       selectedFile.value = null
       return
     }
@@ -46,17 +49,80 @@ async function processPdf() {
   isParsing.value = true
   error.value = ''
   parsedPreview.value = null
+  manualPrompt.value = ''
   
   try {
-    const text = await extractTextFromPDF(selectedFile.value)
-    
-    if (!text || text.length < 50) {
-      throw new Error('El PDF parece estar vacío o no contiene texto legible.')
+    const file = selectedFile.value
+    const isImage = file.type.startsWith('image/') || /\.(png|jpg|jpeg|webp)$/i.test(file.name)
+
+    let parsedData: DayPlan[]
+
+    if (isImage) {
+      console.log('Comprimiendo y optimizando imagen para Gemini...')
+      const compressedImage = await compressImageFile(file)
+      parsedData = await parseDirectImagesWithGemini([compressedImage])
+    } else {
+      let text = ''
+      try {
+        text = await extractTextFromPDF(file)
+      } catch (pdfErr) {
+        console.warn('La extracción de texto cliente falló o fue incompleta:', pdfErr)
+      }
+
+      if (text && text.trim().length >= 50) {
+        // Invocación a Gemini con el texto extraído del PDF (peso ligero ~2KB)
+        parsedData = await parsePdfWithGemini(text)
+      } else {
+        // Fallback optimizado para iOS / Safari / PDFs de Apple o escaneados:
+        // Renderizar páginas a canvas JPEG comprimido (peso ~200KB por página)
+        console.log('Renderizando y comprimiendo páginas de PDF para Gemini...')
+        const compressedPages = await renderPdfPagesToCompressedImages(file)
+        if (!compressedPages || compressedPages.length === 0) {
+          throw new Error('No se pudieron renderizar las páginas del PDF.')
+        }
+        parsedData = await parseDirectImagesWithGemini(compressedPages)
+      }
     }
     
-    manualPrompt.value = generatePrompt(text)
+    const WEEKDAY_SEQUENCE = [1, 2, 3, 4, 5, 6, 0] // Lun → Sáb → Dom
+    parsedData.forEach((day, index) => {
+      const lowerName = (day.date || day.dayName || '').toLowerCase()
+      const assignments: number[] = []
+
+      if (lowerName.includes('lunes')    || lowerName.includes('monday'))    assignments.push(1)
+      if (lowerName.includes('martes')   || lowerName.includes('tuesday'))   assignments.push(2)
+      if (lowerName.includes('miércoles') || lowerName.includes('miercoles') || lowerName.includes('wednesday')) assignments.push(3)
+      if (lowerName.includes('jueves')   || lowerName.includes('thursday'))  assignments.push(4)
+      if (lowerName.includes('viernes')  || lowerName.includes('friday'))    assignments.push(5)
+      if (lowerName.includes('sábado')   || lowerName.includes('sabado') || lowerName.includes('saturday'))  assignments.push(6)
+      if (lowerName.includes('domingo')  || lowerName.includes('sunday'))    assignments.push(0)
+
+      if (assignments.length === 0) {
+        const match = lowerName.match(/\d+/)
+        if (match) {
+          const n = parseInt(match[0], 10) - 1
+          if (n >= 0 && n < WEEKDAY_SEQUENCE.length) {
+            assignments.push(WEEKDAY_SEQUENCE[n])
+          }
+        } else {
+          assignments.push(WEEKDAY_SEQUENCE[index % WEEKDAY_SEQUENCE.length])
+        }
+      }
+
+      day.assignedDays = assignments
+    })
+    
+    parsedPreview.value = parsedData
   } catch (err: any) {
-    error.value = err.message || 'Ocurrió un error desconocido al procesar el archivo.'
+    console.error('Error procesando PDF con Gemini:', err)
+    error.value = err.message || 'Ocurrió un error al procesar el archivo.'
+    // Fallback a prompt manual en caso de error
+    try {
+      const text = await extractTextFromPDF(selectedFile.value)
+      if (text && text.length >= 50) {
+        manualPrompt.value = generatePrompt(text)
+      }
+    } catch { /* ignore */ }
   } finally {
     isParsing.value = false
   }
@@ -172,12 +238,12 @@ function discardPlan() {
           </svg>
         </div>
         
-        <h2 class="text-lg font-bold mb-2" style="font-family: var(--font-display); color: var(--on-surface);">Sube tu dieta en PDF</h2>
-        <p class="text-sm mb-6" style="color: var(--on-surface-muted);">Selecciona el PDF de tu nutriólogo para extraer el texto y generar el prompt.</p>
+        <h2 class="text-lg font-bold mb-2" style="font-family: var(--font-display); color: var(--on-surface);">Sube tu dieta (PDF o Imagen)</h2>
+        <p class="text-sm mb-6" style="color: var(--on-surface-muted);">Selecciona el PDF o captura de pantalla de tu dieta para procesarla con IA.</p>
         
         <input 
           type="file" 
-          accept=".pdf" 
+          accept="application/pdf, .pdf, application/x-pdf, image/png, image/jpeg, image/webp" 
           class="hidden" 
           ref="fileInput"
           @change="onFileSelected"
@@ -188,7 +254,7 @@ function discardPlan() {
           class="px-6 py-3 btn-secondary text-sm mb-4"
           :disabled="isParsing"
         >
-          Seleccionar Archivo PDF
+          Seleccionar Archivo (PDF / Imagen)
         </button>
 
         <div v-if="selectedFile" class="text-xs font-bold py-2.5 px-4 rounded-lg inline-block w-full truncate" style="background: rgba(25, 232, 13, 0.1); color: var(--primary);">
@@ -207,7 +273,7 @@ function discardPlan() {
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
-        {{ isParsing ? 'Extrayendo Texto...' : 'Generar Prompt' }}
+        {{ isParsing ? 'Procesando con IA (Gemini)...' : 'Procesar PDF con IA' }}
       </button>
 
       <!-- Manual AI workflow -->

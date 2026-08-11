@@ -24,8 +24,10 @@ dist-ssr
 *.sw?
 
 .env
-.env.development
-.env.example
-.vscode/*
+.env.*
+server/.env
+server/.env.*
+!.env.example
+!server/.env.example
 
 CONTEXT.md

@@ -7,6 +7,7 @@
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
+import { GoogleGenAI } from '@google/genai'
 
 // ---------------------------------------------------------------------------
 // Config
@@ -41,7 +42,8 @@ app.use(cors({
     cb(new Error(`CORS: origin '${origin}' not allowed`))
   },
 }))
-app.use(express.json())
+app.use(express.json({ limit: '50mb' }))
+app.use(express.urlencoded({ limit: '50mb', extended: true }))
 
 // ---------------------------------------------------------------------------
 // OAuth 2.0 - Token Management
@@ -211,6 +213,34 @@ app.get('/api/foods/:id', async (req, res) => {
   } catch (err) {
     console.error('[/api/foods/:id]', err.message)
     return res.status(err.status ?? 500).json({ error: err.message })
+  }
+})
+
+app.post('/api/chat', async (req, res) => {
+  const { prompt, contents } = req.body
+
+  if (!prompt && !contents) {
+    return res.status(400).json({ error: 'El campo "prompt" o "contents" es requerido.' })
+  }
+
+  const geminiKey = process.env.GEMINI_API_KEY
+  if (!geminiKey) {
+    console.error('[/api/chat] GEMINI_API_KEY no está configurada en .env del servidor')
+    return res.status(500).json({ error: 'La API Key de Gemini no está configurada en el servidor.' })
+  }
+
+  try {
+    const ai = new GoogleGenAI({ apiKey: geminiKey })
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: contents || prompt,
+    })
+
+    const text = response.text || ''
+    return res.json({ text })
+  } catch (err) {
+    console.error('[/api/chat] Error procesando solicitud con Gemini:', err)
+    return res.status(500).json({ error: err.message || 'Error interno al comunicarse con Gemini.' })
   }
 })
 
