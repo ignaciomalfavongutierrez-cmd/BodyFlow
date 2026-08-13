@@ -1,3 +1,4 @@
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import type { DayPlan } from '../stores/diet'
 
 export function generatePrompt(text: string): string {
@@ -86,47 +87,95 @@ export function parseManualJson(jsonStr: string): DayPlan[] {
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
 
 export async function sendPromptToGemini(prompt: string): Promise<string> {
-  const res = await fetch(`${API_BASE}/api/chat`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ prompt }),
-  })
+  try {
+    const res = await fetch(`${API_BASE}/api/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ prompt }),
+    })
 
-  if (!res.ok) {
-    let errorMsg = `Error HTTP ${res.status}`
-    try {
-      const data = await res.json()
-      if (data.error) errorMsg = data.error
-    } catch { /* ignore */ }
-    throw new Error(errorMsg)
+    if (!res.ok) {
+      let errorMsg = `Error HTTP ${res.status}`
+      try {
+        const data = await res.json()
+        if (data.error) errorMsg = data.error
+      } catch { /* ignore */ }
+      throw new Error(errorMsg)
+    }
+
+    const data = await res.json()
+    return data.text || ''
+  } catch (error: any) {
+    console.warn('[aiParser] El backend falló o no está disponible, intentando fallback directo del cliente:', error)
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined
+    if (apiKey) {
+      try {
+        const genAI = new GoogleGenerativeAI(apiKey)
+        const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' })
+        const result = await model.generateContent(prompt)
+        return result.response.text()
+      } catch (directErr: any) {
+        console.error('[aiParser] Error en fallback directo del cliente:', directErr)
+        throw new Error(directErr.message || 'Error al comunicarse con Gemini (directo).')
+      }
+    }
+    throw error
   }
-
-  const data = await res.json()
-  return data.text || ''
 }
 
 export async function sendContentsToGemini(contents: any): Promise<string> {
-  const res = await fetch(`${API_BASE}/api/chat`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ contents }),
-  })
+  try {
+    const res = await fetch(`${API_BASE}/api/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ contents }),
+    })
 
-  if (!res.ok) {
-    let errorMsg = `Error HTTP ${res.status}`
-    try {
-      const data = await res.json()
-      if (data.error) errorMsg = data.error
-    } catch { /* ignore */ }
-    throw new Error(errorMsg)
+    if (!res.ok) {
+      let errorMsg = `Error HTTP ${res.status}`
+      try {
+        const data = await res.json()
+        if (data.error) errorMsg = data.error
+      } catch { /* ignore */ }
+      throw new Error(errorMsg)
+    }
+
+    const data = await res.json()
+    return data.text || ''
+  } catch (error: any) {
+    console.warn('[aiParser] El backend falló o no está disponible, intentando fallback directo del cliente para contenidos:', error)
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined
+    if (apiKey) {
+      try {
+        const genAI = new GoogleGenerativeAI(apiKey)
+        const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' })
+        const parts = contents.map((c: any) => {
+          if (c.inlineData) {
+            return {
+              inlineData: {
+                data: c.inlineData.data,
+                mimeType: c.inlineData.mimeType
+              }
+            }
+          }
+          if (c.text) {
+            return c.text
+          }
+          return c
+        })
+        const result = await model.generateContent(parts)
+        return result.response.text()
+      } catch (directErr: any) {
+        console.error('[aiParser] Error en fallback directo del cliente para contenidos:', directErr)
+        throw new Error(directErr.message || 'Error al comunicarse con Gemini (directo).')
+      }
+    }
+    throw error
   }
-
-  const data = await res.json()
-  return data.text || ''
 }
 
 export async function parsePdfWithGemini(pdfText: string): Promise<DayPlan[]> {
@@ -204,6 +253,28 @@ export interface SubstitutionOption {
 
 export interface MultiOptionSubstitutionResult {
   options: SubstitutionOption[]
+}
+
+export type SubstitutionResult = SubstitutionOption
+
+export async function getSingleItemSubstitution(
+  originalItem: string,
+  mealName: string,
+  userPreference?: string,
+  plannedMacros?: any
+): Promise<SubstitutionResult> {
+  const res = await getSingleItemSubstitutionOptions(originalItem, mealName, userPreference, plannedMacros)
+  return res.options[0]
+}
+
+export async function getWholeMealAdjustment(
+  mealName: string,
+  plannedItems: string[],
+  plannedMacros: any,
+  userMessage?: string
+): Promise<SubstitutionResult> {
+  const res = await getWholeMealAdjustmentOptions(mealName, plannedItems, plannedMacros, userMessage)
+  return res.options[0]
 }
 
 export async function getSingleItemSubstitutionOptions(

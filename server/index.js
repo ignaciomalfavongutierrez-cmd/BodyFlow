@@ -233,7 +233,7 @@ app.post('/api/chat', async (req, res) => {
   try {
     const ai = new GoogleGenAI({ apiKey: geminiKey })
     const response = await ai.models.generateContent({
-      model: 'gemini-flash-latest',
+      model: 'gemini-3.6-flash',
       contents: contents || prompt,
     })
 
@@ -249,4 +249,4 @@ app.get('/health', (_req, res) => res.json({ ok: true }))
 
 app.listen(PORT, () => {
   console.log(`[server] BodyFlow proxy running on http://localhost:${PORT}`)
-})
+})
