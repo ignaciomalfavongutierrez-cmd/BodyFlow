@@ -169,18 +169,23 @@ export async function parseDirectImagesWithGemini(images: { mimeType: string; da
   return parseManualJson(rawResponse)
 }
 
-export interface SubstitutionResult {
-  replacementFoods: Array<{
-    name: string
-    quantity: string
-    macros: {
-      calories: number
-      protein: number
-      carbs: number
-      fat: number
-      sugar: number
-    }
-  }>
+export interface SubstitutionFood {
+  name: string
+  quantity: string
+  macros: {
+    calories: number
+    protein: number
+    carbs: number
+    fat: number
+    sugar: number
+  }
+}
+
+export interface SubstitutionOption {
+  id: string
+  title: string
+  explanation: string
+  replacementFoods: SubstitutionFood[]
   totalMacros: {
     calories: number
     protein: number
@@ -188,83 +193,134 @@ export interface SubstitutionResult {
     fat: number
     sugar: number
   }
-  macroDifference: {
+  macroDifference?: {
     calories: number
     protein: number
     carbs: number
     fat: number
   }
   alertMessage?: string
-  explanation: string
 }
 
-export async function getSingleItemSubstitution(
+export interface MultiOptionSubstitutionResult {
+  options: SubstitutionOption[]
+}
+
+export async function getSingleItemSubstitutionOptions(
   originalItem: string,
-  replacementItem: string,
   mealName: string,
+  userPreference?: string,
   plannedMacros?: any
-): Promise<SubstitutionResult> {
-  const prompt = `Eres un nutriólogo experto. El usuario desea sustituir el siguiente ingrediente de su comida "${mealName}":
-Ingrediente original: "${originalItem}"
-Alimento sustituto disponible: "${replacementItem}"
-${plannedMacros ? `Macros objetivo de la comida: ${plannedMacros.calories} kcal, ${plannedMacros.protein}g proteína, ${plannedMacros.carbs}g carbs, ${plannedMacros.fat}g grasa.` : ''}
+): Promise<MultiOptionSubstitutionResult> {
+  const prompt = `Eres un nutriólogo experto. El usuario desea sustituir el ingrediente de la comida "${mealName}":
+Ingrediente original (alimento y porción): "${originalItem}".
+${plannedMacros ? `Macros objetivo de la comida: ${plannedMacros.calories} kcal, ${plannedMacros.protein}g proteína, ${plannedMacros.carbs}g carbohidratos, ${plannedMacros.fat}g grasa.` : ''}
+${userPreference && userPreference.trim() ? `Preferencia/Instrucción del usuario: "${userPreference.trim()}".` : 'Genera 3 opciones de alimentos saludables equivalentes nutricionales.'}
 
-Calcula la porción exacta de "${replacementItem}" necesaria para sustituir nutricionalmente el ingrediente original de forma adecuada.
-Si la sustitución genera un déficit o exceso importante en algún macronutriente, indícalo claramente en alertMessage y macroDifference.
+Calcula EXACTAMENTE 3 OPCIONES DISTINTAS DE SUSTITUCIÓN EQUIVALENTE.
+Para cada opción, calcula la porción exacta requerida para igualar el valor nutricional del ingrediente original.
 
-Devuelve ÚNICAMENTE un objeto JSON válido con la siguiente estructura (sin formato markdown ni explicaciones fuera del JSON):
+Devuelve ÚNICAMENTE un objeto JSON válido con la siguiente estructura (sin formato markdown ni texto adicional):
 {
-  "replacementFoods": [
+  "options": [
     {
-      "name": "${replacementItem}",
-      "quantity": "Porción calculada (ej. 150g o 2 piezas)",
-      "macros": { "calories": 200, "protein": 25, "carbs": 0, "fat": 3, "sugar": 0 }
+      "id": "opt_1",
+      "title": "Opción 1: [Nombre de alimento/porción]",
+      "explanation": "Breve explicación nutricional de por qué es equivalente.",
+      "replacementFoods": [
+        {
+          "name": "Nombre del alimento sustituto",
+          "quantity": "Porción exacta calculada (ej. 120 g o 2 piezas)",
+          "macros": { "calories": 150, "protein": 28, "carbs": 0, "fat": 3, "sugar": 0 }
+        }
+      ],
+      "totalMacros": { "calories": 150, "protein": 28, "carbs": 0, "fat": 3, "sugar": 0 },
+      "macroDifference": { "calories": 0, "protein": 0, "carbs": 0, "fat": 0 },
+      "alertMessage": null
+    },
+    {
+      "id": "opt_2",
+      "title": "Opción 2: [Nombre de alimento/porción]",
+      "explanation": "Breve explicación nutricional.",
+      "replacementFoods": [ ... ],
+      "totalMacros": { ... }
+    },
+    {
+      "id": "opt_3",
+      "title": "Opción 3: [Nombre de alimento/porción]",
+      "explanation": "Breve explicación nutricional.",
+      "replacementFoods": [ ... ],
+      "totalMacros": { ... }
     }
-  ],
-  "totalMacros": { "calories": 200, "protein": 25, "carbs": 0, "fat": 3, "sugar": 0 },
-  "macroDifference": { "calories": 0, "protein": -2, "carbs": 0, "fat": 1 },
-  "alertMessage": "Nota si faltó o sobró algo relevante, o null si todo cuadra bien",
-  "explanation": "Explicación concisa (1-2 oraciones) de por qué se eligió esa porción."
+  ]
 }`
 
   const rawJson = await sendPromptToGemini(prompt)
-  return parseSubstitutionResponse(rawJson)
+  return parseMultiOptionResponse(rawJson)
 }
 
-export async function getWholeMealAdjustment(
+export async function getWholeMealAdjustmentOptions(
   mealName: string,
   plannedItems: string[],
   plannedMacros: any,
-  availableFoods: string
-): Promise<SubstitutionResult> {
-  const prompt = `Eres un nutriólogo experto. El usuario tiene planeada la comida "${mealName}" con estos ingredientes originales: ${plannedItems.join(', ')}.
-Sus macros objetivo para esta comida son: ${plannedMacros.calories} kcal, ${plannedMacros.protein}g proteína, ${plannedMacros.carbs}g carbohidratos, ${plannedMacros.fat}g grasa.
+  userMessage?: string
+): Promise<MultiOptionSubstitutionResult> {
+  const prompt = `Eres un nutriólogo experto. El usuario no puede realizar su comida planificada "${mealName}" y requiere sustituir la comida completa.
+Ingredientes planificados originales: ${plannedItems.join(', ')}.
+Macros objetivo de la comida: ${plannedMacros.calories} kcal, ${plannedMacros.protein}g proteína, ${plannedMacros.carbs}g carbohidratos, ${plannedMacros.fat}g grasa.
 
-El usuario indica: "Solo cuento con estos alimentos: '${availableFoods}'".
+${userMessage && userMessage.trim() 
+  ? `El usuario indica sus alimentos o situación: "${userMessage.trim()}". Diseña las opciones adaptándote a los alimentos disponibles que menciona.` 
+  : `Proporciona 3 opciones de menús completos distintos, sabrosos y balanceados que cumplan de forma óptima con los macros objetivo de la comida.`
+}
 
-Por favor ajusta y calcula las porciones exactas utilizando ÚNICAMENTE los alimentos disponibles proporcionados para aproximarse lo más posible a las metas nutricionales de la comida.
-Si los alimentos disponibles no son suficientes para alcanzar algún macronutriente (por ejemplo falta proteína) o si se exceden, indícalo en macroDifference y genera un mensaje claro de advertencia/alerta en "alertMessage".
+Genera EXACTAMENTE 3 OPCIONES DISTINTAS DE MENÚ COMPLETO. Cada opción debe ser una comida completa con la lista de alimentos y sus porciones exactas calculadas.
 
-Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura (sin formato markdown ni texto adicional):
+Devuelve ÚNICAMENTE un objeto JSON válido con la siguiente estructura (sin formato markdown ni texto adicional):
 {
-  "replacementFoods": [
+  "options": [
     {
-      "name": "Nombre de alimento disponible",
-      "quantity": "Porción calculada (ej. 180g o 2 latas)",
-      "macros": { "calories": 180, "protein": 24, "carbs": 0, "fat": 2, "sugar": 0 }
+      "id": "opt_1",
+      "title": "Opción 1: [Nombre atractivo del platillo/menú]",
+      "explanation": "Explicación concisa del menú y su balance nutricional.",
+      "replacementFoods": [
+        {
+          "name": "Alimento 1",
+          "quantity": "Porción calculada (ej. 150 g)",
+          "macros": { "calories": 200, "protein": 30, "carbs": 0, "fat": 4, "sugar": 0 }
+        },
+        {
+          "name": "Alimento 2",
+          "quantity": "Porción calculada (ej. 1 taza)",
+          "macros": { "calories": 150, "protein": 3, "carbs": 30, "fat": 1, "sugar": 0 }
+        }
+      ],
+      "totalMacros": { "calories": 350, "protein": 33, "carbs": 30, "fat": 5, "sugar": 0 },
+      "macroDifference": { "calories": 0, "protein": 0, "carbs": 0, "fat": 0 },
+      "alertMessage": null
+    },
+    {
+      "id": "opt_2",
+      "title": "Opción 2: [Nombre del platillo]",
+      "explanation": "...",
+      "replacementFoods": [ ... ],
+      "totalMacros": { ... }
+    },
+    {
+      "id": "opt_3",
+      "title": "Opción 3: [Nombre del platillo]",
+      "explanation": "...",
+      "replacementFoods": [ ... ],
+      "totalMacros": { ... }
     }
-  ],
-  "totalMacros": { "calories": 320, "protein": 30, "carbs": 15, "fat": 5, "sugar": 0 },
-  "macroDifference": { "calories": -40, "protein": -8, "carbs": 0, "fat": -2 },
-  "alertMessage": "⚠️ Alerta: Faltaron 8g de proteína y 40 kcal para alcanzar la meta con los alimentos proporcionados.",
-  "explanation": "Ajustamos las porciones de los ingredientes disponibles para acercarnos lo máximo posible a tus objetivos."
+  ]
 }`
 
   const rawJson = await sendPromptToGemini(prompt)
-  return parseSubstitutionResponse(rawJson)
+  return parseMultiOptionResponse(rawJson)
 }
 
-function parseSubstitutionResponse(rawJson: string): SubstitutionResult {
+function parseMultiOptionResponse(rawJson: string): MultiOptionSubstitutionResult {
   let cleanStr = rawJson.trim()
   if (cleanStr.startsWith('```json')) {
     cleanStr = cleanStr.replace(/^```json\n/, '').replace(/\n```$/, '')
@@ -274,15 +330,35 @@ function parseSubstitutionResponse(rawJson: string): SubstitutionResult {
 
   try {
     const parsed = JSON.parse(cleanStr)
-    return {
-      replacementFoods: parsed.replacementFoods || [],
-      totalMacros: parsed.totalMacros || { calories: 0, protein: 0, carbs: 0, fat: 0, sugar: 0 },
-      macroDifference: parsed.macroDifference || { calories: 0, protein: 0, carbs: 0, fat: 0 },
-      alertMessage: parsed.alertMessage || undefined,
-      explanation: parsed.explanation || 'Porciones calculadas según disponibilidad.'
+    const rawOptions = Array.isArray(parsed.options) ? parsed.options : (parsed.replacementFoods ? [parsed] : [])
+    
+    const options: SubstitutionOption[] = rawOptions.map((opt: any, idx: number) => ({
+      id: opt.id || `opt_${idx + 1}`,
+      title: opt.title || `Opción ${idx + 1}`,
+      explanation: opt.explanation || 'Opción equilibrada de reemplazo.',
+      replacementFoods: (opt.replacementFoods || []).map((f: any) => ({
+        name: f.name || 'Alimento',
+        quantity: f.quantity || '1 porción',
+        macros: {
+          calories: Number(f.macros?.calories || 0),
+          protein: Number(f.macros?.protein || 0),
+          carbs: Number(f.macros?.carbs || 0),
+          fat: Number(f.macros?.fat || 0),
+          sugar: Number(f.macros?.sugar || 0),
+        }
+      })),
+      totalMacros: opt.totalMacros || { calories: 0, protein: 0, carbs: 0, fat: 0, sugar: 0 },
+      macroDifference: opt.macroDifference || undefined,
+      alertMessage: opt.alertMessage || undefined
+    }))
+
+    if (options.length === 0) {
+      throw new Error('Formato de opciones inválido.')
     }
+
+    return { options }
   } catch (err) {
-    console.error('Error al parsear respuesta de sustitución de Gemini:', err)
-    throw new Error('No se pudo procesar la respuesta de la IA. Por favor intenta de nuevo.')
+    console.error('Error al parsear respuesta de opciones de Gemini:', err, rawJson)
+    throw new Error('No se pudieron procesar las opciones de la IA. Por favor intenta de nuevo.')
   }
 }

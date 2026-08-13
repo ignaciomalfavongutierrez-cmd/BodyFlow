@@ -135,7 +135,7 @@ async function runAiSubstitution() {
       )
     }
   } catch (err: any) {
-    console.error('Error en Asistente IA de Sustituci√≥n:', err)
+    console.error('Error en Asistente IA de Sustituci+¶n:', err)
     aiError.value = err.message || 'Error al comunicarse con la IA.'
   } finally {
     isAiProcessing.value = false
@@ -274,7 +274,7 @@ watch(searchQuery, (newVal) => {
       searchResults.value = await searchFoods(newVal)
     } catch (err: any) {
       console.error(err)
-      searchError.value = 'Error al consultar la base de datos. Int√©ntalo de nuevo.'
+      searchError.value = 'Error al consultar la base de datos. Int+Æntalo de nuevo.'
     } finally {
       isSearching.value = false
       showWakeUpMessage.value = false
@@ -320,7 +320,7 @@ function openQuantityModal(food: FoodSearchResult | SavedFood) {
   selectedFoodToAdd.value = {
     food,
     quantity: 1,
-    unit: 'porci√≥n'
+    unit: 'porci+¶n'
   }
 }
 
@@ -369,13 +369,13 @@ function addManualFood() {
   logStore.addCustomFood(date.value, mealId.value, {
     id: `manual_${Date.now()}`,
     name: manualName.value,
-    quantity: manualQty.value || '1 porci√≥n',
+    quantity: manualQty.value || '1 porci+¶n',
     macros
   })
   if (saveToMyFoods.value) {
     foodsStore.saveFood({
       name: manualName.value,
-      description: manualQty.value || '1 porci√≥n',
+      description: manualQty.value || '1 porci+¶n',
       macros
     })
   }
@@ -509,7 +509,7 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
         <div v-if="isCompleted && isMacrosExceeded" class="border p-4 rounded-2xl mb-6 flex items-start gap-3" style="background: rgba(255, 180, 171, 0.1); border-color: rgba(255, 180, 171, 0.25);">
           <AlertTriangle class="w-5 h-5 mt-0.5 flex-shrink-0" style="color: var(--error);" />
           <div class="text-xs font-semibold leading-snug" style="color: var(--error);">
-            ¬°Cuidado! Has excedido los macros planeados para esta comida en m√°s del 5%.
+            -ÌCuidado! Has excedido los macros planeados para esta comida en m+Ìs del 5%.
           </div>
         </div>
       </transition>
@@ -528,11 +528,11 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
 
         <div v-if="customFoods.length > 0" class="mb-4 p-3 rounded-xl border" style="background: rgba(25, 232, 13, 0.1); border-color: rgba(25, 232, 13, 0.2); color: var(--primary);">
           <p class="text-[11px] font-semibold">
-            Los macros est√°n calculados din√°micamente seg√∫n tus sustituciones de alimentos.
+            Los macros est+Ìn calculados din+Ìmicamente seg+¶n tus sustituciones de alimentos.
           </p>
         </div>
         <p v-else class="text-xs mb-4" style="color: var(--on-surface-muted);">
-          ¬øComiste exactamente lo planeado? Si no, edita los valores reales a continuaci√≥n.
+          -+Comiste exactamente lo planeado? Si no, edita los valores reales a continuaci+¶n.
         </p>
 
         <!-- Macro Progress Bars (Comparativa de metas) -->
@@ -545,7 +545,7 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
           <!-- Calories Progress -->
           <div>
             <div class="flex justify-between text-[11px] font-semibold mb-1">
-              <span style="color: var(--on-surface);">Calor√≠as</span>
+              <span style="color: var(--on-surface);">Calor+°as</span>
               <span :style="{ color: macroProgress.calories.pct > 105 ? 'var(--error)' : 'var(--primary)' }">
                 {{ macroProgress.calories.actual }} / {{ macroProgress.calories.target }} kcal ({{ macroProgress.calories.pct }}%)
               </span>
@@ -558,7 +558,7 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
           <!-- Protein Progress -->
           <div>
             <div class="flex justify-between text-[11px] font-semibold mb-1">
-              <span style="color: var(--on-surface);">Prote√≠nas</span>
+              <span style="color: var(--on-surface);">Prote+°nas</span>
               <span :style="{ color: macroProgress.protein.pct > 105 ? 'var(--error)' : 'var(--primary)' }">
                 {{ macroProgress.protein.actual }} / {{ macroProgress.protein.target }}g ({{ macroProgress.protein.pct }}%)
               </span>
@@ -597,12 +597,12 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
 
         <div class="space-y-4" :class="{'opacity-50 pointer-events-none': customFoods.length > 0}">
           <div class="flex flex-col">
-            <label class="text-[11px] font-bold uppercase tracking-wider mb-1.5 ml-1" :style="{ color: isMacroExceeded('calories') ? 'var(--error)' : 'var(--on-surface-muted)' }">Calor√≠as (kcal)</label>
+            <label class="text-[11px] font-bold uppercase tracking-wider mb-1.5 ml-1" :style="{ color: isMacroExceeded('calories') ? 'var(--error)' : 'var(--on-surface-muted)' }">Calor+°as (kcal)</label>
             <input type="number" v-model="editCalories" class="w-full input-field" :style="isMacroExceeded('calories') ? { borderColor: 'var(--error)', color: 'var(--error)' } : {}" />
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div class="flex flex-col">
-              <label class="text-[11px] font-bold uppercase tracking-wider mb-1.5 ml-1" :style="{ color: isMacroExceeded('protein') ? 'var(--error)' : 'var(--on-surface-muted)' }">Prote√≠nas (g)</label>
+              <label class="text-[11px] font-bold uppercase tracking-wider mb-1.5 ml-1" :style="{ color: isMacroExceeded('protein') ? 'var(--error)' : 'var(--on-surface-muted)' }">Prote+°nas (g)</label>
               <input type="number" v-model="editProtein" class="w-full input-field" :style="isMacroExceeded('protein') ? { borderColor: 'var(--error)', color: 'var(--error)' } : {}" />
             </div>
             <div class="flex flex-col">
@@ -614,7 +614,7 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
               <input type="number" v-model="editFat" class="w-full input-field" :style="isMacroExceeded('fat') ? { borderColor: 'var(--error)', color: 'var(--error)' } : {}" />
             </div>
             <div class="flex flex-col">
-              <label class="text-[11px] font-bold uppercase tracking-wider mb-1.5 ml-1" style="color: var(--on-surface-muted);">Az√∫car (g)</label>
+              <label class="text-[11px] font-bold uppercase tracking-wider mb-1.5 ml-1" style="color: var(--on-surface-muted);">Az+¶car (g)</label>
               <input type="number" v-model="editSugar" class="w-full input-field" />
             </div>
           </div>
@@ -653,7 +653,7 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
               <div class="font-semibold text-sm" style="color: var(--on-surface);">{{ food.name }}</div>
               <div class="text-[10px] flex gap-2 mt-1" style="color: var(--on-surface-muted);">
                 <span>{{ food.quantity }}</span>
-                <span>‚Ä¢</span>
+                <span>‘«Û</span>
                 <span class="font-semibold" style="color: var(--primary);">{{ food.macros.calories }} kcal</span>
                 <span>P: {{ food.macros.protein }}g</span>
               </div>
@@ -702,7 +702,7 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
                <div>
                  <label class="text-[10px] font-bold uppercase tracking-wider mb-1.5 block" style="color: var(--on-surface-muted);">Unidad</label>
                  <select v-model="selectedFoodToAdd.unit" class="w-full input-field text-sm bg-black/40 appearance-none" style="background-image: url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3e%3cpath stroke=\'%23a1a1aa\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3e%3c/svg%3e'); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.2em 1.2em; padding-right: 2rem;">
-                   <option value="porci√≥n">porci√≥n</option>
+                   <option value="porci+¶n">porci+¶n</option>
                    <option value="pza">pza</option>
                    <option value="g">g</option>
                    <option value="ml">ml</option>
@@ -719,7 +719,7 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
              </div>
 
              <button @click="confirmAddFood" class="w-full btn-primary py-2.5 text-sm shadow-md">
-               A√±adir a la Comida
+               A+¶adir a la Comida
              </button>
           </div>
 
@@ -728,24 +728,24 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
             <div v-if="isSearching" class="p-5 text-center text-xs flex flex-col items-center gap-2" style="color: var(--on-surface-muted);">
               <span class="animate-pulse">Buscando en la base de datos de alimentos...</span>
               <span v-if="showWakeUpMessage" class="text-[10px] font-semibold max-w-[280px] leading-tight mt-1 p-2 rounded-lg border" style="background: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.25); color: #fbbf24;">
-                ‚è≥ El servidor de Render se est√° despertando. Esto puede demorar hasta 50 segundos.
+                ‘≈¶ El servidor de Render se est+Ì despertando. Esto puede demorar hasta 50 segundos.
               </span>
             </div>
             <div v-else-if="searchError" class="p-4 text-center text-xs" style="color: var(--error);">
-              ‚ö†Ô∏è {{ searchError }}
+              ‘‹·¥©≈ {{ searchError }}
             </div>
             <div v-else-if="searchQuery && searchResults.length === 0" class="p-4 text-center text-xs" style="color: var(--on-surface-muted);">No se encontraron resultados.</div>
             <div v-else-if="!searchQuery" class="p-4 text-center text-xs" style="color: var(--on-surface-muted);">Escribe para buscar alimentos...</div>
             <div v-else v-for="res in searchResults" :key="res.id" class="flex items-center justify-between p-3 border-b last:border-0 hover:bg-white/5 transition-colors" style="border-color: var(--glass-border);">
               <div class="flex-1 min-w-0 pr-2 cursor-pointer" @click="openQuantityModal(res)" role="button">
                 <div class="font-semibold text-sm truncate" style="color: var(--on-surface);">{{ res.name }}</div>
-                <div class="text-[10px] mt-0.5 truncate" style="color: var(--on-surface-muted);">{{ res.description }} ‚Ä¢ <span style="color: var(--primary);">{{ res.macros.calories }} kcal</span></div>
+                <div class="text-[10px] mt-0.5 truncate" style="color: var(--on-surface-muted);">{{ res.description }} ‘«Û <span style="color: var(--primary);">{{ res.macros.calories }} kcal</span></div>
               </div>
               <div class="flex items-center gap-1.5 ml-2">
                 <button @click="saveApiResultToMyFoods(res)" class="p-1.5 transition-colors" style="color: var(--on-surface-muted); hover: color: var(--primary);" title="Guardar en Mis Alimentos">
                   <BookmarkPlus class="w-4 h-4" />
                 </button>
-                <button @click="openQuantityModal(res)" class="p-1.5 transition-colors" style="color: var(--on-surface-muted); hover: color: var(--primary);" title="A√±adir a comida">
+                <button @click="openQuantityModal(res)" class="p-1.5 transition-colors" style="color: var(--on-surface-muted); hover: color: var(--primary);" title="A+¶adir a comida">
                   <Plus class="w-4 h-4" />
                 </button>
               </div>
@@ -755,18 +755,18 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
           <!-- My Foods Results -->
           <div v-if="activeTab === 'my' && !selectedFoodToAdd" class="rounded-xl shadow-inner max-h-60 overflow-y-auto mb-4 border" style="background: rgba(0,0,0,0.15); border-color: var(--glass-border);">
             <div v-if="myFoodsResults.length === 0" class="p-4 text-center text-xs" style="color: var(--on-surface-muted);">
-              {{ searchQuery ? 'No hay alimentos guardados que coincidan.' : 'A√∫n no tienes alimentos guardados.' }}
+              {{ searchQuery ? 'No hay alimentos guardados que coincidan.' : 'A+¶n no tienes alimentos guardados.' }}
             </div>
             <div v-for="food in myFoodsResults" :key="food.id" class="flex items-center justify-between p-3 border-b last:border-0 hover:bg-white/5 transition-colors" style="border-color: var(--glass-border);">
               <div class="flex-1 min-w-0 pr-2 cursor-pointer" @click="openQuantityModal(food)" role="button">
                 <div class="font-semibold text-sm truncate" style="color: var(--on-surface);">{{ food.name }}</div>
-                <div class="text-[10px] mt-0.5 truncate" style="color: var(--on-surface-muted);">{{ food.description }} ‚Ä¢ <span style="color: var(--primary);">{{ food.macros.calories }} kcal</span></div>
+                <div class="text-[10px] mt-0.5 truncate" style="color: var(--on-surface-muted);">{{ food.description }} ‘«Û <span style="color: var(--primary);">{{ food.macros.calories }} kcal</span></div>
               </div>
               <div class="flex items-center gap-1.5 ml-2">
                 <button @click="foodsStore.removeFood(food.id)" class="p-1.5 transition-colors" style="color: var(--outline); hover: color: var(--error);" title="Eliminar de Mis Alimentos">
                   <BookmarkMinus class="w-4 h-4" />
                 </button>
-                <button @click="openQuantityModal(food)" class="p-1.5 transition-colors" style="color: var(--on-surface-muted); hover: color: var(--primary);" title="A√±adir a comida">
+                <button @click="openQuantityModal(food)" class="p-1.5 transition-colors" style="color: var(--on-surface-muted); hover: color: var(--primary);" title="A+¶adir a comida">
                   <Plus class="w-4 h-4" />
                 </button>
               </div>
@@ -775,21 +775,21 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
 
           <!-- Add Manual Food Trigger -->
           <button v-if="!selectedFoodToAdd" @click="showManualAdd = !showManualAdd" class="text-xs font-semibold hover:underline" style="color: var(--primary);">
-            {{ showManualAdd ? '- Cancelar ingreso manual' : '+ A√±adir comida manualmente' }}
+            {{ showManualAdd ? '- Cancelar ingreso manual' : '+ A+¶adir comida manualmente' }}
           </button>
 
           <!-- Manual Food form -->
           <div v-if="showManualAdd && !selectedFoodToAdd" class="p-4 rounded-xl mt-3 space-y-4 border" style="background: var(--glass-bg); border-color: var(--glass-border);">
             <div class="grid grid-cols-2 gap-3">
               <BaseInput label="Nombre" v-model="manualName" placeholder="Ej. Arroz cocido" />
-              <BaseInput label="Porci√≥n/Detalle" v-model="manualQty" placeholder="Ej. 100g" />
+              <BaseInput label="Porci+¶n/Detalle" v-model="manualQty" placeholder="Ej. 100g" />
             </div>
             <div class="grid grid-cols-5 gap-2">
               <BaseInput label="Kcal" v-model="manualCals" type="number" />
               <BaseInput label="Prot" v-model="manualPro" type="number" />
               <BaseInput label="Carb" v-model="manualCarb" type="number" />
               <BaseInput label="Grasa" v-model="manualFat" type="number" />
-              <BaseInput label="Az√∫car" v-model="manualSug" type="number" />
+              <BaseInput label="Az+¶car" v-model="manualSug" type="number" />
             </div>
             
             <label class="flex items-center gap-2 cursor-pointer select-none">
@@ -837,7 +837,7 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
                 <Sparkles class="w-5 h-5" />
               </div>
               <div>
-                <h3 class="font-bold text-base" style="font-family: var(--font-display); color: var(--on-surface);">Asistente de Sustituci√≥n IA</h3>
+                <h3 class="font-bold text-base" style="font-family: var(--font-display); color: var(--on-surface);">Asistente de Sustituci+¶n IA</h3>
                 <p class="text-[10px]" style="color: var(--on-surface-muted);">Calcula porciones y ajusta tu comida con Gemini</p>
               </div>
             </div>
@@ -880,7 +880,7 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
               <input 
                 v-model="replacementInput" 
                 type="text" 
-                placeholder="Ej. At√∫n en agua, Huevo entero, Pechuga de pavo" 
+                placeholder="Ej. At+¶n en agua, Huevo entero, Pechuga de pavo" 
                 class="w-full input-field text-xs"
               />
             </div>
@@ -892,7 +892,7 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
               <label class="text-[10px] font-bold uppercase tracking-wider mb-1 block" style="color: var(--on-surface-muted);">Alimentos disponibles en tu cocina</label>
               <textarea 
                 v-model="availableFoodsInput" 
-                placeholder="Escribe lo que tienes disponible. Ej: 3 huevos, 1 lata de at√∫n, 100g de arroz cocido, aguacate, tortilla de ma√≠z..." 
+                placeholder="Escribe lo que tienes disponible. Ej: 3 huevos, 1 lata de at+¶n, 100g de arroz cocido, aguacate, tortilla de ma+°z..." 
                 class="w-full h-24 p-3 text-xs input-field resize-none"
               ></textarea>
             </div>
@@ -921,7 +921,7 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
             <!-- Explanation Box -->
             <div class="p-3.5 rounded-xl border" style="background: rgba(25, 232, 13, 0.1); border-color: rgba(25, 232, 13, 0.25);">
               <p class="text-xs font-semibold leading-relaxed" style="color: var(--primary);">
-                üí° {{ aiResult.explanation }}
+                ≠É∆Ì {{ aiResult.explanation }}
               </p>
             </div>
 
@@ -956,7 +956,7 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
                 Recalcular
               </button>
               <button @click="applyAiSubstitution" class="flex-1 py-3 btn-primary text-xs shadow-md">
-                Aplicar Sustituci√≥n
+                Aplicar Sustituci+¶n
               </button>
             </div>
           </div>
