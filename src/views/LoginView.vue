@@ -6,7 +6,6 @@ import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
-  signInWithRedirect,
   getRedirectResult
 } from 'firebase/auth'
 import { useRouter, useRoute } from 'vue-router'
@@ -59,33 +58,26 @@ async function loginWithGoogle() {
   loading.value = true
   error.value = ''
   
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.matchMedia('(display-mode: standalone)').matches
-
-  if (isMobile) {
-    try {
-      await signInWithRedirect(auth, provider)
-    } catch (err: any) {
-      error.value = err.message
-      loading.value = false
-    }
-  } else {
-    try {
-      await signInWithPopup(auth, provider)
+  try {
+    const result = await signInWithPopup(auth, provider)
+    if (result && result.user) {
       const redirect = route.query.redirect as string || '/'
       router.push(redirect)
-    } catch (err: any) {
-      if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
-        try {
-          await signInWithRedirect(auth, provider)
-        } catch (redirErr: any) {
-          error.value = redirErr.message
-          loading.value = false
-        }
-      } else {
-        error.value = err.message
-        loading.value = false
-      }
     }
+  } catch (err: any) {
+    console.error('Error Google Auth:', err)
+    if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
+      // User dismissed popup, no error needed
+      error.value = ''
+    } else if (err.code === 'auth/popup-blocked') {
+      error.value = 'El navegador bloqueó la ventana emergente. Por favor permite las ventanas emergentes para continuar.'
+    } else if (err.code === 'auth/unauthorized-domain') {
+      error.value = 'Dominio no autorizado en Firebase. Añade este dominio/IP en Firebase Console > Authentication > Configuración.'
+    } else {
+      error.value = err.message || 'Error al iniciar sesión con Google.'
+    }
+  } finally {
+    loading.value = false
   }
 }
 </script>

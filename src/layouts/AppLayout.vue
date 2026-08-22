@@ -2,6 +2,7 @@
 import { RouterView, useRoute } from 'vue-router'
 import { Home, Utensils, User } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
+import InstallPrompt from '../components/InstallPrompt.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -17,6 +18,9 @@ const authStore = useAuthStore()
         </transition>
       </RouterView>
     </main>
+
+    <!-- Floating PWA Install Prompt Banner -->
+    <InstallPrompt />
 
     <!-- Bottom Navigation (Dark Glass) -->
     <nav
