@@ -30,6 +30,13 @@ export const useAuthStore = defineStore('auth', () => {
           dietStore.fetchDiet(),
           foodsStore.fetchMyFoods()
         ]);
+
+        // If user is logged in and currently on the login screen, forward to dashboard
+        if (router.currentRoute.value?.name === 'login') {
+          const redirect = router.currentRoute.value?.query?.redirect as string
+          const target = redirect && redirect !== '/login' ? redirect : '/'
+          router.replace(target)
+        }
       } else {
         // Session lost (token expired, etc.) — cleanup is handled by handleLogout
         // This branch only runs for unexpected session loss

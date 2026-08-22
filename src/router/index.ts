@@ -56,9 +56,12 @@ authReady = new Promise((resolve) => {
   resolveAuthReady = resolve
 })
 
+let authInitialized = false
 onAuthStateChanged(auth, () => {
-  // Resolve on the very first event (page load)
-  resolveAuthReady()
+  if (!authInitialized) {
+    authInitialized = true
+    resolveAuthReady()
+  }
 })
 
 router.beforeEach(async (to, _from) => {
@@ -70,8 +73,9 @@ router.beforeEach(async (to, _from) => {
   const guestOnly = to.matched.some(record => record.meta.guestOnly)
 
   if (requiresAuth && !user) {
-    // Not logged in → send to login with redirect param
-    return { name: 'login', query: { redirect: to.fullPath } }
+    // Not logged in → send to login with redirect param (never redirect back to /login itself)
+    const targetRedirect = to.fullPath && to.fullPath !== '/login' ? to.fullPath : '/'
+    return { name: 'login', query: { redirect: targetRedirect } }
   } else if (guestOnly && user) {
     // Already logged in → skip login/register
     return { name: 'dashboard' }

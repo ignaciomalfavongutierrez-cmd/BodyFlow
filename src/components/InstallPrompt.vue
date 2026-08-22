@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { usePwaStore } from '../stores/pwa'
+import { useAuthStore } from '../stores/auth'
 import { Download, X, Share } from 'lucide-vue-next'
 
+const route = useRoute()
 const pwaStore = usePwaStore()
+const authStore = useAuthStore()
 
 const isVisible = computed(() => {
-  if (pwaStore.isStandalone || pwaStore.isDismissed) {
+  // Do not show on login screen or if unauthenticated or if already standalone/dismissed
+  if (route.name === 'login' || !authStore.user || pwaStore.isStandalone || pwaStore.isDismissed) {
     return false
   }
   return pwaStore.isInstallable || pwaStore.isIOS

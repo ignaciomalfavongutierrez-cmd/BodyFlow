@@ -1,34 +1,62 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { auth } from '../firebase'
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
   getRedirectResult
 } from 'firebase/auth'
 import { useRouter, useRoute } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
 import logoImg from '../assets/logo.png'
 
 const router = useRouter()
 const route = useRoute()
+const authStore = useAuthStore()
+
 const email = ref('')
 const password = ref('')
 const isRegister = ref(false)
 const error = ref('')
 const loading = ref(false)
 
+function navigateToHome() {
+  const redirect = route.query.redirect as string
+  const target = redirect && redirect !== '/login' ? redirect : '/'
+  router.replace(target)
+}
+
+// Automatically navigate away from login as soon as auth state confirms user
+watch(
+  () => authStore.user,
+  (currentUser) => {
+    if (currentUser) {
+      navigateToHome()
+    }
+  },
+  { immediate: true }
+)
+
 onMounted(async () => {
+  // If user is already authenticated on mount, redirect to home
+  if (auth.currentUser) {
+    navigateToHome()
+    return
+  }
+
   try {
     const result = await getRedirectResult(auth)
     if (result && result.user) {
-      const redirect = route.query.redirect as string || '/'
-      router.push(redirect)
+      navigateToHome()
     }
   } catch (err: any) {
     console.error('Error procesando resultado de redirect Google Auth:', err)
-    error.value = err.message || 'Error al iniciar sesión con Google.'
+    if (err.code !== 'auth/credential-already-in-use') {
+      error.value = err.message || 'Error al iniciar sesión con Google.'
+    }
   }
 })
 
@@ -43,8 +71,7 @@ async function handleSubmit() {
     } else {
       await signInWithEmailAndPassword(auth, email.value, password.value)
     }
-    const redirect = route.query.redirect as string || '/'
-    router.push(redirect)
+    navigateToHome()
   } catch (err: any) {
     error.value = err.message
   } finally {
@@ -61,18 +88,31 @@ async function loginWithGoogle() {
   try {
     const result = await signInWithPopup(auth, provider)
     if (result && result.user) {
-      const redirect = route.query.redirect as string || '/'
-      router.push(redirect)
+      navigateToHome()
     }
   } catch (err: any) {
     console.error('Error Google Auth:', err)
     if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
-      // User dismissed popup, no error needed
+      // User cancelled popup manually, no error notice needed
       error.value = ''
-    } else if (err.code === 'auth/popup-blocked') {
-      error.value = 'El navegador bloqueó la ventana emergente. Por favor permite las ventanas emergentes para continuar.'
+      loading.value = false
+      return
+    }
+
+    // If popup is blocked by mobile browser or unsupported in standalone PWA webview, fallback to redirect
+    if (
+      err.code === 'auth/popup-blocked' || 
+      err.code === 'auth/operation-not-supported-in-this-environment' ||
+      err.code === 'auth/cancelled-popup-request'
+    ) {
+      try {
+        await signInWithRedirect(auth, provider)
+        return
+      } catch (redirErr: any) {
+        error.value = redirErr.message || 'Error al redirigir para autenticación.'
+      }
     } else if (err.code === 'auth/unauthorized-domain') {
-      error.value = 'Dominio no autorizado en Firebase. Añade este dominio/IP en Firebase Console > Authentication > Configuración.'
+      error.value = 'Dominio no autorizado en Firebase. Añade este dominio/IP en Firebase Console > Authentication > Dominios autorizados.'
     } else {
       error.value = err.message || 'Error al iniciar sesión con Google.'
     }
