@@ -12,13 +12,28 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
+if (import.meta.env.DEV) {
+  console.log('[AUTH:FLOW] FIREBASE_INIT_START');
+}
+
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-// Enforce browser local persistence so sessions survive mobile redirects & PWA reloads
-setPersistence(auth, browserLocalPersistence).catch((err) => {
-  console.warn('[AUTH PERSISTENCE ERROR]', err);
-});
+if (import.meta.env.DEV) {
+  console.log('[AUTH:FLOW] FIREBASE_INITIALIZED');
+}
+
+// Enforce browser local persistence so sessions survive mobile redirects & PWA reloads.
+// Export the promise so auth store can await it before reading auth state.
+export const persistenceReady = setPersistence(auth, browserLocalPersistence)
+  .then(() => {
+    if (import.meta.env.DEV) {
+      console.log('[AUTH:FLOW] PERSISTENCE_CONFIGURED');
+    }
+  })
+  .catch((err) => {
+    console.warn('[AUTH:ERROR] PERSISTENCE_SETUP_FAILED', err?.code || err);
+  });
 
 // Configure Firestore with modern persistent local cache (resilient on mobile/iOS)
 export const db = initializeFirestore(app, {
@@ -26,4 +41,3 @@ export const db = initializeFirestore(app, {
     tabManager: persistentMultipleTabManager()
   })
 });
-

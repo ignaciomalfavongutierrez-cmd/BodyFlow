@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import AppLayout from './layouts/AppLayout.vue'
 import { usePwaStore } from './stores/pwa'
 import { useAuthStore } from './stores/auth'
@@ -8,9 +8,56 @@ const isOffline = ref(!navigator.onLine)
 const authStore = useAuthStore()
 const pwaStore = usePwaStore()
 
-const isAuthReady = computed(() => !authStore.loading)
-const splashActive = ref(true)
+// ─── Splash Control ───
+// Splash shows during BOTH: minimum visual duration AND auth initialization.
+// It disappears only when BOTH conditions are met.
+const splashMinTimeElapsed = ref(false)
 const loadingProgress = ref(0)
+
+// Splash is visible when:
+// 1. Auth is still initializing/restoring AND min time hasn't elapsed, OR
+// 2. Auth is still initializing/restoring (even if min time elapsed — we wait for auth)
+// 3. Min time hasn't elapsed (even if auth is ready — visual polish)
+// BUT: if auth errors out, we show recovery UI instead of hiding splash
+const isSplashVisible = computed(() => {
+  // If auth resolved (authenticated or unauthenticated), only wait for min visual time
+  if (authStore.isAuthReady && authStore.status !== 'error') {
+    return !splashMinTimeElapsed.value
+  }
+  // If auth errored, keep splash visible to show recovery UI
+  if (authStore.status === 'error') {
+    return true
+  }
+  // Auth still loading — splash stays
+  return true
+})
+
+// Show recovery UI when auth timed out or errored
+const showRecoveryUI = computed(() => authStore.status === 'error')
+
+// ─── Toast Notification System ───
+const toastMessage = ref('')
+const toastVisible = ref(false)
+let toastTimer: ReturnType<typeof setTimeout> | null = null
+
+function showToast(message: string, durationMs = 4000) {
+  if (!message) return
+  toastMessage.value = message
+  toastVisible.value = true
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => {
+    toastVisible.value = false
+  }, durationMs)
+}
+
+// Watch for auth errors → show toast
+watch(() => authStore.authError, (newError) => {
+  if (newError && authStore.status !== 'error') {
+    // Non-critical auth error (e.g., during login attempt) — show toast
+    showToast(newError)
+    authStore.clearError()
+  }
+})
 
 // Dynamic phrases about intelligent nutrition
 const nutritionPhrases = [
@@ -26,6 +73,11 @@ let progressInterval: ReturnType<typeof setInterval> | null = null
 
 function updateOnlineStatus() {
   isOffline.value = !navigator.onLine
+}
+
+async function handleRetry() {
+  loadingProgress.value = 0
+  await authStore.retryAuth()
 }
 
 onMounted(() => {
@@ -57,7 +109,7 @@ onMounted(() => {
 
   // Ensure splash stays active for minimum 2.3s for visual enjoyment
   setTimeout(() => {
-    splashActive.value = false
+    splashMinTimeElapsed.value = true
     if (phraseInterval) clearInterval(phraseInterval)
   }, 2300)
 })
@@ -67,10 +119,7 @@ onUnmounted(() => {
   window.removeEventListener('offline', updateOnlineStatus)
   if (phraseInterval) clearInterval(phraseInterval)
   if (progressInterval) clearInterval(progressInterval)
-})
-
-const isSplashVisible = computed(() => {
-  return !isAuthReady.value || splashActive.value
+  if (toastTimer) clearTimeout(toastTimer)
 })
 </script>
 
@@ -128,18 +177,33 @@ const isSplashVisible = computed(() => {
             BodyFlow
           </h1>
 
-          <!-- Dynamic Intelligent Nutrition Phrase with Fade Animation -->
-          <div class="h-14 mt-4 flex items-center justify-center">
+          <!-- Dynamic Intelligent Nutrition Phrase with Fade Animation (normal mode) -->
+          <div v-if="!showRecoveryUI" class="h-14 mt-4 flex items-center justify-center">
             <transition name="phrase-fade" mode="out-in">
               <p :key="currentPhraseIndex" class="text-sm sm:text-base font-medium text-gray-300 tracking-wide leading-relaxed">
                 "{{ nutritionPhrases[currentPhraseIndex] }}"
               </p>
             </transition>
           </div>
+
+          <!-- Recovery UI (when auth timed out or errored) -->
+          <div v-if="showRecoveryUI" class="mt-6 flex flex-col items-center gap-4">
+            <p class="text-sm text-gray-400 leading-relaxed">
+              {{ authStore.authError || 'El inicio de sesión está tardando más de lo esperado.' }}
+            </p>
+            <button
+              @click="handleRetry"
+              :disabled="authStore.loading"
+              class="px-8 py-3 rounded-2xl font-bold text-sm transition-all active:scale-[0.96] cursor-pointer disabled:opacity-50"
+              style="background: var(--kinetic-glow, linear-gradient(135deg, #19e80d 0%, #87ff70 100%)); color: #013a00;"
+            >
+              {{ authStore.loading ? 'Reintentando...' : 'Reintentar' }}
+            </button>
+          </div>
         </div>
 
-        <!-- Footer Loading Bar & Status -->
-        <div class="w-full max-w-xs flex flex-col items-center gap-3 z-10 pb-4">
+        <!-- Footer Loading Bar & Status (normal mode) -->
+        <div v-if="!showRecoveryUI" class="w-full max-w-xs flex flex-col items-center gap-3 z-10 pb-4">
           <!-- Sleek Glowing Progress Bar -->
           <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden p-[1px] backdrop-blur-sm border border-white/5 shadow-inner">
             <div 
@@ -154,6 +218,21 @@ const isSplashVisible = computed(() => {
           </div>
         </div>
 
+      </div>
+    </transition>
+
+    <!-- Toast Notification -->
+    <transition name="toast-slide">
+      <div
+        v-if="toastVisible"
+        class="fixed bottom-6 left-4 right-4 z-[120] flex justify-center pointer-events-none"
+      >
+        <div
+          class="max-w-sm w-full px-4 py-3 rounded-2xl text-sm font-medium text-center pointer-events-auto shadow-xl backdrop-blur-md"
+          style="background: rgba(24, 24, 27, 0.92); color: var(--on-surface, #e5e1e4); border: 1px solid var(--glass-border, rgba(255,255,255,0.08));"
+        >
+          {{ toastMessage }}
+        </div>
       </div>
     </transition>
     
@@ -183,6 +262,22 @@ const isSplashVisible = computed(() => {
   transform: translateY(-6px);
 }
 
+/* Toast animation */
+.toast-slide-enter-active {
+  transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.toast-slide-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.toast-slide-enter-from {
+  opacity: 0;
+  transform: translateY(12px);
+}
+.toast-slide-leave-to {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
 @keyframes pulseGlow {
   0%, 100% { opacity: 0.4; transform: scale(1); }
   50% { opacity: 0.8; transform: scale(1.08); }
@@ -201,4 +296,3 @@ const isSplashVisible = computed(() => {
   animation: floatAnim 3s ease-in-out infinite;
 }
 </style>
-

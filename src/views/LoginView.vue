@@ -1,16 +1,15 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { auth } from '../firebase'
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult
+  signInWithRedirect
 } from 'firebase/auth'
 import { useRouter, useRoute } from 'vue-router'
-import { useAuthStore } from '../stores/auth'
+import { useAuthStore, classifyAuthError, friendlyAuthMessage } from '../stores/auth'
 import logoImg from '../assets/logo.png'
 
 const router = useRouter()
@@ -29,35 +28,41 @@ function navigateToHome() {
   router.replace(target)
 }
 
-// Automatically navigate away from login as soon as auth state confirms user
+// Automatically navigate away from login as soon as auth state confirms user.
+// This is the ONLY redirect mechanism from login — getRedirectResult is handled
+// exclusively by the auth store to avoid the double-call race condition.
 watch(
-  () => [authStore.user, auth.currentUser],
-  ([storeUser, directUser]) => {
-    if (storeUser || directUser) {
+  () => authStore.user,
+  (storeUser) => {
+    if (storeUser) {
       navigateToHome()
     }
   },
   { immediate: true }
 )
 
-onMounted(async () => {
-  // If user is already authenticated on mount, redirect to home
-  if (auth.currentUser || authStore.user) {
-    navigateToHome()
-    return
+/** Map Firebase email/password error codes to friendly Spanish messages */
+function friendlyEmailError(err: any): string {
+  const code = err?.code || ''
+  switch (code) {
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential':
+      return 'Email o contraseña incorrectos.'
+    case 'auth/email-already-in-use':
+      return 'Este email ya está registrado. Intenta iniciar sesión.'
+    case 'auth/weak-password':
+      return 'La contraseña debe tener al menos 6 caracteres.'
+    case 'auth/invalid-email':
+      return 'El formato del email no es válido.'
+    case 'auth/too-many-requests':
+      return 'Demasiados intentos. Espera un momento e inténtalo nuevamente.'
+    case 'auth/network-request-failed':
+      return 'Parece que hubo un problema de conexión. Revisa tu conexión e inténtalo nuevamente.'
+    default:
+      return 'No pudimos iniciar tu sesión. Inténtalo nuevamente.'
   }
-
-  try {
-    const result = await getRedirectResult(auth)
-    if (result && result.user) {
-      navigateToHome()
-    }
-  } catch (err: any) {
-    if (err.code !== 'auth/credential-already-in-use') {
-      console.warn('[LOGIN VIEW] getRedirectResult notice:', err)
-    }
-  }
-})
+}
 
 async function handleSubmit() {
   if (!email.value || !password.value) return
@@ -72,7 +77,7 @@ async function handleSubmit() {
     }
     navigateToHome()
   } catch (err: any) {
-    error.value = err.message
+    error.value = friendlyEmailError(err)
   } finally {
     loading.value = false
   }
@@ -90,7 +95,8 @@ async function loginWithGoogle() {
 
   try {
     if (isMobile) {
-      // Direct redirect on mobile avoids tab freeze & unresolving popups in iOS Safari / Android Chrome
+      // Direct redirect on mobile avoids tab freeze & unresolving popups in iOS Safari / Android Chrome.
+      // The redirect result is processed exclusively by auth store's initAuth on return.
       await signInWithRedirect(auth, provider)
       return
     }
@@ -100,28 +106,31 @@ async function loginWithGoogle() {
       navigateToHome()
     }
   } catch (err: any) {
-    console.error('Error Google Auth:', err)
-    if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
-      error.value = ''
+    const kind = classifyAuthError(err)
+    
+    if (kind === 'cancelled') {
+      // User closed popup or cancelled — silent, no error shown
       loading.value = false
       return
     }
 
+    // If popup was blocked, try redirect as fallback
     if (
       err.code === 'auth/popup-blocked' || 
-      err.code === 'auth/operation-not-supported-in-this-environment' ||
-      err.code === 'auth/cancelled-popup-request'
+      err.code === 'auth/operation-not-supported-in-this-environment'
     ) {
       try {
         await signInWithRedirect(auth, provider)
         return
       } catch (redirErr: any) {
-        error.value = redirErr.message || 'Error al redirigir para autenticación.'
+        error.value = friendlyAuthMessage(classifyAuthError(redirErr))
       }
-    } else if (err.code === 'auth/unauthorized-domain') {
-      error.value = 'Dominio no autorizado en Firebase. Añade este dominio/IP en Firebase Console > Authentication > Dominios autorizados.'
     } else {
-      error.value = err.message || 'Error al iniciar sesión con Google.'
+      error.value = friendlyAuthMessage(kind)
+    }
+
+    if (import.meta.env.DEV) {
+      console.warn('[AUTH:ERROR] Google Sign-In failed:', err?.code, err?.message)
     }
   } finally {
     if (!isMobile) {

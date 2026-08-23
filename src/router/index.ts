@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { auth } from '../firebase'
 import DashboardView from '../views/DashboardView.vue'
 import UploadView from '../views/UploadView.vue'
 
@@ -52,22 +51,24 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, _from) => {
-  // Wait for Firebase to finish restoring persistent credentials from IndexedDB / redirect
-  try {
-    await auth.authStateReady()
-  } catch (e) {
-    console.warn('[ROUTER] authStateReady error:', e)
-  }
+  // Lazy-import auth store to avoid circular dependency at module load time.
+  // The store is already instantiated by App.vue before any navigation guard runs.
+  const { useAuthStore } = await import('../stores/auth')
+  const authStore = useAuthStore()
 
-  const user = auth.currentUser
+  // Wait for the auth store's initialization to complete (single source of truth).
+  // This replaces the previous direct auth.authStateReady() call which raced
+  // with the auth store's own initAuth and caused duplicate waits.
+  await authStore.authReadyPromise
+
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
   const guestOnly = to.matched.some(record => record.meta.guestOnly)
 
-  if (requiresAuth && !user) {
+  if (requiresAuth && !authStore.isAuthenticated()) {
     // Not logged in → send to login with redirect param (never redirect back to /login itself)
     const targetRedirect = to.fullPath && to.fullPath !== '/login' ? to.fullPath : '/'
     return { name: 'login', query: { redirect: targetRedirect } }
-  } else if (guestOnly && user) {
+  } else if (guestOnly && authStore.isAuthenticated()) {
     // Already logged in → skip login/register and send to intended destination
     const redirect = to.query.redirect as string
     const target = redirect && redirect !== '/login' ? redirect : '/'
@@ -76,4 +77,3 @@ router.beforeEach(async (to, _from) => {
 })
 
 export default router
-
