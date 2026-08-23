@@ -178,6 +178,27 @@ async function confirmLogout() {
         </button>
       </section>
 
+      <!-- Admin Utilities Panel (Only for authorized admin emails) -->
+      <section v-if="isAdminEmail(authStore.user?.email)" class="glass-card p-5 border border-emerald-500/30 shadow-lg relative overflow-hidden">
+        <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-[#19e80d]/10 rounded-full blur-xl pointer-events-none"></div>
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="relative flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#19e80d] opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-[#19e80d]"></span>
+              </span>
+              <h2 class="text-sm font-bold text-[#87ff70]">Panel de Nutrióloga</h2>
+            </div>
+            <p class="text-xs text-gray-400">Acceso clínico exclusivo y herramientas de pacientes.</p>
+          </div>
+          <router-link to="/utilities" class="px-4 py-2.5 btn-primary text-xs font-bold shadow flex items-center gap-1.5 rounded-xl shrink-0">
+            <Wrench class="w-3.5 h-3.5" />
+            <span>Utilities</span>
+          </router-link>
+        </div>
+      </section>
+
       <!-- Account Info -->
       <section class="glass-card p-5 space-y-4">
         <h2 class="text-[11px] font-bold uppercase tracking-wider mb-2" style="color: var(--on-surface-muted);">Información de Cuenta</h2>
@@ -274,24 +295,6 @@ async function confirmLogout() {
               style="background: var(--on-primary);"
             ></span>
           </button>
-        </div>
-      </section>
-
-      <!-- Admin Utilities Panel (Only for authorized admin emails) -->
-      <section v-if="isAdminEmail(authStore.user?.email)" class="glass-card p-5 border border-emerald-500/30 shadow-lg relative overflow-hidden">
-        <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-[#19e80d]/10 rounded-full blur-xl pointer-events-none"></div>
-        <div class="flex items-center justify-between">
-          <div>
-            <div class="flex items-center gap-2 mb-1">
-              <span class="w-2 h-2 rounded-full bg-[#19e80d] animate-ping"></span>
-              <h2 class="text-sm font-bold text-[#87ff70]">Panel de Nutrióloga</h2>
-            </div>
-            <p class="text-xs text-gray-400">Acceso clínico exclusivo y herramientas avanzadas.</p>
-          </div>
-          <router-link to="/utilities" class="px-4 py-2.5 btn-primary text-xs font-bold shadow flex items-center gap-1.5 rounded-xl">
-            <Wrench class="w-3.5 h-3.5" />
-            <span>Utilities</span>
-          </router-link>
         </div>
       </section>
 

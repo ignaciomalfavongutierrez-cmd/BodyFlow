@@ -3,11 +3,17 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useUserStore } from '../stores/user'
 import { useDietStore } from '../stores/diet'
 import { useLogStore } from '../stores/log'
+import { useAuthStore } from '../stores/auth'
+import { isAdminEmail } from '../router'
+import { Wrench } from 'lucide-vue-next'
 import MealCard from '../components/MealCard.vue'
 
 const userStore = useUserStore()
 const dietStore = useDietStore()
 const logStore = useLogStore()
+const authStore = useAuthStore()
+
+const isAdmin = computed(() => isAdminEmail(authStore.user?.email))
 
 // State for navigation
 const selectedDateStr = ref(new Date().toISOString().split('T')[0])
@@ -156,6 +162,30 @@ function loadDemoDiet() {
             <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
           </svg>
         </button>
+      </div>
+
+      <!-- Admin Nutrióloga Quick Action (Only for authorized admin emails) -->
+      <div v-if="isAdmin" class="mb-5">
+        <router-link 
+          to="/utilities" 
+          class="w-full py-2.5 px-4 rounded-2xl text-xs font-bold flex items-center justify-between transition-all active:scale-[0.98] shadow-lg shadow-[#19e80d]/10 cursor-pointer border border-[#19e80d]/35"
+          style="background: linear-gradient(135deg, rgba(25, 232, 13, 0.18) 0%, rgba(0, 165, 114, 0.18) 100%); color: #87ff70;"
+        >
+          <div class="flex items-center gap-2">
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#19e80d] opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-[#19e80d]"></span>
+            </span>
+            <Wrench class="w-4 h-4 text-[#87ff70]" />
+            <span class="tracking-wide">Panel de Nutrióloga</span>
+          </div>
+          <div class="flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
+            <span>Abrir</span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+            </svg>
+          </div>
+        </router-link>
       </div>
 
       <!-- Meal Plan Override Banner -->
