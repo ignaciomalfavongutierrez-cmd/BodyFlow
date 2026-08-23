@@ -68,8 +68,10 @@ router.beforeEach(async (to, _from) => {
     const targetRedirect = to.fullPath && to.fullPath !== '/login' ? to.fullPath : '/'
     return { name: 'login', query: { redirect: targetRedirect } }
   } else if (guestOnly && user) {
-    // Already logged in → skip login/register
-    return { name: 'dashboard' }
+    // Already logged in → skip login/register and send to intended destination
+    const redirect = to.query.redirect as string
+    const target = redirect && redirect !== '/login' ? redirect : '/'
+    return target
   }
 })
 

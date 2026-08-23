@@ -157,7 +157,7 @@ const isSplashVisible = computed(() => {
       </div>
     </transition>
     
-    <AppLayout v-if="!isSplashVisible" :class="{'pt-6': isOffline}" />
+    <AppLayout :class="{'pt-6': isOffline}" />
   </div>
 </template>
 

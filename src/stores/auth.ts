@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { auth } from '../firebase';
-import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
-import { useRouter } from 'vue-router';
+import { onAuthStateChanged, signOut, getRedirectResult, type User } from 'firebase/auth';
+import router from '../router';
 import { useUserStore } from './user';
 import { useDietStore } from './diet';
 import { useFoodsStore } from './foods';
@@ -12,7 +12,6 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(auth.currentUser);
   const loading = ref(true);
   const isAuthReady = ref(false);
-  const router = useRouter();
 
   const userStore = useUserStore();
   const dietStore = useDietStore();
@@ -21,14 +20,32 @@ export const useAuthStore = defineStore('auth', () => {
 
   let initialAuthChecked = false;
 
-  // Initialize auth state ready promise
-  auth.authStateReady().then(() => {
-    isAuthReady.value = true;
-    user.value = auth.currentUser;
-  }).catch((err) => {
-    console.warn('[AUTH] authStateReady error:', err);
-    isAuthReady.value = true;
-  });
+  // Process any incoming Google redirect auth credentials and await state ready
+  async function initAuth() {
+    try {
+      const redirectResult = await getRedirectResult(auth);
+      if (redirectResult && redirectResult.user) {
+        console.log('[AUTH] Google Redirect login successful:', redirectResult.user.email);
+        user.value = redirectResult.user;
+      }
+    } catch (err: any) {
+      if (err.code !== 'auth/credential-already-in-use') {
+        console.warn('[AUTH] getRedirectResult notice:', err);
+      }
+    }
+
+    try {
+      await auth.authStateReady();
+      user.value = auth.currentUser;
+    } catch (err) {
+      console.warn('[AUTH] authStateReady error:', err);
+    } finally {
+      isAuthReady.value = true;
+    }
+  }
+
+  // Kick off auth initialization immediately
+  initAuth();
 
   // Listen to Auth changes — this is the only listener that lives for the full app lifetime
   onAuthStateChanged(auth, async (firebaseUser) => {
@@ -45,7 +62,7 @@ export const useAuthStore = defineStore('auth', () => {
           foodsStore.fetchMyFoods()
         ]);
 
-        // If user is logged in and currently on the login screen, forward to dashboard
+        // If user is logged in and currently on the login screen, forward to dashboard or intended target
         if (router.currentRoute.value?.name === 'login') {
           const redirect = router.currentRoute.value?.query?.redirect as string;
           const target = redirect && redirect !== '/login' ? redirect : '/';
@@ -104,5 +121,3 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated
   };
 });
-
-

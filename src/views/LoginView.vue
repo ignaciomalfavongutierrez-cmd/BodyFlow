@@ -85,21 +85,41 @@ async function loginWithGoogle() {
   loading.value = true
   error.value = ''
   
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                   window.matchMedia('(display-mode: standalone)').matches ||
+                   window.innerWidth < 768
+
   try {
-    const result = await signInWithPopup(auth, provider)
-    if (result && result.user) {
-      navigateToHome()
+    if (isMobile) {
+      try {
+        const result = await signInWithPopup(auth, provider)
+        if (result && result.user) {
+          navigateToHome()
+          return
+        }
+      } catch (popupErr: any) {
+        console.warn('[AUTH] Popup failed on mobile, attempting redirect:', popupErr)
+        if (popupErr.code === 'auth/popup-closed-by-user' || popupErr.code === 'auth/cancelled-popup-request') {
+          loading.value = false
+          return
+        }
+        await signInWithRedirect(auth, provider)
+        return
+      }
+    } else {
+      const result = await signInWithPopup(auth, provider)
+      if (result && result.user) {
+        navigateToHome()
+      }
     }
   } catch (err: any) {
     console.error('Error Google Auth:', err)
     if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
-      // User cancelled popup manually, no error notice needed
       error.value = ''
       loading.value = false
       return
     }
 
-    // If popup is blocked by mobile browser or unsupported in standalone PWA webview, fallback to redirect
     if (
       err.code === 'auth/popup-blocked' || 
       err.code === 'auth/operation-not-supported-in-this-environment' ||
