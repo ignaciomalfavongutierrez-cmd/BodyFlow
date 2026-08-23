@@ -13,6 +13,7 @@ import {
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore, classifyAuthError, friendlyAuthMessage } from '../stores/auth'
 import { useUserStore } from '../stores/user'
+import { isAdminEmail } from '../router'
 import logoImg from '../assets/logo.png'
 import { Mail, Lock, User, Eye, EyeOff, KeyRound, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-vue-next'
 
@@ -46,7 +47,17 @@ const resetSent = ref(false)
 
 function navigateToHome() {
   const redirect = route.query.redirect as string
-  const target = redirect && redirect !== '/login' ? redirect : '/'
+  const userEmail = (authStore.user?.email || auth.currentUser?.email || '').toLowerCase().trim()
+  const isAdmin = isAdminEmail(userEmail)
+
+  let target = '/'
+  if (redirect && redirect !== '/login') {
+    if (redirect.startsWith('/utilities')) {
+      target = isAdmin ? redirect : '/'
+    } else {
+      target = redirect
+    }
+  }
   router.replace(target)
 }
 

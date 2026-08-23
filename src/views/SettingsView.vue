@@ -4,9 +4,10 @@ import { useUserStore } from '../stores/user'
 import { auth } from '../firebase'
 import { updateProfile as updateAuthProfile } from 'firebase/auth'
 import BaseInput from '../components/BaseInput.vue'
-import { CheckCircle, AlertTriangle, LogOut } from 'lucide-vue-next'
+import { CheckCircle, AlertTriangle, LogOut, Wrench } from 'lucide-vue-next'
 import { usePwaStore } from '../stores/pwa'
 import { useAuthStore } from '../stores/auth'
+import { isAdminEmail } from '../router'
 import { generateNutritionPlan } from '../services/nutrition/calculations'
 import type { PhysicalData, NutritionGoals } from '../services/nutrition/models'
 
@@ -273,6 +274,24 @@ async function confirmLogout() {
               style="background: var(--on-primary);"
             ></span>
           </button>
+        </div>
+      </section>
+
+      <!-- Admin Utilities Panel (Only for authorized admin emails) -->
+      <section v-if="isAdminEmail(authStore.user?.email)" class="glass-card p-5 border border-emerald-500/30 shadow-lg relative overflow-hidden">
+        <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-[#19e80d]/10 rounded-full blur-xl pointer-events-none"></div>
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="w-2 h-2 rounded-full bg-[#19e80d] animate-ping"></span>
+              <h2 class="text-sm font-bold text-[#87ff70]">Panel de Nutrióloga</h2>
+            </div>
+            <p class="text-xs text-gray-400">Acceso clínico exclusivo y herramientas avanzadas.</p>
+          </div>
+          <router-link to="/utilities" class="px-4 py-2.5 btn-primary text-xs font-bold shadow flex items-center gap-1.5 rounded-xl">
+            <Wrench class="w-3.5 h-3.5" />
+            <span>Utilities</span>
+          </router-link>
         </div>
       </section>
 

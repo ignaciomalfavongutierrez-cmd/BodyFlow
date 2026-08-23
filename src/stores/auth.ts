@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { auth, persistenceReady } from '../firebase';
 import { onAuthStateChanged, signOut, getRedirectResult, type User } from 'firebase/auth';
-import router from '../router';
+import router, { isAdminEmail } from '../router';
 import { useUserStore } from './user';
 import { useDietStore } from './diet';
 import { useFoodsStore } from './foods';
@@ -212,7 +212,16 @@ export const useAuthStore = defineStore('auth', () => {
           const currentName = router.currentRoute.value?.name;
           if (currentName === 'login') {
             const redirect = router.currentRoute.value?.query?.redirect as string;
-            const target = redirect && redirect !== '/login' ? redirect : '/';
+            const userEmail = (firebaseUser.email || '').toLowerCase().trim();
+            const isAdmin = isAdminEmail(userEmail);
+            let target = '/';
+            if (redirect && redirect !== '/login') {
+              if (redirect.startsWith('/utilities')) {
+                target = isAdmin ? redirect : '/';
+              } else {
+                target = redirect;
+              }
+            }
             authLog('NAVIGATION_TO_APP', target);
             router.replace(target);
           }

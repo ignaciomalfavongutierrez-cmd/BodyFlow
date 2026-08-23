@@ -2,6 +2,16 @@ import { createRouter, createWebHistory } from 'vue-router'
 import DashboardView from '../views/DashboardView.vue'
 import UploadView from '../views/UploadView.vue'
 
+export const ADMIN_EMAILS = [
+  'lic.n.talia@gmail.com',
+  'ignaciomalfavongutierrez@gmail.com'
+]
+
+export function isAdminEmail(email?: string | null): boolean {
+  if (!email) return false
+  return ADMIN_EMAILS.includes(email.toLowerCase().trim())
+}
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -21,7 +31,7 @@ const router = createRouter({
       path: '/utilities',
       name: 'utilities',
       component: () => import('../views/UtilitiesView.vue'),
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true, adminOnly: true }
     },
     {
       path: '/upload',
@@ -52,26 +62,33 @@ const router = createRouter({
 
 router.beforeEach(async (to, _from) => {
   // Lazy-import auth store to avoid circular dependency at module load time.
-  // The store is already instantiated by App.vue before any navigation guard runs.
   const { useAuthStore } = await import('../stores/auth')
   const authStore = useAuthStore()
 
   // Wait for the auth store's initialization to complete (single source of truth).
-  // This replaces the previous direct auth.authStateReady() call which raced
-  // with the auth store's own initAuth and caused duplicate waits.
   await authStore.authReadyPromise
 
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
   const guestOnly = to.matched.some(record => record.meta.guestOnly)
+  const adminOnly = to.matched.some(record => record.meta.adminOnly)
+
+  const userEmail = authStore.user?.email?.toLowerCase().trim() || ''
+  const isAdmin = isAdminEmail(userEmail)
 
   if (requiresAuth && !authStore.isAuthenticated()) {
     // Not logged in → send to login with redirect param (never redirect back to /login itself)
     const targetRedirect = to.fullPath && to.fullPath !== '/login' ? to.fullPath : '/'
     return { name: 'login', query: { redirect: targetRedirect } }
+  } else if (adminOnly && (!authStore.isAuthenticated() || !isAdmin)) {
+    // Attempted to access restricted admin utilities route without authorized admin email
+    return '/'
   } else if (guestOnly && authStore.isAuthenticated()) {
-    // Already logged in → skip login/register and send to intended destination
+    // Already logged in → by default send to '/'
     const redirect = to.query.redirect as string
-    const target = redirect && redirect !== '/login' ? redirect : '/'
+    let target = redirect && redirect !== '/login' ? redirect : '/'
+    if (target.startsWith('/utilities') && !isAdmin) {
+      target = '/'
+    }
     return target
   }
 })
