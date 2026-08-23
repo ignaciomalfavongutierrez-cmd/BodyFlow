@@ -62,8 +62,12 @@ export const useAuthStore = defineStore('auth', () => {
           foodsStore.fetchMyFoods()
         ]);
 
-        // If user is logged in and currently on the login screen, forward to dashboard or intended target
-        if (router.currentRoute.value?.name === 'login') {
+        // Ensure router has mounted and resolved initial location
+        await router.isReady();
+        const currentPath = router.currentRoute.value?.path;
+        const currentName = router.currentRoute.value?.name;
+
+        if (currentName === 'login' || currentPath === '/login') {
           const redirect = router.currentRoute.value?.query?.redirect as string;
           const target = redirect && redirect !== '/login' ? redirect : '/';
           router.replace(target);

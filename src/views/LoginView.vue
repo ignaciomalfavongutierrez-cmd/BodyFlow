@@ -31,9 +31,9 @@ function navigateToHome() {
 
 // Automatically navigate away from login as soon as auth state confirms user
 watch(
-  () => authStore.user,
-  (currentUser) => {
-    if (currentUser) {
+  () => [authStore.user, auth.currentUser],
+  ([storeUser, directUser]) => {
+    if (storeUser || directUser) {
       navigateToHome()
     }
   },
@@ -42,7 +42,7 @@ watch(
 
 onMounted(async () => {
   // If user is already authenticated on mount, redirect to home
-  if (auth.currentUser) {
+  if (auth.currentUser || authStore.user) {
     navigateToHome()
     return
   }
@@ -53,9 +53,8 @@ onMounted(async () => {
       navigateToHome()
     }
   } catch (err: any) {
-    console.error('Error procesando resultado de redirect Google Auth:', err)
     if (err.code !== 'auth/credential-already-in-use') {
-      error.value = err.message || 'Error al iniciar sesión con Google.'
+      console.warn('[LOGIN VIEW] getRedirectResult notice:', err)
     }
   }
 })
@@ -91,26 +90,14 @@ async function loginWithGoogle() {
 
   try {
     if (isMobile) {
-      try {
-        const result = await signInWithPopup(auth, provider)
-        if (result && result.user) {
-          navigateToHome()
-          return
-        }
-      } catch (popupErr: any) {
-        console.warn('[AUTH] Popup failed on mobile, attempting redirect:', popupErr)
-        if (popupErr.code === 'auth/popup-closed-by-user' || popupErr.code === 'auth/cancelled-popup-request') {
-          loading.value = false
-          return
-        }
-        await signInWithRedirect(auth, provider)
-        return
-      }
-    } else {
-      const result = await signInWithPopup(auth, provider)
-      if (result && result.user) {
-        navigateToHome()
-      }
+      // Direct redirect on mobile avoids tab freeze & unresolving popups in iOS Safari / Android Chrome
+      await signInWithRedirect(auth, provider)
+      return
+    }
+
+    const result = await signInWithPopup(auth, provider)
+    if (result && result.user) {
+      navigateToHome()
     }
   } catch (err: any) {
     console.error('Error Google Auth:', err)
@@ -137,7 +124,9 @@ async function loginWithGoogle() {
       error.value = err.message || 'Error al iniciar sesión con Google.'
     }
   } finally {
-    loading.value = false
+    if (!isMobile) {
+      loading.value = false
+    }
   }
 }
 </script>
@@ -185,7 +174,7 @@ async function loginWithGoogle() {
         <button 
           type="submit" 
           :disabled="loading"
-          class="w-full py-4 btn-primary text-lg rounded-2xl active:scale-[0.98] disabled:opacity-50"
+          class="w-full py-4 btn-primary text-lg rounded-2xl active:scale-[0.98] disabled:opacity-50 cursor-pointer"
         >
           {{ loading ? 'Procesando...' : (isRegister ? 'Registrarse' : 'Iniciar Sesión') }}
         </button>
@@ -199,15 +188,16 @@ async function loginWithGoogle() {
 
       <button 
         @click="loginWithGoogle"
-        class="w-full mt-6 py-3 rounded-2xl font-semibold text-sm flex items-center justify-center gap-3 transition-all btn-secondary"
+        :disabled="loading"
+        class="w-full mt-6 py-3 rounded-2xl font-semibold text-sm flex items-center justify-center gap-3 transition-all btn-secondary disabled:opacity-60 cursor-pointer"
       >
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5" alt="Google">
-        Continuar con Google
+        {{ loading ? 'Conectando con Google...' : 'Continuar con Google' }}
       </button>
 
       <p class="mt-8 text-center text-sm" style="color: var(--on-surface-muted);">
         {{ isRegister ? '¿Ya tienes cuenta?' : '¿Nuevo en BodyFlow?' }}
-        <button @click="isRegister = !isRegister" class="font-bold ml-1 hover:underline" style="color: var(--primary);">
+        <button @click="isRegister = !isRegister" class="font-bold ml-1 hover:underline cursor-pointer" style="color: var(--primary);">
           {{ isRegister ? 'Iniciar sesión' : 'Crear cuenta' }}
         </button>
       </p>
