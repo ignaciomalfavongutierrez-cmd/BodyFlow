@@ -245,8 +245,33 @@ app.post('/api/chat', async (req, res) => {
   }
 })
 
+// ---------------------------------------------------------------------------
+// Utilities Module Routes
+// ---------------------------------------------------------------------------
+
+app.get('/api/utilities/info', (_req, res) => {
+  res.json({
+    status: 'online',
+    version: '1.0.0',
+    modules: [
+      { id: 'shopping-list', name: 'Creador de Lista de Compras', available: true },
+      { id: 'diet-generator', name: 'Generador de Dietas', available: false },
+      { id: 'patient-stats', name: 'Estadísticas de Pacientes', available: false }
+    ]
+  })
+})
+
+app.get('/utilities', (_req, res) => {
+  res.json({
+    name: 'BodyFlow Utilities Hub',
+    description: 'Panel de herramientas para profesionales de la nutrición',
+    modules: ['pacientes', 'home', 'utilities']
+  })
+})
+
 app.get('/health', (_req, res) => res.json({ ok: true }))
 
 app.listen(PORT, () => {
   console.log(`[server] BodyFlow proxy running on http://localhost:${PORT}`)
 })
+

@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { auth } from '../firebase'
-import { onAuthStateChanged } from 'firebase/auth'
 import DashboardView from '../views/DashboardView.vue'
 import UploadView from '../views/UploadView.vue'
 
@@ -19,7 +18,12 @@ const router = createRouter({
       component: DashboardView,
       meta: { requiresAuth: true }
     },
-
+    {
+      path: '/utilities',
+      name: 'utilities',
+      component: () => import('../views/UtilitiesView.vue'),
+      meta: { requiresAuth: true }
+    },
     {
       path: '/upload',
       name: 'upload',
@@ -47,26 +51,13 @@ const router = createRouter({
   ]
 })
 
-// Single promise that resolves once Firebase Auth emits its first event.
-// After that, auth.currentUser is always up-to-date — no need to re-await.
-let authReady: Promise<void>
-let resolveAuthReady: () => void
-
-authReady = new Promise((resolve) => {
-  resolveAuthReady = resolve
-})
-
-let authInitialized = false
-onAuthStateChanged(auth, () => {
-  if (!authInitialized) {
-    authInitialized = true
-    resolveAuthReady()
-  }
-})
-
 router.beforeEach(async (to, _from) => {
-  // Wait for Firebase to emit the first auth state before any navigation
-  await authReady
+  // Wait for Firebase to finish restoring persistent credentials from IndexedDB / redirect
+  try {
+    await auth.authStateReady()
+  } catch (e) {
+    console.warn('[ROUTER] authStateReady error:', e)
+  }
 
   const user = auth.currentUser
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
@@ -81,4 +72,6 @@ router.beforeEach(async (to, _from) => {
     return { name: 'dashboard' }
   }
 })
+
 export default router
+

@@ -9,8 +9,9 @@ import { useFoodsStore } from './foods';
 import { useLogStore } from './log';
 
 export const useAuthStore = defineStore('auth', () => {
-  const user = ref<User | null>(null);
+  const user = ref<User | null>(auth.currentUser);
   const loading = ref(true);
+  const isAuthReady = ref(false);
   const router = useRouter();
 
   const userStore = useUserStore();
@@ -18,14 +19,27 @@ export const useAuthStore = defineStore('auth', () => {
   const foodsStore = useFoodsStore();
   const logStore = useLogStore();
 
+  let initialAuthChecked = false;
+
+  // Initialize auth state ready promise
+  auth.authStateReady().then(() => {
+    isAuthReady.value = true;
+    user.value = auth.currentUser;
+  }).catch((err) => {
+    console.warn('[AUTH] authStateReady error:', err);
+    isAuthReady.value = true;
+  });
+
   // Listen to Auth changes — this is the only listener that lives for the full app lifetime
   onAuthStateChanged(auth, async (firebaseUser) => {
+    const wasLoggedIn = !!user.value;
     user.value = firebaseUser;
+    isAuthReady.value = true;
 
     try {
       if (firebaseUser) {
         // Auth confirmed → now safe to open Firestore listeners
-        await Promise.all([
+        await Promise.allSettled([
           userStore.fetchProfile(),
           dietStore.fetchDiet(),
           foodsStore.fetchMyFoods()
@@ -33,51 +47,49 @@ export const useAuthStore = defineStore('auth', () => {
 
         // If user is logged in and currently on the login screen, forward to dashboard
         if (router.currentRoute.value?.name === 'login') {
-          const redirect = router.currentRoute.value?.query?.redirect as string
-          const target = redirect && redirect !== '/login' ? redirect : '/'
-          router.replace(target)
+          const redirect = router.currentRoute.value?.query?.redirect as string;
+          const target = redirect && redirect !== '/login' ? redirect : '/';
+          router.replace(target);
         }
       } else {
-        // Session lost (token expired, etc.) — cleanup is handled by handleLogout
-        // This branch only runs for unexpected session loss
-        _cleanupAllStores();
-        if (router.currentRoute.value?.meta?.requiresAuth) {
-          router.push({ name: 'login', query: { expired: 'true' } });
+        // Only trigger session loss redirect if user was previously logged in and this is not initial cold boot
+        if (initialAuthChecked && wasLoggedIn) {
+          _cleanupAllStores();
+          if (router.currentRoute.value?.meta?.requiresAuth) {
+            router.push({ name: 'login', query: { expired: 'true' } });
+          }
+        } else {
+          _cleanupAllStores();
         }
       }
     } catch (error) {
       console.error('[AUTH ERROR] Failed to initialize stores:', error);
     } finally {
+      initialAuthChecked = true;
       loading.value = false;
     }
   });
 
   /**
    * Stops all Firestore onSnapshot listeners and clears Pinia state.
-   * Must be called BEFORE signOut to avoid "Insufficient Permissions" errors
-   * that occur when listeners try to re-fetch after the UID becomes null.
    */
   function _cleanupAllStores() {
-    userStore.reset();   // calls unsubscribe() internally
-    dietStore.reset();   // calls unsubscribe() internally
-    foodsStore.reset();  // calls unsubscribe() internally
-    logStore.reset();    // calls all day unsubscribes() internally
+    userStore.reset();
+    dietStore.reset();
+    foodsStore.reset();
+    logStore.reset();
   }
 
   /**
-   * Quirurgical logout:
-   * 1. Detach all Firestore listeners (prevents Insufficient Permissions flood)
+   * Logout handler:
+   * 1. Detach all Firestore listeners
    * 2. signOut from Firebase Auth
    * 3. Navigate to login
    */
   const handleLogout = async () => {
-    // STEP 1: Kill all listeners BEFORE the UID becomes null
     _cleanupAllStores();
-
-    // STEP 2: Sign out from Firebase
     await signOut(auth);
-
-    // STEP 3: Navigate to login
+    user.value = null;
     router.push({ name: 'login' });
   };
 
@@ -86,10 +98,11 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user,
     loading,
+    isAuthReady,
     handleLogout,
-    // Keep 'logout' as alias for backward compatibility
     logout: handleLogout,
     isAuthenticated
   };
 });
+
 

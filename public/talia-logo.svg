@@ -1,0 +1,37 @@
+<svg viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+  <!-- Leaf and Stem -->
+  <path d="M250 145 C250 115 265 95 285 85 C280 110 265 135 250 145 Z" fill="#6e997a" />
+  <path d="M260 110 C290 85 330 95 340 120 C310 130 280 125 260 110 Z" fill="#6e997a" />
+
+  <!-- Circular Ring Frame with gap for leaf -->
+  <path d="M210 115 A 160 160 0 1 0 350 165" fill="none" stroke="#6e997a" stroke-width="14" stroke-linecap="round" />
+
+  <!-- Apple Silhouette -->
+  <path d="M250 155 C225 125, 165 130, 145 185 C120 255, 150 345, 235 358 C246 360, 250 352, 250 352 C250 352, 254 360, 265 358 C350 345, 380 255, 355 185 C335 130, 275 125, 250 155 Z" fill="#6e997a" />
+
+  <!-- Measuring Tape wrapped around Apple -->
+  <path d="M135 235 C180 265, 320 265, 365 235 L370 270 C320 300, 180 300, 130 270 Z" fill="#5a8566" />
+  <path d="M135 235 C180 265, 320 265, 365 235" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" />
+  <path d="M130 270 C180 300, 320 300, 370 270" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" />
+
+  <!-- Measuring Tape Tick Marks (White Ticks) -->
+  <line x1="165" y1="247" x2="165" y2="277" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round" />
+  <line x1="185" y1="251" x2="185" y2="272" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+  <line x1="205" y1="254" x2="205" y2="284" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round" />
+  <line x1="225" y1="256" x2="225" y2="277" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+  <line x1="250" y1="257" x2="250" y2="288" stroke="#ffffff" stroke-width="5" stroke-linecap="round" />
+  <line x1="275" y1="256" x2="275" y2="277" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+  <line x1="295" y1="254" x2="295" y2="284" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round" />
+  <line x1="315" y1="251" x2="315" y2="272" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+  <line x1="335" y1="247" x2="335" y2="277" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round" />
+
+  <!-- Text: L.N. TALIA TINOCO FABIÁN -->
+  <text x="250" y="420" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="30" font-weight="800" letter-spacing="2" fill="#6e997a">
+    L.N. TALIA TINOCO FABIÁN
+  </text>
+
+  <!-- Text: NUTRICIÓN -->
+  <text x="250" y="455" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="700" letter-spacing="10" fill="#6e997a">
+    NUTRICIÓN
+  </text>
+</svg>

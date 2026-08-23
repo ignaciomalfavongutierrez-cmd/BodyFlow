@@ -1,0 +1,120 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import type { DietStructure  } from '../../types/shoppingDiet';
+import { GEMINI_DIET_SYSTEM_PROMPT } from '../../prompts/geminiDietPrompt';
+import { LocalPdfParserService } from './LocalPdfParserService';
+
+export class GeminiDietParserService {
+  public static getApiKey(): string {
+    const envKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (envKey && typeof envKey === 'string' && envKey.trim() !== '') {
+      return envKey.trim().replace(/^["']|["']$/g, '');
+    }
+    return '';
+  }
+
+  public static async parseDietPdf(file: File): Promise<DietStructure> {
+    const apiKey = this.getApiKey();
+    const localText = await LocalPdfParserService.extractTextFromPdf(file);
+    let lastError: any = null;
+
+    // If client API key is available, attempt direct GoogleGenerativeAI call
+    if (apiKey) {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const candidateModels = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-2.5-flash'];
+
+
+      for (const modelName of candidateModels) {
+        try {
+          const model = genAI.getGenerativeModel({
+            model: modelName,
+            generationConfig: {
+              responseMimeType: 'application/json',
+              temperature: 0.1,
+            },
+          });
+
+          let resultText = '';
+
+          if (localText && localText.length > 50) {
+            const prompt = `${GEMINI_DIET_SYSTEM_PROMPT}\n\nDOCUMENTO DE DIETA EXTRACTADO:\n${localText}`;
+            const result = await model.generateContent(prompt);
+            resultText = result.response.text();
+          } else {
+            const base64Data = await LocalPdfParserService.fileToBase64(file);
+            const prompt = `${GEMINI_DIET_SYSTEM_PROMPT}\n\nPor favor analiza el siguiente archivo PDF de dieta adjunto y devuelve la estructura JSON requerida.`;
+            const result = await model.generateContent([prompt, base64Data]);
+            resultText = result.response.text();
+          }
+
+          return this.cleanAndParseJson(resultText);
+        } catch (err: any) {
+          console.warn(`Falló la llamada directa con el modelo ${modelName}:`, err);
+          lastError = err;
+        }
+      }
+    }
+
+    // Fallback: Call BodyFlow backend proxy /api/chat
+    try {
+      let promptContent = '';
+      let contentsPayload: any = null;
+
+      if (localText && localText.length > 50) {
+        promptContent = `${GEMINI_DIET_SYSTEM_PROMPT}\n\nDOCUMENTO DE DIETA EXTRACTADO:\n${localText}`;
+      } else {
+        const base64Data = await LocalPdfParserService.fileToBase64(file);
+        promptContent = `${GEMINI_DIET_SYSTEM_PROMPT}\n\nPor favor analiza el siguiente archivo PDF de dieta adjunto y devuelve la estructura JSON requerida.`;
+        contentsPayload = [promptContent, base64Data];
+      }
+
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          prompt: promptContent,
+          contents: contentsPayload
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.text) {
+          return this.cleanAndParseJson(data.text);
+        }
+      }
+    } catch (backendErr: any) {
+      console.warn('Backend proxy /api/chat falló:', backendErr);
+      if (!lastError) lastError = backendErr;
+    }
+
+    throw new Error(
+      `No se pudo procesar el PDF con Gemini (${lastError?.message || 'Error de conexión'}). Por favor verifica tu clave de Gemini o conexión de red.`
+    );
+  }
+
+  public static cleanAndParseJson(rawText: string): DietStructure {
+    try {
+      let cleaned = rawText.trim();
+      if (cleaned.startsWith('```json')) {
+        cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleaned.startsWith('```')) {
+        cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+
+      const parsed = JSON.parse(cleaned);
+
+      if (!parsed.days || !Array.isArray(parsed.days)) {
+        throw new Error('Formato JSON devuelto por Gemini no contiene el arreglo "days".');
+      }
+
+      return {
+        diet_name: parsed.diet_name || 'Plan Nutricional Detectado',
+        days: parsed.days || [],
+        warnings: parsed.warnings || [],
+      };
+    } catch (error: any) {
+      console.error('Error parseando JSON de Gemini:', rawText, error);
+      throw new Error(`Error al interpretar la respuesta de Gemini: ${error.message || 'JSON inválido'}`);
+    }
+  }
+}

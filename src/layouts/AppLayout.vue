@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import { Home, Utensils, User } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
@@ -6,12 +7,16 @@ import InstallPrompt from '../components/InstallPrompt.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
+
+const showBottomNav = computed(() => {
+  return Boolean(route.meta.requiresAuth && authStore.user && !route.path.startsWith('/utilities'))
+})
 </script>
 
 <template>
   <div class="min-h-screen flex flex-col" style="background: var(--surface-container-lowest); font-family: var(--font-body);">
     <!-- Main content area -->
-    <main class="flex-1 overflow-y-auto" :class="{'pb-16': route.meta.requiresAuth && authStore.user}">
+    <main class="flex-1 overflow-y-auto" :class="{'pb-16': showBottomNav}">
       <RouterView v-slot="{ Component }">
         <transition name="fade" mode="out-in">
           <component :is="Component" />
@@ -22,10 +27,10 @@ const authStore = useAuthStore()
     <!-- Floating PWA Install Prompt Banner -->
     <InstallPrompt />
 
-    <!-- Bottom Navigation (Dark Glass) -->
+    <!-- Bottom Navigation (Dark Glass) - Only for patient views -->
     <nav
-      v-if="route.meta.requiresAuth && authStore.user"
-      class="fixed bottom-0 w-full flex justify-around p-3 pb-safe z-50 backdrop-blur-md"
+      v-if="showBottomNav"
+      class="fixed bottom-0 w-full flex justify-around p-3 pb-safe z-50 backdrop-blur-md no-print"
       style="background: rgba(14, 14, 16, 0.85); border-top: 1px solid var(--glass-border);"
     >
       <router-link to="/" class="nav-item flex flex-col items-center transition-colors">
@@ -43,6 +48,7 @@ const authStore = useAuthStore()
     </nav>
   </div>
 </template>
+
 
 <style scoped>
 .nav-item {

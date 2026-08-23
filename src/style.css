@@ -1,11 +1,12 @@
 @import "tailwindcss";
 @reference "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* ─── BodyFlow Design System: Kinetic Bio-Performance ─── */
 :root {
   --app-height: 100%;
 
-  /* Surfaces */
+  /* Dark Theme (Default) */
   --surface: #131315;
   --surface-dim: #131315;
   --surface-bright: #39393b;
@@ -65,6 +66,47 @@
   --radius-xl: 1.5rem;
   --radius-full: 9999px;
 }
+
+/* Light Theme Variable Overrides */
+html.light {
+  --surface: #ffffff;
+  --surface-dim: #f1f5f9;
+  --surface-bright: #ffffff;
+  --surface-container-lowest: #f8fafc;
+  --surface-container-low: #f1f5f9;
+  --surface-container: #ffffff;
+  --surface-container-high: #e2e8f0;
+  --surface-container-highest: #cbd5e1;
+
+  --on-surface: #0f172a;
+  --on-surface-variant: #334155;
+  --on-surface-muted: #64748b;
+
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(226, 232, 240, 0.9);
+  --glass-border-hover: rgba(203, 213, 225, 1);
+}
+
+/* Re-assert Dark Theme when .dark class is explicitly added */
+html.dark {
+  --surface: #131315;
+  --surface-dim: #131315;
+  --surface-bright: #39393b;
+  --surface-container-lowest: #0e0e10;
+  --surface-container-low: #1c1b1d;
+  --surface-container: #201f22;
+  --surface-container-high: #2a2a2c;
+  --surface-container-highest: #353437;
+
+  --on-surface: #e5e1e4;
+  --on-surface-variant: #baccb1;
+  --on-surface-muted: #a1a1aa;
+
+  --glass-bg: rgba(24, 24, 27, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-border-hover: rgba(255, 255, 255, 0.2);
+}
+
 
 @supports not (height: 100dvh) {
   :root {
@@ -195,3 +237,78 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ─── Global Print Styles ─── */
+@page {
+  size: portrait;
+  margin: 12mm 14mm;
+}
+
+@media print {
+  .no-print,
+  header,
+  nav,
+  aside,
+  .install-prompt,
+  .stepper-header,
+  button:not(.allow-print) {
+    display: none !important;
+  }
+  
+  html, body, #app, main, div, section, article {
+    background-color: transparent !important;
+    background: transparent !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body, html {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  main,
+  .max-w-7xl,
+  .max-w-6xl,
+  .max-w-5xl,
+  .container {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .dark {
+    color-scheme: light !important;
+  }
+
+  .dark .bg-\[\#18181b\],
+  .dark .bg-\[\#0e0e10\],
+  .dark .bg-black,
+  .dark .bg-slate-900,
+  .dark .bg-slate-950 {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  .dark .text-white,
+  .dark .text-slate-100,
+  .dark .text-slate-200 {
+    color: #0f172a !important;
+  }
+
+  .print-card, .metric-box {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}
