@@ -23,6 +23,7 @@ import {
 import { useTheme } from '../composables/useTheme'
 import ShoppingListWizard from '../components/shopping/ShoppingListWizard.vue'
 import PatientProgressWizard from '../components/progress/PatientProgressWizard.vue'
+import RecommendationsWizard from '../components/recommendations/RecommendationsWizard.vue'
 
 const router = useRouter()
 const { isDark, toggleTheme } = useTheme()
@@ -30,8 +31,8 @@ const { isDark, toggleTheme } = useTheme()
 // Main Navigation: 'pacientes' | 'home' | 'utilities'
 const currentTab = ref<'pacientes' | 'utilities'>('utilities')
 
-// Active sub-tool within utilities: 'hub' | 'shopping-list' | 'patient-progress'
-const activeTool = ref<'hub' | 'shopping-list' | 'patient-progress'>('hub')
+// Active sub-tool within utilities: 'hub' | 'shopping-list' | 'patient-progress' | 'recommendations'
+const activeTool = ref<'hub' | 'shopping-list' | 'patient-progress' | 'recommendations'>('hub')
 
 // Modal state for coming soon features
 const comingSoonModal = ref<{
@@ -59,11 +60,13 @@ function handleTabClick(tab: 'pacientes' | 'home' | 'utilities') {
   }
 }
 
-function openTool(tool: 'shopping-list' | 'diet-generator' | 'patient-progress' | 'patient-stats') {
+function openTool(tool: 'shopping-list' | 'diet-generator' | 'patient-progress' | 'patient-stats' | 'recommendations') {
   if (tool === 'shopping-list') {
     activeTool.value = 'shopping-list'
   } else if (tool === 'patient-progress' || tool === 'patient-stats') {
     activeTool.value = 'patient-progress'
+  } else if (tool === 'recommendations') {
+    activeTool.value = 'recommendations'
   } else if (tool === 'diet-generator') {
     comingSoonModal.value = {
       open: true,
@@ -314,41 +317,10 @@ const samplePatients = [
             <div class="absolute -right-12 -bottom-12 w-64 h-64 rounded-full blur-3xl opacity-20 pointer-events-none" style="background: var(--primary);"></div>
           </div>
 
-          <!-- 3 Tools Grid -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- 4 Tools Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            <!-- OPTION 1: Generador de Dietas (Placeholder) -->
-            <div
-              @click="openTool('diet-generator')"
-              class="bg-white dark:bg-white/5 p-6 rounded-3xl border border-slate-200 dark:border-white/10 hover:border-purple-300 dark:hover:border-white/30 transition-all duration-300 flex flex-col justify-between group cursor-pointer relative overflow-hidden shadow-sm hover:shadow-md"
-            >
-              <div class="space-y-4">
-                <div class="flex items-center justify-between">
-                  <div class="w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
-                    <Sparkles class="w-7 h-7" />
-                  </div>
-                  <span class="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30">
-                    Próximamente
-                  </span>
-                </div>
-
-                <div>
-                  <h3 class="text-xl font-bold text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors">
-                    Generador de Dietas
-                  </h3>
-                  <p class="text-xs leading-relaxed mt-2 text-slate-500 dark:text-slate-400">
-                    Crea planes de alimentación a medida con Inteligencia Artificial, ajustando requerimientos calóricos, macronutrientes y distribución de comidas.
-                  </p>
-                </div>
-              </div>
-
-              <div class="mt-6 pt-4 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-xs font-bold text-purple-600 dark:text-purple-400">
-                <span>En Desarrollo</span>
-                <span class="group-hover:translate-x-1 transition-transform">→</span>
-              </div>
-            </div>
-
-            <!-- OPTION 2: Creador de Lista de Compras (Full Nutri-flow-Utilities Module) -->
+            <!-- OPTION 1: Creador de Lista de Compras (Full Nutri-flow-Utilities Module) -->
             <div
               @click="openTool('shopping-list')"
               class="bg-emerald-50/40 dark:bg-emerald-950/20 p-6 rounded-3xl border-2 border-emerald-500/40 dark:border-emerald-500/30 hover:border-emerald-500 transition-all duration-300 flex flex-col justify-between group cursor-pointer relative overflow-hidden shadow-lg hover:shadow-xl"
@@ -380,6 +352,40 @@ const samplePatients = [
                 <span class="flex items-center gap-1.5">
                   <CheckCircle2 class="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   Abrir Generador de Compras
+                </span>
+                <span class="group-hover:translate-x-1 transition-transform">→</span>
+              </div>
+            </div>
+
+            <!-- OPTION 2: Hoja de Recomendaciones Nutricionales (Full Module) -->
+            <div
+              @click="openTool('recommendations')"
+              class="bg-white dark:bg-white/5 p-6 rounded-3xl border border-slate-200 dark:border-white/10 hover:border-emerald-500/50 dark:hover:border-emerald-500/40 transition-all duration-300 flex flex-col justify-between group cursor-pointer relative overflow-hidden shadow-sm hover:shadow-md"
+            >
+              <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <div class="w-14 h-14 rounded-2xl bg-[#7e9455]/15 border border-[#7e9455]/30 flex items-center justify-center text-[#556637] dark:text-[#9eb07a] group-hover:scale-110 transition-transform">
+                    <FileText class="w-7 h-7" />
+                  </div>
+                  <span class="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-[#7e9455]/20 text-[#3f4e24] dark:text-[#baccb1] border border-[#7e9455]/40">
+                    Disponible • Oficial
+                  </span>
+                </div>
+
+                <div>
+                  <h3 class="text-xl font-bold text-slate-900 dark:text-white group-hover:text-[#556637] dark:group-hover:text-[#9eb07a] transition-colors">
+                    Hoja de Recomendaciones
+                  </h3>
+                  <p class="text-xs leading-relaxed mt-2 text-slate-600 dark:text-slate-300">
+                    Formato clínico oficial personalizable por objetivo (hábitos, déficit, hipertrofia, glucemia, digestivo), notas de padecimientos y descarga en PDF.
+                  </p>
+                </div>
+              </div>
+
+              <div class="mt-6 pt-4 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-xs font-bold text-[#556637] dark:text-[#9eb07a]">
+                <span class="flex items-center gap-1.5">
+                  <CheckCircle2 class="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  Abrir Hoja de Recomendaciones
                 </span>
                 <span class="group-hover:translate-x-1 transition-transform">→</span>
               </div>
@@ -419,6 +425,37 @@ const samplePatients = [
               </div>
             </div>
 
+            <!-- OPTION 4: Generador de Dietas (Placeholder) -->
+            <div
+              @click="openTool('diet-generator')"
+              class="bg-white dark:bg-white/5 p-6 rounded-3xl border border-slate-200 dark:border-white/10 hover:border-purple-300 dark:hover:border-white/30 transition-all duration-300 flex flex-col justify-between group cursor-pointer relative overflow-hidden shadow-sm hover:shadow-md"
+            >
+              <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <div class="w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform">
+                    <Sparkles class="w-7 h-7" />
+                  </div>
+                  <span class="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30">
+                    Próximamente
+                  </span>
+                </div>
+
+                <div>
+                  <h3 class="text-xl font-bold text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-colors">
+                    Generador de Dietas
+                  </h3>
+                  <p class="text-xs leading-relaxed mt-2 text-slate-500 dark:text-slate-400">
+                    Crea planes de alimentación a medida con Inteligencia Artificial, ajustando requerimientos calóricos, macronutrientes y distribución de comidas.
+                  </p>
+                </div>
+              </div>
+
+              <div class="mt-6 pt-4 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-xs font-bold text-purple-600 dark:text-purple-400">
+                <span>En Desarrollo</span>
+                <span class="group-hover:translate-x-1 transition-transform">→</span>
+              </div>
+            </div>
+
           </div>
 
         </div>
@@ -426,6 +463,11 @@ const samplePatients = [
         <!-- ACTIVE SUB-TOOL: Shopping List Wizard -->
         <div v-else-if="activeTool === 'shopping-list'">
           <ShoppingListWizard />
+        </div>
+
+        <!-- ACTIVE SUB-TOOL: Nutrition Recommendations Sheet -->
+        <div v-else-if="activeTool === 'recommendations'">
+          <RecommendationsWizard />
         </div>
 
         <!-- ACTIVE SUB-TOOL: Patient Progress & Anthropometry -->
