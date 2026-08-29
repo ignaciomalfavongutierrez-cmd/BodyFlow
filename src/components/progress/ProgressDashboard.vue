@@ -84,21 +84,21 @@
           <div class="space-y-2.5 print-block-top">
             <!-- Patient Clinical Header Card -->
             <div class="bg-white dark:bg-[#18181b] p-3.5 sm:p-4 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-2.5 print-card transition-colors">
-              <div>
-                <div class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 print:!text-indigo-700 uppercase tracking-widest mb-0.5">
+              <div class="flex-1 min-w-0">
+                <div class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 print:!text-indigo-700 uppercase tracking-widest mb-1">
                   REPORTE DE SEGUIMIENTO NUTRICIONAL & ANTROPOMÉTRICO
                 </div>
-                <h1 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white print:!text-slate-900 tracking-tight">
+                <h1 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white print:!text-slate-900 tracking-tight leading-snug mb-1.5 break-words">
                   {{ patientName || 'Paciente' }}
                 </h1>
-                <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400 print:!text-slate-600 mt-0.5">
+                <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400 print:!text-slate-600 pt-0.5">
                   <span>Sexo: <strong class="text-slate-800 dark:text-slate-200 print:!text-slate-900">{{ sex === 'H' ? 'Hombre' : 'Mujer' }}</strong></span>
                   <span>•</span>
                   <span v-if="records.length">Periodo: <strong class="text-slate-800 dark:text-slate-200 print:!text-slate-900">{{ records[0].Fecha }}</strong> al <strong class="text-slate-800 dark:text-slate-200 print:!text-slate-900">{{ records[records.length - 1].Fecha }}</strong></span>
                 </div>
               </div>
 
-              <div class="text-right text-xs text-slate-500 dark:text-slate-400 print:!text-slate-600 font-mono">
+              <div class="text-right text-xs text-slate-500 dark:text-slate-400 print:!text-slate-600 font-mono shrink-0">
                 <div>Evaluaciones: <strong class="text-slate-800 dark:text-slate-200 print:!text-slate-900">{{ records.length }}</strong></div>
                 <div>Fecha: <strong class="text-slate-800 dark:text-slate-200 print:!text-slate-900">{{ currentDate }}</strong></div>
               </div>
@@ -250,18 +250,51 @@
           </div>
         </div>
 
-        <!-- Printable Footer Signature Block (Page 1) -->
-        <div
-          class="clinical-footer bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-3.5 py-1.5 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-1 text-[10.5px] print-card transition-colors mt-auto"
-        >
-          <div class="text-slate-600 dark:text-slate-400 print:!text-slate-700 text-center sm:text-left flex items-center gap-1.5">
-            <span>🩺</span>
-            <span>Control Clínico Nutricional • <strong>Lic. N. Talia Tinoco Fabián</strong></span>
+        <!-- Professional Clinical Footer (Page 1) -->
+        <footer class="sheet-footer clinical-footer mt-5 pt-2">
+          <div class="contact-card">
+            <div class="contact-grid">
+              <div class="contact-item">
+                <span class="contact-icon">👤</span>
+                <span><strong>Nutrióloga:</strong> Lic. N. Talia Tinoco Fabián</span>
+              </div>
+              <div class="contact-item">
+                <span class="contact-icon">🪪</span>
+                <span><strong>Cédula Profesional:</strong> 11290678</span>
+              </div>
+              <div class="contact-item">
+                <span class="contact-icon">📍</span>
+                <span><strong>Dirección:</strong> AND. Emiliano Zapata No. 2, col. Obrera, Santa Clara</span>
+              </div>
+              <div class="contact-item">
+                <span class="contact-icon">📞</span>
+                <span><strong>Teléfono / Citas:</strong> 3541009737</span>
+              </div>
+              <div class="contact-item span-2">
+                <span class="contact-icon">✉️</span>
+                <span><strong>Correo Electrónico:</strong> lic.n.talia@gmail.com</span>
+              </div>
+            </div>
           </div>
-          <div class="text-center sm:text-right font-medium text-slate-700 dark:text-slate-300 print:!text-slate-900">
-            Cédula Profesional: <strong class="text-indigo-600 dark:text-indigo-400 print:!text-indigo-800 font-mono">11290678</strong>
+
+          <div class="footer-logo">
+            <svg class="footer-logo-img" viewBox="0 0 120 120" width="34" height="34">
+              <path d="M58 26 C56 16 48 9 40 5" fill="none" stroke="#526433" stroke-width="4" stroke-linecap="round"/>
+              <path d="M57 20 C64 10 78 10 88 16 C86 26 72 30 57 20 Z" fill="#6f8745"/>
+              <path d="M60 36 C48 26 26 26 16 40 C4 56 6 84 22 100 C30 108 44 110 60 103 C76 110 90 108 98 100 C114 84 116 56 104 40 C94 26 72 26 60 36 Z" fill="#9eb07a"/>
+              <path d="M16 63 C32 72 88 72 104 63 C103 73 89 82 60 82 C31 82 17 73 16 63 Z" fill="#ffffff"/>
+              <line x1="28" y1="66" x2="28" y2="73" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="38" y1="68" x2="38" y2="75" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="48" y1="69.5" x2="48" y2="77" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="58" y1="70" x2="58" y2="78" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="68" y1="70" x2="68" y2="78" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="78" y1="69" x2="78" y2="76.5" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="88" y1="67" x2="88" y2="74" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+            <div class="footer-logo-title">TALIA TINOCO FABIÁN</div>
+            <div class="footer-logo-sub">NUTRICIÓN</div>
           </div>
-        </div>
+        </footer>
 
       </div>
 
@@ -414,16 +447,51 @@
 
         </div>
 
-        <!-- Printable Footer Signature Block (Page 2) -->
-        <div class="clinical-footer bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-3.5 py-1.5 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-1 text-[10.5px] print-card transition-colors mt-auto">
-          <div class="text-slate-600 dark:text-slate-400 print:!text-slate-700 text-center sm:text-left flex items-center gap-1.5">
-            <span>🩺</span>
-            <span>Control Clínico Nutricional • <strong>Lic. N. Talia Tinoco Fabián</strong></span>
+        <!-- Professional Clinical Footer (Page 2) -->
+        <footer class="sheet-footer clinical-footer mt-5 pt-2">
+          <div class="contact-card">
+            <div class="contact-grid">
+              <div class="contact-item">
+                <span class="contact-icon">👤</span>
+                <span><strong>Nutrióloga:</strong> Lic. N. Talia Tinoco Fabián</span>
+              </div>
+              <div class="contact-item">
+                <span class="contact-icon">🪪</span>
+                <span><strong>Cédula Profesional:</strong> 11290678</span>
+              </div>
+              <div class="contact-item">
+                <span class="contact-icon">📍</span>
+                <span><strong>Dirección:</strong> AND. Emiliano Zapata No. 2, col. Obrera, Santa Clara</span>
+              </div>
+              <div class="contact-item">
+                <span class="contact-icon">📞</span>
+                <span><strong>Teléfono / Citas:</strong> 3541009737</span>
+              </div>
+              <div class="contact-item span-2">
+                <span class="contact-icon">✉️</span>
+                <span><strong>Correo Electrónico:</strong> lic.n.talia@gmail.com</span>
+              </div>
+            </div>
           </div>
-          <div class="text-center sm:text-right font-medium text-slate-700 dark:text-slate-300 print:!text-slate-900">
-            Cédula Profesional: <strong class="text-indigo-600 dark:text-indigo-400 print:!text-indigo-800 font-mono">11290678</strong>
+
+          <div class="footer-logo">
+            <svg class="footer-logo-img" viewBox="0 0 120 120" width="34" height="34">
+              <path d="M58 26 C56 16 48 9 40 5" fill="none" stroke="#526433" stroke-width="4" stroke-linecap="round"/>
+              <path d="M57 20 C64 10 78 10 88 16 C86 26 72 30 57 20 Z" fill="#6f8745"/>
+              <path d="M60 36 C48 26 26 26 16 40 C4 56 6 84 22 100 C30 108 44 110 60 103 C76 110 90 108 98 100 C114 84 116 56 104 40 C94 26 72 26 60 36 Z" fill="#9eb07a"/>
+              <path d="M16 63 C32 72 88 72 104 63 C103 73 89 82 60 82 C31 82 17 73 16 63 Z" fill="#ffffff"/>
+              <line x1="28" y1="66" x2="28" y2="73" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="38" y1="68" x2="38" y2="75" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="48" y1="69.5" x2="48" y2="77" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="58" y1="70" x2="58" y2="78" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="68" y1="70" x2="68" y2="78" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="78" y1="69" x2="78" y2="76.5" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
+              <line x1="88" y1="67" x2="88" y2="74" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+            <div class="footer-logo-title">TALIA TINOCO FABIÁN</div>
+            <div class="footer-logo-sub">NUTRICIÓN</div>
           </div>
-        </div>
+        </footer>
 
       </div>
 
@@ -1064,25 +1132,158 @@ function triggerPrint() {
   window.print();
 }
 
+async function capturePageForPdf(sourceElement: HTMLElement): Promise<{ dataUrl: string; width: number; height: number }> {
+  // 1. Create an isolated off-screen sandbox container with FIXED standard desktop width (850px)
+  const sandbox = document.createElement('div');
+  sandbox.style.position = 'fixed';
+  sandbox.style.left = '-9999px';
+  sandbox.style.top = '0';
+  sandbox.style.width = '850px';
+  sandbox.style.padding = '0';
+  sandbox.style.margin = '0';
+  sandbox.style.backgroundColor = '#ffffff';
+  sandbox.style.color = '#0f172a';
+  sandbox.style.zIndex = '-9999';
+  sandbox.className = 'light bg-white text-slate-900';
+
+  // 2. Clone the page element
+  const clone = sourceElement.cloneNode(true) as HTMLElement;
+  clone.style.width = '850px';
+  clone.style.maxWidth = '850px';
+  clone.style.backgroundColor = '#ffffff';
+  clone.style.color = '#0f172a';
+  clone.style.boxSizing = 'border-box';
+
+  // 3. Convert all source canvases directly to <img> in clone (100% sharp Chart.js images)
+  const sourceCanvases = sourceElement.querySelectorAll<HTMLCanvasElement>('canvas');
+  const clonedCanvases = clone.querySelectorAll<HTMLCanvasElement>('canvas');
+  sourceCanvases.forEach((src, i) => {
+    const dest = clonedCanvases[i];
+    if (dest) {
+      const img = document.createElement('img');
+      img.src = src.toDataURL('image/png');
+      img.style.width = '100%';
+      img.style.height = '100%';
+      img.style.display = 'block';
+      img.style.objectFit = 'contain';
+      dest.parentNode?.replaceChild(img, dest);
+    }
+  });
+
+  // 4. Remove all no-print elements from clone
+  clone.querySelectorAll('.no-print').forEach((el) => el.remove());
+
+  // 5. Remove dark classes & force clean light colors
+  clone.querySelectorAll<HTMLElement>('*').forEach((el) => {
+    const classesToRemove: string[] = [];
+    el.classList.forEach((cls) => {
+      if (cls.startsWith('dark:') || cls === 'dark') {
+        classesToRemove.push(cls);
+      }
+    });
+    classesToRemove.forEach((cls) => el.classList.remove(cls));
+
+    // Force white background on cards
+    if (
+      el.classList.contains('print-card') ||
+      el.classList.contains('metric-box') ||
+      el.classList.contains('achievements-banner') ||
+      el.classList.contains('chart-card-2x2')
+    ) {
+      el.style.backgroundColor = '#ffffff';
+      el.style.borderColor = '#cbd5e1';
+      el.style.boxShadow = 'none';
+    }
+  });
+
+  // 6. Force 5-column grid on summary cards in clone
+  const gridContainer = clone.querySelector<HTMLElement>('.print-card-grid');
+  if (gridContainer) {
+    gridContainer.style.display = 'grid';
+    gridContainer.style.gridTemplateColumns = 'repeat(5, minmax(0, 1fr))';
+    gridContainer.style.gap = '8px';
+  }
+
+  // 7. Force 2x2 grid on secondary charts in clone
+  const secondaryGrid = clone.querySelector<HTMLElement>('.secondary-charts-grid');
+  if (secondaryGrid) {
+    secondaryGrid.style.display = 'grid';
+    secondaryGrid.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))';
+    secondaryGrid.style.gap = '10px';
+  }
+
+  // 8. Ensure standardized clinical footer is styled with exact sage green theme in clone
+  const footer = clone.querySelector<HTMLElement>('.sheet-footer');
+  if (footer) {
+    footer.style.display = 'flex';
+    footer.style.justifyContent = 'space-between';
+    footer.style.alignItems = 'center';
+    footer.style.backgroundColor = '#ffffff';
+    footer.style.borderTop = '1.5px solid #a3b88c';
+    footer.style.marginTop = '28px';
+    footer.style.padding = '8px 12px';
+    footer.style.boxSizing = 'border-box';
+  }
+  const contactCard = clone.querySelector<HTMLElement>('.contact-card');
+  if (contactCard) {
+    contactCard.style.backgroundColor = '#f4f7ee';
+    contactCard.style.border = '1px solid #d4dfc7';
+    contactCard.style.color = '#43512b';
+    contactCard.style.padding = '6px 12px';
+    contactCard.style.borderRadius = '6px';
+  }
+  const contactGrid = clone.querySelector<HTMLElement>('.contact-grid');
+  if (contactGrid) {
+    contactGrid.style.display = 'grid';
+    contactGrid.style.gridTemplateColumns = 'repeat(2, 1fr)';
+    contactGrid.style.gap = '3px 14px';
+    contactGrid.style.fontSize = '9px';
+    contactGrid.style.color = '#43512b';
+  }
+  const footerLogoTitle = clone.querySelector<HTMLElement>('.footer-logo-title');
+  if (footerLogoTitle) {
+    footerLogoTitle.style.fontSize = '8.5px';
+    footerLogoTitle.style.fontWeight = '800';
+    footerLogoTitle.style.color = '#556637';
+  }
+  const footerLogoSub = clone.querySelector<HTMLElement>('.footer-logo-sub');
+  if (footerLogoSub) {
+    footerLogoSub.style.fontSize = '7px';
+    footerLogoSub.style.fontWeight = '600';
+    footerLogoSub.style.color = '#8c9b74';
+  }
+
+  sandbox.appendChild(clone);
+  document.body.appendChild(sandbox);
+
+  try {
+    const dataUrl = await toJpeg(clone, {
+      quality: 0.96,
+      pixelRatio: 2,
+      backgroundColor: '#ffffff',
+      skipFonts: true,
+    });
+
+    const img = new Image();
+    img.src = dataUrl;
+    await new Promise<void>((resolve) => {
+      if (img.complete) resolve();
+      else img.onload = () => resolve();
+    });
+
+    return {
+      dataUrl,
+      width: img.width,
+      height: img.height,
+    };
+  } finally {
+    document.body.removeChild(sandbox);
+  }
+}
+
 async function downloadPDF() {
   if (isGeneratingPdf.value) return;
   isGeneratingPdf.value = true;
-
-  const wasDark = document.documentElement.classList.contains('dark');
-  if (wasDark) {
-    document.documentElement.classList.remove('dark');
-    document.documentElement.classList.add('light');
-  }
-
-  const progressReport = document.getElementById('progress-report');
-  if (progressReport) {
-    progressReport.classList.add('is-pdf-export');
-  }
-
-  // Force clean light theme render for all chart canvas elements
-  renderAllCharts();
-  await nextTick();
-  await new Promise((resolve) => setTimeout(resolve, 80));
 
   try {
     const pdf = new jsPDF({
@@ -1100,58 +1301,22 @@ async function downloadPDF() {
     const page1El = document.querySelector<HTMLElement>('.print-page-1');
     if (!page1El) throw new Error('No se encontró la página 1 del reporte.');
 
-    const imgData1 = await toJpeg(page1El, {
-      quality: 0.95,
-      pixelRatio: 2,
-      backgroundColor: '#ffffff',
-      filter: (node: Node) => {
-        if (node instanceof HTMLElement && node.classList.contains('no-print')) {
-          return false;
-        }
-        return true;
-      },
-    });
-
-    const img1 = new Image();
-    img1.src = imgData1;
-    await new Promise<void>((resolve) => {
-      if (img1.complete) resolve();
-      else img1.onload = () => resolve();
-    });
-
-    const imgHeight1 = (img1.height * contentWidth) / img1.width;
+    const page1 = await capturePageForPdf(page1El);
+    const imgHeight1 = (page1.height * contentWidth) / page1.width;
     const finalHeight1 = Math.min(imgHeight1, pageHeight - margin * 2);
 
-    pdf.addImage(imgData1, 'JPEG', margin, margin, contentWidth, finalHeight1);
+    pdf.addImage(page1.dataUrl, 'JPEG', margin, margin, contentWidth, finalHeight1);
 
     // 2. Capture Page 2 if secondary charts are visible
     if (hasSecondaryVisibleCharts.value) {
       const page2El = document.querySelector<HTMLElement>('.print-page-2');
       if (page2El) {
-        const imgData2 = await toJpeg(page2El, {
-          quality: 0.95,
-          pixelRatio: 2,
-          backgroundColor: '#ffffff',
-          filter: (node: Node) => {
-            if (node instanceof HTMLElement && node.classList.contains('no-print')) {
-              return false;
-            }
-            return true;
-          },
-        });
-
-        const img2 = new Image();
-        img2.src = imgData2;
-        await new Promise<void>((resolve) => {
-          if (img2.complete) resolve();
-          else img2.onload = () => resolve();
-        });
-
+        const page2 = await capturePageForPdf(page2El);
         pdf.addPage('letter', 'portrait');
-        const imgHeight2 = (img2.height * contentWidth) / img2.width;
+        const imgHeight2 = (page2.height * contentWidth) / page2.width;
         const finalHeight2 = Math.min(imgHeight2, pageHeight - margin * 2);
 
-        pdf.addImage(imgData2, 'JPEG', margin, margin, contentWidth, finalHeight2);
+        pdf.addImage(page2.dataUrl, 'JPEG', margin, margin, contentWidth, finalHeight2);
       }
     }
 
@@ -1160,20 +1325,12 @@ async function downloadPDF() {
       : '';
     const filename = `Reporte_Evolucion${cleanName}.pdf`;
 
-    // Triggers direct browser download of the PDF file
+    // Direct browser download
     pdf.save(filename);
   } catch (err: any) {
     console.error('Error generando archivo PDF:', err);
     alert('Ocurrió un error al generar el archivo PDF: ' + (err.message || err));
   } finally {
-    if (progressReport) {
-      progressReport.classList.remove('is-pdf-export');
-    }
-    if (wasDark) {
-      document.documentElement.classList.add('dark');
-      document.documentElement.classList.remove('light');
-    }
-    renderAllCharts();
     isGeneratingPdf.value = false;
   }
 }
@@ -1356,11 +1513,10 @@ onBeforeUnmount(() => {
     width: 100% !important;
     box-sizing: border-box !important;
     padding: 6px 12px !important;
-    margin-top: auto !important;
+    margin-top: 24px !important;
     margin-bottom: 0 !important;
-    border: 1px solid #cbd5e1 !important;
-    background: #f8fafc !important;
-    font-size: 9.5px !important;
+    border-top: 1.5px solid #a3b88c !important;
+    background: #ffffff !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
   }
@@ -1373,7 +1529,122 @@ onBeforeUnmount(() => {
   }
 }
 
+/* Professional Clinical Footer (Standardized with RecommendationSheet) */
+.sheet-footer {
+  margin-top: 24px;
+  border-top: 1.5px solid #a3b88c;
+  background: #ffffff;
+  padding: 8px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+:root.dark .sheet-footer,
+.dark .sheet-footer {
+  background: rgba(24, 24, 27, 0.4);
+  border-top: 1.5px solid rgba(78, 222, 163, 0.3);
+}
+
+.contact-card {
+  background: #f4f7ee;
+  border-radius: 6px;
+  padding: 6px 12px;
+  border: 1px solid #d4dfc7;
+  max-width: 600px;
+  flex: 1;
+}
+
+:root.dark .contact-card,
+.dark .contact-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.contact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2px 14px;
+  font-size: 8.8px;
+  color: #43512b;
+}
+
+:root.dark .contact-grid,
+.dark .contact-grid {
+  color: #cbd5e1;
+}
+
+.contact-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.contact-icon {
+  font-size: 9px;
+  line-height: 1;
+}
+
+.contact-item strong {
+  color: #2c361c;
+}
+
+:root.dark .contact-item strong,
+.dark .contact-item strong {
+  color: #f1f5f9;
+}
+
+.contact-item.span-2 {
+  grid-column: span 2;
+}
+
+.footer-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-left: 16px;
+}
+
+.footer-logo-img {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 2px;
+  display: block;
+}
+
+.footer-logo-title {
+  font-size: 8.5px;
+  font-weight: 800;
+  color: #556637;
+  letter-spacing: 0.6px;
+}
+
+:root.dark .footer-logo-title,
+.dark .footer-logo-title {
+  color: #87ff70;
+}
+
+.footer-logo-sub {
+  font-size: 7px;
+  font-weight: 600;
+  color: #8c9b74;
+  letter-spacing: 1.5px;
+}
+
+:root.dark .footer-logo-sub,
+.dark .footer-logo-sub {
+  color: #4edea3;
+}
+
 /* PDF Export styles when capturing canvas with html-to-image */
+.is-pdf-export,
+.is-pdf-export * {
+  color-scheme: light !important;
+}
+
 .is-pdf-export {
   background: #ffffff !important;
   background-color: #ffffff !important;
@@ -1386,44 +1657,82 @@ onBeforeUnmount(() => {
   display: none !important;
 }
 
+.is-pdf-export div,
 .is-pdf-export .print-card,
 .is-pdf-export .metric-box,
-.is-pdf-export .achievements-banner {
+.is-pdf-export .achievements-banner,
+.is-pdf-export .chart-card-2x2,
+.is-pdf-export [class*="bg-white"],
+.is-pdf-export [class*="dark:bg-"] {
   background: #ffffff !important;
   background-color: #ffffff !important;
-  color: #0f172a !important;
-  border: 1px solid #cbd5e1 !important;
+  border-color: #cbd5e1 !important;
   box-shadow: none !important;
 }
 
-.is-pdf-export .clinical-footer {
+.is-pdf-export .sheet-footer {
   display: flex !important;
   visibility: visible !important;
   opacity: 1 !important;
-  background: #f8fafc !important;
-  background-color: #f8fafc !important;
-  color: #0f172a !important;
-  border: 1px solid #cbd5e1 !important;
-  padding: 6px 12px !important;
-  margin-top: auto !important;
-  box-sizing: border-box !important;
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border-top: 1.5px solid #a3b88c !important;
+  margin-top: 28px !important;
   box-shadow: none !important;
+}
+
+.is-pdf-export .contact-card {
+  background: #f4f7ee !important;
+  background-color: #f4f7ee !important;
+  border: 1px solid #d4dfc7 !important;
+  color: #43512b !important;
 }
 
 .is-pdf-export h1,
 .is-pdf-export h2,
 .is-pdf-export h3,
 .is-pdf-export h4,
-.is-pdf-export p,
-.is-pdf-export span,
-.is-pdf-export strong {
+.is-pdf-export strong,
+.is-pdf-export [class*="dark:text-white"],
+.is-pdf-export [class*="dark:text-slate-200"],
+.is-pdf-export [class*="dark:text-slate-300"],
+.is-pdf-export [class*="text-slate-900"],
+.is-pdf-export [class*="text-slate-800"] {
   color: #0f172a !important;
 }
 
-.is-pdf-export .text-slate-500,
-.is-pdf-export .text-slate-400,
-.is-pdf-export .text-slate-600 {
+.is-pdf-export p,
+.is-pdf-export span,
+.is-pdf-export [class*="dark:text-slate-400"],
+.is-pdf-export [class*="dark:text-slate-500"],
+.is-pdf-export [class*="text-slate-500"],
+.is-pdf-export [class*="text-slate-400"],
+.is-pdf-export [class*="text-slate-600"] {
   color: #475569 !important;
+}
+
+/* Metric colored labels */
+.is-pdf-export [class*="text-indigo-"] { color: #4338ca !important; }
+.is-pdf-export [class*="text-rose-"] { color: #e11d48 !important; }
+.is-pdf-export [class*="text-emerald-"] { color: #047857 !important; }
+.is-pdf-export [class*="text-sky-"] { color: #0284c7 !important; }
+.is-pdf-export [class*="text-fuchsia-"] { color: #c026d3 !important; }
+
+/* Delta pills in metric boxes */
+.is-pdf-export [class*="bg-emerald-"] {
+  background-color: #ecfdf5 !important;
+  color: #047857 !important;
+  border-color: #a7f3d0 !important;
+}
+.is-pdf-export [class*="bg-rose-"] {
+  background-color: #fff1f2 !important;
+  color: #be123c !important;
+  border-color: #fecdd3 !important;
+}
+.is-pdf-export [class*="bg-slate-"] {
+  background-color: #f1f5f9 !important;
+  color: #475569 !important;
+  border-color: #cbd5e1 !important;
 }
 
 .is-pdf-export .print-page-1 {
