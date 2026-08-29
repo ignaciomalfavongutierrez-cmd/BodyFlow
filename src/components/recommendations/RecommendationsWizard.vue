@@ -155,6 +155,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import jsPDF from 'jspdf';
+import { toJpeg } from 'html-to-image';
 import { 
   FileText, 
   Printer, 
@@ -206,23 +208,12 @@ function triggerPrint() {
   }, 100);
 }
 
-// Dynamically load html2pdf if needed or use high resolution print
 async function downloadPDF() {
+  if (isGeneratingPdf.value) return;
   isGeneratingPdf.value = true;
   isPrintingState.value = true;
 
   try {
-    // Load html2pdf dynamically from cdn if not already in window
-    if (!(window as any).html2pdf) {
-      await new Promise<void>((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error('No se pudo cargar la librería html2pdf.js'));
-        document.head.appendChild(script);
-      });
-    }
-
     const element = document.getElementById('printable-recommendation-sheet');
     if (!element) throw new Error('No se encontró el elemento imprimible');
 
@@ -231,26 +222,44 @@ async function downloadPDF() {
       : '';
     const filename = `Recomendaciones_Nutricionales${cleanName}.pdf`;
 
-    const opt = {
-      margin: [4, 4, 4, 4],
-      filename: filename,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        letterRendering: true,
-        logging: false
+    const imgData = await toJpeg(element, {
+      quality: 0.95,
+      pixelRatio: 2,
+      backgroundColor: '#ffffff',
+      filter: (node: Node) => {
+        if (node instanceof HTMLElement && node.classList.contains('no-print')) {
+          return false;
+        }
+        return true;
       },
-      jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
-      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-    };
+    });
 
-    await (window as any).html2pdf().set(opt).from(element).save();
-  } catch (err) {
-    console.error('Error generando PDF con html2pdf, fallback a print:', err);
-    // Fallback to window.print()
-    window.print();
+    const img = new Image();
+    img.src = imgData;
+    await new Promise<void>((resolve) => {
+      if (img.complete) resolve();
+      else img.onload = () => resolve();
+    });
+
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'letter',
+    });
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 4;
+    const contentWidth = pageWidth - margin * 2;
+    const imgHeight = (img.height * contentWidth) / img.width;
+    const finalHeight = Math.min(imgHeight, pageHeight - margin * 2);
+
+    pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, finalHeight);
+
+    pdf.save(filename);
+  } catch (err: any) {
+    console.error('Error generando PDF directo:', err);
+    alert('Ocurrió un error al generar el archivo PDF: ' + (err.message || err));
   } finally {
     isGeneratingPdf.value = false;
     isPrintingState.value = false;

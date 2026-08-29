@@ -10,7 +10,7 @@
         </div>
       </div>
 
-      <div class="flex items-center space-x-2">
+      <div class="flex items-center flex-wrap gap-2">
         <button
           @click="$emit('edit')"
           class="px-3 py-1.5 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold transition-all border border-slate-200 dark:border-white/10 flex items-center space-x-1.5 cursor-pointer"
@@ -21,13 +21,22 @@
           @click="exportExcel"
           class="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 rounded-xl text-xs font-bold transition-all border border-emerald-200 dark:border-emerald-800/40 flex items-center space-x-1.5 cursor-pointer"
         >
-          <span>📥 Excel Limpio</span>
+          <span>📥 Excel</span>
         </button>
         <button
           @click="triggerPrint"
-          class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-500/20 flex items-center space-x-1.5 transition-all cursor-pointer"
+          class="px-3 py-1.5 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold transition-all border border-slate-200 dark:border-white/10 flex items-center space-x-1.5 cursor-pointer"
         >
-          <span>🖨️ Imprimir Reporte (2 Págs)</span>
+          <span>🖨️ Imprimir</span>
+        </button>
+        <button
+          @click="downloadPDF"
+          :disabled="isGeneratingPdf"
+          class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-500/20 flex items-center space-x-1.5 transition-all cursor-pointer disabled:opacity-50"
+        >
+          <span v-if="isGeneratingPdf" class="inline-block animate-spin mr-1">⏳</span>
+          <span v-else>📄</span>
+          <span>{{ isGeneratingPdf ? 'Generando PDF...' : 'Descargar PDF' }}</span>
         </button>
         <button
           @click="$emit('newPatient')"
@@ -244,7 +253,6 @@
         <!-- Printable Footer Signature Block (Page 1) -->
         <div
           class="clinical-footer bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 px-3.5 py-1.5 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-1 text-[10.5px] print-card transition-colors mt-auto"
-          :class="{ 'hidden sm:hidden md:hidden lg:hidden print:!flex': hasSecondaryVisibleCharts }"
         >
           <div class="text-slate-600 dark:text-slate-400 print:!text-slate-700 text-center sm:text-left flex items-center gap-1.5">
             <span>🩺</span>
@@ -425,6 +433,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue';
+import jsPDF from 'jspdf';
+import { toJpeg } from 'html-to-image';
 import {
   Chart,
   LineController,
@@ -500,6 +510,8 @@ const chartPlieguesRef = ref<HTMLCanvasElement | null>(null);
 const chartCircunferenciasRef = ref<HTMLCanvasElement | null>(null);
 const chartIndicadoresRef = ref<HTMLCanvasElement | null>(null);
 
+const isGeneratingPdf = ref<boolean>(false);
+
 let instComposicion: Chart | null = null;
 let instDona: Chart | null = null;
 let instPliegues: Chart | null = null;
@@ -563,7 +575,7 @@ function toggleFilter(key: keyof ProgressFilters) {
     if (key === 'peso') instComposicion.data.datasets[0].hidden = !filters.value.peso;
     if (key === 'grasa') instComposicion.data.datasets[1].hidden = !filters.value.grasa;
     if (key === 'musculo') instComposicion.data.datasets[2].hidden = !filters.value.musculo;
-    instComposicion.update();
+    instComposicion.update('none');
   }
 }
 
@@ -572,28 +584,28 @@ function toggleCircumference(key: CircumferenceKey) {
   renderCircunferenciasChart();
 }
 
-function createGradient(ctx: CanvasRenderingContext2D, area: any, colorRgb: string, alphaTop = 0.28, alphaBottom = 0.02) {
-  if (!area) return colorRgb;
-  const gradient = ctx.createLinearGradient(0, area.top, 0, area.bottom);
-  gradient.addColorStop(0, colorRgb.replace(')', `, ${alphaTop})`).replace('rgb', 'rgba'));
-  gradient.addColorStop(1, colorRgb.replace(')', `, ${alphaBottom})`).replace('rgb', 'rgba'));
+function createGradient(ctx: CanvasRenderingContext2D, chartArea: any, color: string) {
+  if (!chartArea) return color;
+  const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+  gradient.addColorStop(0, color.replace('rgb', 'rgba').replace(')', ', 0.25)'));
+  gradient.addColorStop(1, color.replace('rgb', 'rgba').replace(')', ', 0.0)'));
   return gradient;
 }
 
 function renderCircunferenciasChart() {
   if (!chartCircunferenciasRef.value || !visibleCharts.value.circunferencias) return;
+  const data = props.records;
+  if (!data || data.length === 0) return;
+
+  const ctx = chartCircunferenciasRef.value.getContext('2d');
+  if (!ctx) return;
+
   if (instCircunferencias) {
     instCircunferencias.destroy();
     instCircunferencias = null;
   }
 
-  const data = props.records;
-  if (!data || data.length === 0) return;
-
   const labels = data.map((d) => d.Fecha || 'Sin fecha');
-  const ctx = chartCircunferenciasRef.value.getContext('2d');
-  if (!ctx) return;
-
   const circDatasets: any[] = [];
 
   CIRCUMFERENCE_CATALOG.forEach((item) => {
@@ -647,6 +659,7 @@ function renderCircunferenciasChart() {
       ],
     },
     options: {
+      animation: false,
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
@@ -777,6 +790,7 @@ function renderAllCharts() {
         type: 'line',
         data: { labels, datasets },
         options: {
+          animation: false,
           responsive: true,
           maintainAspectRatio: false,
           interaction: { mode: 'index', intersect: false },
@@ -820,35 +834,81 @@ function renderAllCharts() {
     const ultimo = data[data.length - 1];
     const grasaActual = parseFloat(String(ultimo.Grasa_Porcentaje)) || 0;
     if (ctx && grasaActual > 0) {
+      const magraActual = +(Math.max(0, 100 - grasaActual)).toFixed(1);
+      const pesoActual = parseFloat(String(ultimo.Peso)) || 0;
+      const grasaKg = pesoActual > 0 ? +((pesoActual * grasaActual) / 100).toFixed(1) : 0;
+      const magraKg = pesoActual > 0 ? +(pesoActual - grasaKg).toFixed(1) : 0;
+
+      const labelGrasa = `Masa Grasa: ${grasaActual}%${grasaKg > 0 ? ` (${grasaKg} kg)` : ''}`;
+      const labelMagra = `Masa Magra: ${magraActual}%${magraKg > 0 ? ` (${magraKg} kg)` : ''}`;
+
       instDona = new Chart(ctx, {
         type: 'doughnut',
         data: {
-          labels: ['Masa Grasa', 'Masa Magra'],
+          labels: [labelGrasa, labelMagra],
           datasets: [
             {
-              data: [grasaActual, Math.max(0, 100 - grasaActual)],
-              backgroundColor: ['rgba(244, 63, 94, 0.85)', 'rgba(16, 185, 129, 0.85)'],
+              data: [grasaActual, magraActual],
+              backgroundColor: ['rgba(244, 63, 94, 0.9)', 'rgba(16, 185, 129, 0.9)'],
               borderColor: '#ffffff',
               borderWidth: 2.5,
               hoverOffset: 4,
             },
           ],
         },
+        plugins: [
+          {
+            id: 'doughnutCenterText',
+            beforeDraw(chart) {
+              const { ctx } = chart;
+              const chartArea = chart.chartArea;
+              if (!chartArea) return;
+              ctx.save();
+              const centerX = (chartArea.left + chartArea.right) / 2;
+              const centerY = (chartArea.top + chartArea.bottom) / 2;
+
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+
+              // Text top: % GRASA
+              ctx.font = 'bold 9px sans-serif';
+              ctx.fillStyle = '#64748b';
+              ctx.fillText('% GRASA', centerX, centerY - 13);
+
+              // Text middle: value
+              ctx.font = 'bold 16px sans-serif';
+              ctx.fillStyle = '#f43f5e';
+              ctx.fillText(`${grasaActual}%`, centerX, centerY + 2);
+
+              // Text bottom: % MAGRA
+              ctx.font = 'bold 9px sans-serif';
+              ctx.fillStyle = '#10b981';
+              ctx.fillText(`${magraActual}% Magra`, centerX, centerY + 16);
+
+              ctx.restore();
+            },
+          },
+        ],
         options: {
+          animation: false,
           responsive: true,
           maintainAspectRatio: false,
-          cutout: '58%',
+          cutout: '62%',
           layout: {
             padding: { top: 4, bottom: 4 }
           },
           plugins: {
             legend: {
               position: 'bottom',
-              labels: { boxWidth: 10, font: { size: 9, weight: 'bold' }, padding: 6 }
+              labels: {
+                boxWidth: 10,
+                font: { size: 9, weight: 'bold' },
+                padding: 6,
+              }
             },
             tooltip: {
               callbacks: {
-                label: (ctx) => ` ${ctx.label}: ${ctx.parsed}%`,
+                label: (ctx) => ` ${ctx.label}`,
               },
             },
           },
@@ -883,6 +943,7 @@ function renderAllCharts() {
           ],
         },
         options: {
+          animation: false,
           responsive: true,
           maintainAspectRatio: false,
           layout: {
@@ -947,6 +1008,7 @@ function renderAllCharts() {
           ],
         },
         options: {
+          animation: false,
           responsive: true,
           maintainAspectRatio: false,
           interaction: { mode: 'index', intersect: false },
@@ -999,22 +1061,126 @@ function exportExcel() {
 }
 
 function triggerPrint() {
+  window.print();
+}
+
+async function downloadPDF() {
+  if (isGeneratingPdf.value) return;
+  isGeneratingPdf.value = true;
+
+  const wasDark = document.documentElement.classList.contains('dark');
+  if (wasDark) {
+    document.documentElement.classList.remove('dark');
+    document.documentElement.classList.add('light');
+  }
+
+  const progressReport = document.getElementById('progress-report');
+  if (progressReport) {
+    progressReport.classList.add('is-pdf-export');
+  }
+
+  // Force clean light theme render for all chart canvas elements
   renderAllCharts();
-  nextTick(() => {
-    instComposicion?.resize();
-    instDona?.resize();
-    instPliegues?.resize();
-    instCircunferencias?.resize();
-    instIndicadores?.resize();
-    setTimeout(() => {
-      window.print();
-    }, 150);
-  });
+  await nextTick();
+  await new Promise((resolve) => setTimeout(resolve, 80));
+
+  try {
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'letter',
+    });
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 8;
+    const contentWidth = pageWidth - margin * 2;
+
+    // 1. Capture Page 1
+    const page1El = document.querySelector<HTMLElement>('.print-page-1');
+    if (!page1El) throw new Error('No se encontró la página 1 del reporte.');
+
+    const imgData1 = await toJpeg(page1El, {
+      quality: 0.95,
+      pixelRatio: 2,
+      backgroundColor: '#ffffff',
+      filter: (node: Node) => {
+        if (node instanceof HTMLElement && node.classList.contains('no-print')) {
+          return false;
+        }
+        return true;
+      },
+    });
+
+    const img1 = new Image();
+    img1.src = imgData1;
+    await new Promise<void>((resolve) => {
+      if (img1.complete) resolve();
+      else img1.onload = () => resolve();
+    });
+
+    const imgHeight1 = (img1.height * contentWidth) / img1.width;
+    const finalHeight1 = Math.min(imgHeight1, pageHeight - margin * 2);
+
+    pdf.addImage(imgData1, 'JPEG', margin, margin, contentWidth, finalHeight1);
+
+    // 2. Capture Page 2 if secondary charts are visible
+    if (hasSecondaryVisibleCharts.value) {
+      const page2El = document.querySelector<HTMLElement>('.print-page-2');
+      if (page2El) {
+        const imgData2 = await toJpeg(page2El, {
+          quality: 0.95,
+          pixelRatio: 2,
+          backgroundColor: '#ffffff',
+          filter: (node: Node) => {
+            if (node instanceof HTMLElement && node.classList.contains('no-print')) {
+              return false;
+            }
+            return true;
+          },
+        });
+
+        const img2 = new Image();
+        img2.src = imgData2;
+        await new Promise<void>((resolve) => {
+          if (img2.complete) resolve();
+          else img2.onload = () => resolve();
+        });
+
+        pdf.addPage('letter', 'portrait');
+        const imgHeight2 = (img2.height * contentWidth) / img2.width;
+        const finalHeight2 = Math.min(imgHeight2, pageHeight - margin * 2);
+
+        pdf.addImage(imgData2, 'JPEG', margin, margin, contentWidth, finalHeight2);
+      }
+    }
+
+    const cleanName = props.patientName
+      ? `_${props.patientName.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ ]/g, '').replace(/ +/g, '_')}`
+      : '';
+    const filename = `Reporte_Evolucion${cleanName}.pdf`;
+
+    // Triggers direct browser download of the PDF file
+    pdf.save(filename);
+  } catch (err: any) {
+    console.error('Error generando archivo PDF:', err);
+    alert('Ocurrió un error al generar el archivo PDF: ' + (err.message || err));
+  } finally {
+    if (progressReport) {
+      progressReport.classList.remove('is-pdf-export');
+    }
+    if (wasDark) {
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+    }
+    renderAllCharts();
+    isGeneratingPdf.value = false;
+  }
 }
 
 onMounted(() => {
   nextTick(() => {
-    setTimeout(() => renderAllCharts(), 150);
+    renderAllCharts();
   });
 });
 
@@ -1205,5 +1371,69 @@ onBeforeUnmount(() => {
     height: 100% !important;
     display: block !important;
   }
+}
+
+/* PDF Export styles when capturing canvas with html-to-image */
+.is-pdf-export {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.is-pdf-export .no-print {
+  display: none !important;
+}
+
+.is-pdf-export .print-card,
+.is-pdf-export .metric-box,
+.is-pdf-export .achievements-banner {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: none !important;
+}
+
+.is-pdf-export .clinical-footer {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  background: #f8fafc !important;
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+  padding: 6px 12px !important;
+  margin-top: auto !important;
+  box-sizing: border-box !important;
+  box-shadow: none !important;
+}
+
+.is-pdf-export h1,
+.is-pdf-export h2,
+.is-pdf-export h3,
+.is-pdf-export h4,
+.is-pdf-export p,
+.is-pdf-export span,
+.is-pdf-export strong {
+  color: #0f172a !important;
+}
+
+.is-pdf-export .text-slate-500,
+.is-pdf-export .text-slate-400,
+.is-pdf-export .text-slate-600 {
+  color: #475569 !important;
+}
+
+.is-pdf-export .print-page-1 {
+  page-break-after: always !important;
+  break-after: page !important;
+  margin-bottom: 24px !important;
+}
+
+.is-pdf-export .print-page-2 {
+  page-break-before: always !important;
+  break-before: page !important;
 }
 </style>
