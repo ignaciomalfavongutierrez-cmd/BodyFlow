@@ -1,4 +1,5 @@
-git s  collection,
+import {
+  collection,
   doc,
   getDocs,
   getDoc,
@@ -216,19 +217,16 @@ export class PatientsService {
         const patients = snap.docs.map(d => ({ id: d.id, ...d.data() })) as Patient[];
         if (patients.length > 0) {
           this.localPatientsCache = patients;
-          this.saveLocalPatientsList(patients);
           onUpdate(patients);
         } else {
           // If empty, initialize defaults
           this.initializeDefaultsIfEmpty().then(() => {
-            onUpdate(this.getLocalFilteredPatients());
+            onUpdate(SEED_PATIENTS.map(s => s.patient));
           });
         }
       },
-      (error: any) => {
-        if (error?.code !== 'permission-denied') {
-          console.warn('[PATIENTS:SERVICE] subscribePatients error, using cache:', error);
-        }
+      (error) => {
+        console.warn('[PATIENTS:SERVICE] subscribePatients error, fallback to cache:', error);
         if (onError) onError(error);
         onUpdate(this.getLocalFilteredPatients());
       }
@@ -239,16 +237,6 @@ export class PatientsService {
    * Retrieves a single patient by ID
    */
   static async getPatientById(patientId: string): Promise<Patient | null> {
-    // Check local cache first for instant response
-    let cached = this.localPatientsCache.find(p => p.id === patientId);
-    if (!cached) {
-      const stored = this.loadLocalPatientsList();
-      if (stored.length > 0) {
-        this.localPatientsCache = stored;
-        cached = this.localPatientsCache.find(p => p.id === patientId);
-      }
-    }
-
     try {
       const docRef = doc(db, PATIENTS_COLLECTION, patientId);
       const snap = await getDoc(docRef);
@@ -260,18 +248,21 @@ export class PatientsService {
         } else {
           this.localPatientsCache.push(data);
         }
-        this.saveLocalPatientsList(this.localPatientsCache);
         return data;
       }
-    } catch (err: any) {
-      if (err?.code !== 'permission-denied') {
-        console.warn(`[PATIENTS:SERVICE] getPatientById(${patientId}) Firestore read issue:`, err);
-      }
+      // Check local cache
+      const cached = this.localPatientsCache.find(p => p.id === patientId);
+      if (cached) return { ...cached };
+      // Check local seed
+      const seed = SEED_PATIENTS.find(s => s.patient.id === patientId);
+      return seed ? { ...seed.patient } : null;
+    } catch (err) {
+      console.warn(`[PATIENTS:SERVICE] getPatientById(${patientId}) failed, fallback:`, err);
+      const cached = this.localPatientsCache.find(p => p.id === patientId);
+      if (cached) return { ...cached };
+      const seed = SEED_PATIENTS.find(s => s.patient.id === patientId);
+      return seed ? { ...seed.patient } : null;
     }
-
-    if (cached) return { ...cached };
-    const seed = SEED_PATIENTS.find(s => s.patient.id === patientId);
-    return seed ? { ...seed.patient } : null;
   }
 
   /**
@@ -286,11 +277,6 @@ export class PatientsService {
       updatedAt: new Date().toISOString()
     };
 
-    // 1. Immediately store in local cache & localStorage
-    this.localPatientsCache.unshift(patientData);
-    this.saveLocalPatientsList(this.localPatientsCache);
-
-    // 2. Persist to Firestore
     try {
       const docRef = doc(db, PATIENTS_COLLECTION, newId);
       await setDoc(docRef, {
@@ -298,12 +284,11 @@ export class PatientsService {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
-    } catch (err: any) {
-      if (err?.code !== 'permission-denied') {
-        console.warn('[PATIENTS:SERVICE] createPatient Firestore write issue:', err);
-      }
+    } catch (err) {
+      console.warn('[PATIENTS:SERVICE] createPatient Firestore write failed, stored in local cache:', err);
     }
 
+    this.localPatientsCache.unshift(patientData);
     return patientData;
   }
 
@@ -314,31 +299,29 @@ export class PatientsService {
     const cleanData = { ...data, updatedAt: new Date().toISOString() };
     delete (cleanData as any).id;
 
-    // 1. Synchronously update local cache & localStorage for instant response
+    try {
+      const docRef = doc(db, PATIENTS_COLLECTION, patientId);
+      // setDoc with merge: true creates or updates safely even for initial seed records
+      await setDoc(docRef, {
+        ...cleanData,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    } catch (err) {
+      console.warn(`[PATIENTS:SERVICE] updatePatient(${patientId}) Firestore write failed, patching local cache:`, err);
+    }
+
+    // Update in local cache
     const idx = this.localPatientsCache.findIndex(p => p.id === patientId);
     if (idx !== -1) {
       this.localPatientsCache[idx] = { ...this.localPatientsCache[idx], ...cleanData };
     } else {
       this.localPatientsCache.push({ id: patientId, ...cleanData } as Patient);
     }
-    this.saveLocalPatientsList(this.localPatientsCache);
 
+    // Also update seed memory object if it was a seed patient
     const seed = SEED_PATIENTS.find(s => s.patient.id === patientId);
     if (seed) {
       seed.patient = { ...seed.patient, ...cleanData };
-    }
-
-    // 2. Persist to Firestore in background
-    try {
-      const docRef = doc(db, PATIENTS_COLLECTION, patientId);
-      await setDoc(docRef, {
-        ...cleanData,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-    } catch (err: any) {
-      if (err?.code !== 'permission-denied') {
-        console.warn(`[PATIENTS:SERVICE] updatePatient(${patientId}) Firestore write issue:`, err);
-      }
     }
   }
 
@@ -346,17 +329,13 @@ export class PatientsService {
    * Deletes a patient
    */
   static async deletePatient(patientId: string): Promise<void> {
-    this.localPatientsCache = this.localPatientsCache.filter(p => p.id !== patientId);
-    this.saveLocalPatientsList(this.localPatientsCache);
-
     try {
       const docRef = doc(db, PATIENTS_COLLECTION, patientId);
       await deleteDoc(docRef);
-    } catch (err: any) {
-      if (err?.code !== 'permission-denied') {
-        console.warn(`[PATIENTS:SERVICE] deletePatient(${patientId}) failed:`, err);
-      }
+    } catch (err) {
+      console.warn(`[PATIENTS:SERVICE] deletePatient(${patientId}) failed:`, err);
     }
+    this.localPatientsCache = this.localPatientsCache.filter(p => p.id !== patientId);
   }
 
   // In-memory & LocalStorage Fallback caches
@@ -392,11 +371,6 @@ export class PatientsService {
    * Retrieves the clinical history for a patient
    */
   static async getClinicalHistory(patientId: string): Promise<ClinicalHistory> {
-    const stored = this.loadFromStorage<ClinicalHistory>(this.getStorageKey('historia', patientId));
-    if (stored) {
-      this.localHistoryCache[patientId] = stored;
-    }
-
     try {
       const docRef = doc(db, PATIENTS_COLLECTION, patientId, 'historial_clinico', 'main');
       const snap = await getDoc(docRef);
@@ -406,13 +380,17 @@ export class PatientsService {
         this.saveToStorage(this.getStorageKey('historia', patientId), hist);
         return hist;
       }
-    } catch (err: any) {
-      if (err?.code !== 'permission-denied') {
-        console.warn(`[PATIENTS:SERVICE] getClinicalHistory(${patientId}) Firestore read issue:`, err);
-      }
+    } catch (err) {
+      console.warn(`[PATIENTS:SERVICE] getClinicalHistory(${patientId}) Firestore read failed, using cache fallback:`, err);
     }
 
     if (this.localHistoryCache[patientId]) return { ...this.localHistoryCache[patientId] };
+    const stored = this.loadFromStorage<ClinicalHistory>(this.getStorageKey('historia', patientId));
+    if (stored) {
+      this.localHistoryCache[patientId] = stored;
+      return { ...stored };
+    }
+
     const seed = SEED_PATIENTS.find(s => s.patient.id === patientId);
     return seed ? { ...seed.history } : { id: 'main', updatedAt: new Date().toISOString() };
   }
@@ -442,10 +420,8 @@ export class PatientsService {
         ...fullHist,
         updatedAt: serverTimestamp()
       }, { merge: true });
-    } catch (err: any) {
-      if (err?.code !== 'permission-denied') {
-        console.warn(`[PATIENTS:SERVICE] upsertClinicalHistory(${patientId}) Firestore write issue:`, err);
-      }
+    } catch (err) {
+      console.warn(`[PATIENTS:SERVICE] upsertClinicalHistory(${patientId}) Firestore write failed (stored in local cache):`, err);
     }
   }
 
@@ -457,11 +433,6 @@ export class PatientsService {
    * Gets all appointments for a patient
    */
   static async getAppointments(patientId: string): Promise<PatientAppointment[]> {
-    const stored = this.loadFromStorage<PatientAppointment[]>(this.getStorageKey('citas', patientId));
-    if (stored && stored.length > 0) {
-      this.localAppointmentsCache[patientId] = stored;
-    }
-
     try {
       const colRef = collection(db, PATIENTS_COLLECTION, patientId, 'citas');
       const q = query(colRef, orderBy('fecha', 'desc'));
@@ -472,13 +443,17 @@ export class PatientsService {
         this.saveToStorage(this.getStorageKey('citas', patientId), apts);
         return apts;
       }
-    } catch (err: any) {
-      if (err?.code !== 'permission-denied') {
-        console.warn(`[PATIENTS:SERVICE] getAppointments(${patientId}) Firestore read issue:`, err);
-      }
+    } catch (err) {
+      console.warn(`[PATIENTS:SERVICE] getAppointments(${patientId}) Firestore read failed, using cache fallback:`, err);
     }
 
     if (this.localAppointmentsCache[patientId]) return [...this.localAppointmentsCache[patientId]];
+    const stored = this.loadFromStorage<PatientAppointment[]>(this.getStorageKey('citas', patientId));
+    if (stored && stored.length > 0) {
+      this.localAppointmentsCache[patientId] = stored;
+      return [...stored];
+    }
+
     const seed = SEED_PATIENTS.find(s => s.patient.id === patientId);
     return seed ? [...seed.appointments] : [];
   }
@@ -520,10 +495,8 @@ export class PatientsService {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       }, { merge: true });
-    } catch (err: any) {
-      if (err?.code !== 'permission-denied') {
-        console.warn(`[PATIENTS:SERVICE] createAppointment(${patientId}) Firestore write issue:`, err);
-      }
+    } catch (err) {
+      console.warn(`[PATIENTS:SERVICE] createAppointment(${patientId}) Firestore write failed (stored locally):`, err);
     }
 
     return aptData;
@@ -551,10 +524,8 @@ export class PatientsService {
         ...data,
         updatedAt: serverTimestamp()
       }, { merge: true });
-    } catch (err: any) {
-      if (err?.code !== 'permission-denied') {
-        console.warn(`[PATIENTS:SERVICE] updateAppointment(${patientId}, ${appointmentId}) Firestore write issue:`, err);
-      }
+    } catch (err) {
+      console.warn(`[PATIENTS:SERVICE] updateAppointment(${patientId}, ${appointmentId}) Firestore write failed:`, err);
     }
   }
 
@@ -569,10 +540,8 @@ export class PatientsService {
     try {
       const docRef = doc(db, PATIENTS_COLLECTION, patientId, 'citas', appointmentId);
       await deleteDoc(docRef);
-    } catch (err: any) {
-      if (err?.code !== 'permission-denied') {
-        console.warn(`[PATIENTS:SERVICE] deleteAppointment(${patientId}, ${appointmentId}) failed:`, err);
-      }
+    } catch (err) {
+      console.warn(`[PATIENTS:SERVICE] deleteAppointment(${patientId}, ${appointmentId}) failed:`, err);
     }
   }
 
@@ -584,11 +553,6 @@ export class PatientsService {
    * Gets all measurements for a patient
    */
   static async getMeasurements(patientId: string): Promise<PatientMeasurement[]> {
-    const stored = this.loadFromStorage<PatientMeasurement[]>(this.getStorageKey('mediciones', patientId));
-    if (stored && stored.length > 0) {
-      this.localMeasurementsCache[patientId] = stored;
-    }
-
     try {
       const colRef = collection(db, PATIENTS_COLLECTION, patientId, 'mediciones');
       const snap = await getDocs(colRef);
@@ -598,16 +562,23 @@ export class PatientsService {
         this.saveToStorage(this.getStorageKey('mediciones', patientId), records);
         return records;
       }
-    } catch (err: any) {
-      if (err?.code !== 'permission-denied') {
-        console.warn(`[PATIENTS:SERVICE] getMeasurements(${patientId}) Firestore read issue:`, err);
-      }
+    } catch (err) {
+      console.warn(`[PATIENTS:SERVICE] getMeasurements(${patientId}) Firestore read failed, using cache fallback:`, err);
     }
 
+    // Check in-memory cache
     if (this.localMeasurementsCache[patientId] && this.localMeasurementsCache[patientId].length > 0) {
       return [...this.localMeasurementsCache[patientId]];
     }
 
+    // Check localStorage
+    const stored = this.loadFromStorage<PatientMeasurement[]>(this.getStorageKey('mediciones', patientId));
+    if (stored && stored.length > 0) {
+      this.localMeasurementsCache[patientId] = stored;
+      return [...stored];
+    }
+
+    // Check seed
     const seed = SEED_PATIENTS.find(s => s.patient.id === patientId);
     return seed ? [...seed.measurements] : [];
   }
@@ -645,10 +616,8 @@ export class PatientsService {
         ...measurement,
         createdAt: serverTimestamp()
       }, { merge: true });
-    } catch (err: any) {
-      if (err?.code !== 'permission-denied') {
-        console.warn(`[PATIENTS:SERVICE] addMeasurement(${patientId}) Firestore write issue:`, err);
-      }
+    } catch (err) {
+      console.warn(`[PATIENTS:SERVICE] addMeasurement(${patientId}) Firestore write failed (stored in local cache):`, err);
     }
 
     return measurement;
@@ -673,10 +642,8 @@ export class PatientsService {
     try {
       const docRef = doc(db, PATIENTS_COLLECTION, patientId, 'mediciones', measurementId);
       await setDoc(docRef, { ...record }, { merge: true });
-    } catch (err: any) {
-      if (err?.code !== 'permission-denied') {
-        console.warn(`[PATIENTS:SERVICE] updateMeasurement(${patientId}, ${measurementId}) Firestore write issue:`, err);
-      }
+    } catch (err) {
+      console.warn(`[PATIENTS:SERVICE] updateMeasurement(${patientId}, ${measurementId}) Firestore write failed:`, err);
     }
   }
 
@@ -691,10 +658,8 @@ export class PatientsService {
     try {
       const docRef = doc(db, PATIENTS_COLLECTION, patientId, 'mediciones', measurementId);
       await deleteDoc(docRef);
-    } catch (err: any) {
-      if (err?.code !== 'permission-denied') {
-        console.warn(`[PATIENTS:SERVICE] deleteMeasurement(${patientId}, ${measurementId}) failed:`, err);
-      }
+    } catch (err) {
+      console.warn(`[PATIENTS:SERVICE] deleteMeasurement(${patientId}, ${measurementId}) failed:`, err);
     }
   }
 
@@ -739,10 +704,8 @@ export class PatientsService {
         }, { merge: true });
       }
       await batch.commit();
-    } catch (err: any) {
-      if (err?.code !== 'permission-denied') {
-        console.warn(`[PATIENTS:SERVICE] batchImportMeasurements(${patientId}) Firestore batch write issue:`, err);
-      }
+    } catch (err) {
+      console.warn(`[PATIENTS:SERVICE] batchImportMeasurements(${patientId}) Firestore batch write failed (saved to local cache & storage):`, err);
     }
   }
 
@@ -751,11 +714,6 @@ export class PatientsService {
   // =========================================================================
 
   static async getPatientDietPlans(patientId: string): Promise<PatientDietPlan[]> {
-    const stored = this.loadFromStorage<PatientDietPlan[]>(this.getStorageKey('planes', patientId));
-    if (stored && stored.length > 0) {
-      this.localDietPlansCache[patientId] = stored;
-    }
-
     try {
       const colRef = collection(db, PATIENTS_COLLECTION, patientId, 'planes_nutricionales');
       const snap = await getDocs(colRef);
@@ -765,13 +723,17 @@ export class PatientsService {
         this.saveToStorage(this.getStorageKey('planes', patientId), plans);
         return plans;
       }
-    } catch (err: any) {
-      if (err?.code !== 'permission-denied') {
-        console.warn(`[PATIENTS:SERVICE] getPatientDietPlans(${patientId}) Firestore read issue:`, err);
-      }
+    } catch (err) {
+      console.warn(`[PATIENTS:SERVICE] getPatientDietPlans(${patientId}) Firestore read failed, using cache fallback:`, err);
     }
 
     if (this.localDietPlansCache[patientId]) return [...this.localDietPlansCache[patientId]];
+    const stored = this.loadFromStorage<PatientDietPlan[]>(this.getStorageKey('planes', patientId));
+    if (stored && stored.length > 0) {
+      this.localDietPlansCache[patientId] = stored;
+      return [...stored];
+    }
+
     const seed = SEED_PATIENTS.find(s => s.patient.id === patientId);
     return seed ? [...seed.dietPlans] : [];
   }
@@ -802,10 +764,8 @@ export class PatientsService {
         ...fullPlan,
         createdAt: serverTimestamp()
       }, { merge: true });
-    } catch (err: any) {
-      if (err?.code !== 'permission-denied') {
-        console.warn(`[PATIENTS:SERVICE] savePatientDietPlan(${patientId}) issue:`, err);
-      }
+    } catch (err) {
+      console.warn(`[PATIENTS:SERVICE] savePatientDietPlan(${patientId}) failed (saved to local cache):`, err);
     }
 
     return fullPlan;
