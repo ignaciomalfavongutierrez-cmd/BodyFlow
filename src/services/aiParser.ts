@@ -112,19 +112,13 @@ export async function sendPromptToGemini(prompt: string): Promise<string> {
     const apiKey = (import.meta.env.VITE_GEMINI_API_KEY as string | undefined) || localStorage.getItem('bodyflow_gemini_api_key') || undefined
     if (apiKey) {
       const genAI = new GoogleGenerativeAI(apiKey)
-      const candidateModels = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
-      let lastErr: any = null
-
-      for (const m of candidateModels) {
-        try {
-          const model = genAI.getGenerativeModel({ model: m })
-          const result = await model.generateContent(prompt)
-          return result.response.text()
-        } catch (err: any) {
-          lastErr = err
-        }
+      try {
+        const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' })
+        const result = await model.generateContent(prompt)
+        return result.response.text()
+      } catch (err: any) {
+        throw new Error(err?.message || 'Error al comunicarse con Gemini (directo).')
       }
-      throw new Error(lastErr?.message || 'Error al comunicarse con Gemini (directo).')
     }
     throw error
   }
@@ -156,7 +150,6 @@ export async function sendContentsToGemini(contents: any): Promise<string> {
     const apiKey = (import.meta.env.VITE_GEMINI_API_KEY as string | undefined) || localStorage.getItem('bodyflow_gemini_api_key') || undefined
     if (apiKey) {
       const genAI = new GoogleGenerativeAI(apiKey)
-      const candidateModels = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
       const parts = contents.map((c: any) => {
         if (c.inlineData) {
           return {
@@ -171,18 +164,13 @@ export async function sendContentsToGemini(contents: any): Promise<string> {
         }
         return c
       })
-      let lastErr: any = null
-
-      for (const m of candidateModels) {
-        try {
-          const model = genAI.getGenerativeModel({ model: m })
-          const result = await model.generateContent(parts)
-          return result.response.text()
-        } catch (err: any) {
-          lastErr = err
-        }
+      try {
+        const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' })
+        const result = await model.generateContent(parts)
+        return result.response.text()
+      } catch (err: any) {
+        throw new Error(err?.message || 'Error al comunicarse con Gemini (directo).')
       }
-      throw new Error(lastErr?.message || 'Error al comunicarse con Gemini (directo).')
     }
     throw error
   }

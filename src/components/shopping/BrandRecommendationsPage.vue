@@ -17,13 +17,13 @@
     <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4 border-b-2 border-slate-800/10 pb-4">
       <!-- Left: Logo & Nutritionist -->
       <div class="flex items-center space-x-3 text-left w-full md:w-auto">
-        <div class="w-14 h-14 flex-shrink-0 flex items-center justify-center drop-shadow-xs">
+        <div class="w-20 h-20 flex-shrink-0 flex items-center justify-center drop-shadow-xs">
           <TaliaLogo />
         </div>
         <div>
-          <div class="text-xs font-black tracking-widest text-slate-800 uppercase font-sans">L.N. TALIA TINOCO FABIÁN</div>
-          <div class="text-[10px] tracking-[0.25em] font-extrabold text-[#6e997a] uppercase">NUTRICIÓN CLÍNICA</div>
-          <div class="text-[9px] text-slate-500 font-bold">Cédula Profesional: 11290678</div>
+          <div class="text-[10px] text-slate-600 font-bold bg-amber-100/70 px-2.5 py-1 rounded-lg border border-amber-200/70">
+            Cédula Profesional: 11290678
+          </div>
         </div>
       </div>
 

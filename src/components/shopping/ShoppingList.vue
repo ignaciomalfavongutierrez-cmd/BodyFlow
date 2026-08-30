@@ -99,13 +99,13 @@
       <div class="border-b-2 border-slate-200 dark:border-white/10 pb-5 space-y-4 relative z-10">
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div class="flex items-center space-x-3">
-            <div class="w-14 h-14 flex-shrink-0 flex items-center justify-center drop-shadow-xs">
+            <div class="w-20 h-20 flex-shrink-0 flex items-center justify-center drop-shadow-xs">
               <TaliaLogo />
             </div>
             <div>
               <h1 class="text-2xl sm:text-3xl font-black text-emerald-700 dark:text-emerald-400 tracking-tight">LISTA DE COMPRAS</h1>
               <p class="text-xs text-slate-600 dark:text-slate-400 font-bold">
-                L.N. Talia Tinoco Fabián • <span class="text-emerald-700 dark:text-emerald-400">Céd. Prof. 11290678</span>
+                <span class="text-emerald-700 dark:text-emerald-400">Cédula Profesional: 11290678</span>
               </p>
             </div>
           </div>

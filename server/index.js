@@ -230,26 +230,19 @@ app.post('/api/chat', async (req, res) => {
     return res.status(500).json({ error: 'La API Key de Gemini (GEMINI_API_KEY) no está configurada en el servidor.' })
   }
 
-  const candidateModels = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
   const ai = new GoogleGenAI({ apiKey: geminiKey })
-  let lastErr = null
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.6-flash',
+      contents: contents || prompt,
+    })
 
-  for (const modelName of candidateModels) {
-    try {
-      const response = await ai.models.generateContent({
-        model: modelName,
-        contents: contents || prompt,
-      })
-
-      const text = response.text || ''
-      return res.json({ text })
-    } catch (err) {
-      lastErr = err
-    }
+    const text = response.text || ''
+    return res.json({ text })
+  } catch (err) {
+    console.error('[/api/chat] Error procesando solicitud con Gemini gemini-3.6-flash:', err)
+    return res.status(500).json({ error: err?.message || 'Error interno al comunicarse con Gemini.' })
   }
-
-  console.error('[/api/chat] Error procesando solicitud con Gemini:', lastErr)
-  return res.status(500).json({ error: lastErr?.message || 'Error interno al comunicarse con Gemini.' })
 })
 
 // ---------------------------------------------------------------------------

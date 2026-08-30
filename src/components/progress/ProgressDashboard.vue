@@ -105,7 +105,7 @@
             </div>
 
             <!-- Distinct Metric Summary Cards (5 Color Accents) -->
-            <div v-if="summaryMetrics.length" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 print-card-grid">
+            <div v-if="summaryMetrics.length" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 print:!grid-cols-5 gap-2 print-card-grid">
               <div
                 v-for="m in summaryMetrics"
                 :key="m.label"
@@ -278,21 +278,7 @@
           </div>
 
           <div class="footer-logo">
-            <svg class="footer-logo-img" viewBox="0 0 120 120" width="34" height="34">
-              <path d="M58 26 C56 16 48 9 40 5" fill="none" stroke="#526433" stroke-width="4" stroke-linecap="round"/>
-              <path d="M57 20 C64 10 78 10 88 16 C86 26 72 30 57 20 Z" fill="#6f8745"/>
-              <path d="M60 36 C48 26 26 26 16 40 C4 56 6 84 22 100 C30 108 44 110 60 103 C76 110 90 108 98 100 C114 84 116 56 104 40 C94 26 72 26 60 36 Z" fill="#9eb07a"/>
-              <path d="M16 63 C32 72 88 72 104 63 C103 73 89 82 60 82 C31 82 17 73 16 63 Z" fill="#ffffff"/>
-              <line x1="28" y1="66" x2="28" y2="73" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-              <line x1="38" y1="68" x2="38" y2="75" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-              <line x1="48" y1="69.5" x2="48" y2="77" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-              <line x1="58" y1="70" x2="58" y2="78" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-              <line x1="68" y1="70" x2="68" y2="78" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-              <line x1="78" y1="69" x2="78" y2="76.5" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-              <line x1="88" y1="67" x2="88" y2="74" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-            </svg>
-            <div class="footer-logo-title">TALIA TINOCO FABIÁN</div>
-            <div class="footer-logo-sub">NUTRICIÓN</div>
+            <TaliaOfficialLogo :size="100" customClass="footer-logo-img" />
           </div>
         </footer>
 
@@ -475,21 +461,7 @@
           </div>
 
           <div class="footer-logo">
-            <svg class="footer-logo-img" viewBox="0 0 120 120" width="34" height="34">
-              <path d="M58 26 C56 16 48 9 40 5" fill="none" stroke="#526433" stroke-width="4" stroke-linecap="round"/>
-              <path d="M57 20 C64 10 78 10 88 16 C86 26 72 30 57 20 Z" fill="#6f8745"/>
-              <path d="M60 36 C48 26 26 26 16 40 C4 56 6 84 22 100 C30 108 44 110 60 103 C76 110 90 108 98 100 C114 84 116 56 104 40 C94 26 72 26 60 36 Z" fill="#9eb07a"/>
-              <path d="M16 63 C32 72 88 72 104 63 C103 73 89 82 60 82 C31 82 17 73 16 63 Z" fill="#ffffff"/>
-              <line x1="28" y1="66" x2="28" y2="73" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-              <line x1="38" y1="68" x2="38" y2="75" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-              <line x1="48" y1="69.5" x2="48" y2="77" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-              <line x1="58" y1="70" x2="58" y2="78" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-              <line x1="68" y1="70" x2="68" y2="78" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-              <line x1="78" y1="69" x2="78" y2="76.5" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-              <line x1="88" y1="67" x2="88" y2="74" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-            </svg>
-            <div class="footer-logo-title">TALIA TINOCO FABIÁN</div>
-            <div class="footer-logo-sub">NUTRICIÓN</div>
+            <TaliaOfficialLogo :size="100" customClass="footer-logo-img" />
           </div>
         </footer>
 
@@ -527,6 +499,7 @@ import type {
 import { CIRCUMFERENCE_CATALOG } from '../../types/patientProgress';
 import { ProgressCalculationService } from '../../services/progress/ProgressCalculationService';
 import { ProgressFileParserService } from '../../services/progress/ProgressFileParserService';
+import TaliaOfficialLogo from '../common/TaliaOfficialLogo.vue';
 
 // Register Chart.js modules
 Chart.register(
@@ -1240,18 +1213,7 @@ async function capturePageForPdf(sourceElement: HTMLElement): Promise<{ dataUrl:
     contactGrid.style.fontSize = '9px';
     contactGrid.style.color = '#43512b';
   }
-  const footerLogoTitle = clone.querySelector<HTMLElement>('.footer-logo-title');
-  if (footerLogoTitle) {
-    footerLogoTitle.style.fontSize = '8.5px';
-    footerLogoTitle.style.fontWeight = '800';
-    footerLogoTitle.style.color = '#556637';
-  }
-  const footerLogoSub = clone.querySelector<HTMLElement>('.footer-logo-sub');
-  if (footerLogoSub) {
-    footerLogoSub.style.fontSize = '7px';
-    footerLogoSub.style.fontWeight = '600';
-    footerLogoSub.style.color = '#8c9b74';
-  }
+
 
   sandbox.appendChild(clone);
   document.body.appendChild(sandbox);
@@ -1367,11 +1329,18 @@ onBeforeUnmount(() => {
 }
 
 @page {
-  size: portrait;
-  margin: 12mm 14mm;
+  size: letter portrait;
+  margin: 10mm 12mm;
 }
 
 @media print {
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   .no-print {
     display: none !important;
   }
@@ -1393,16 +1362,16 @@ onBeforeUnmount(() => {
     page-break-inside: avoid !important;
     page-break-after: always !important;
     break-after: page !important;
-    min-height: 248mm !important;
+    min-height: 242mm !important;
     height: 248mm !important;
-    max-height: 248mm !important;
+    max-height: 250mm !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: space-between !important;
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 1mm 1mm 0 1mm !important;
     box-sizing: border-box !important;
   }
 
@@ -1411,23 +1380,23 @@ onBeforeUnmount(() => {
     page-break-inside: avoid !important;
     break-before: page !important;
     page-break-before: always !important;
-    min-height: 248mm !important;
+    min-height: 242mm !important;
     height: 248mm !important;
-    max-height: 248mm !important;
+    max-height: 250mm !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: space-between !important;
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 1mm 1mm 0 1mm !important;
     box-sizing: border-box !important;
   }
 
   .print-page-content {
     display: flex !important;
     flex-direction: column !important;
-    gap: 12px !important;
+    gap: 10px !important;
   }
 
   .print-block-top {
@@ -1436,11 +1405,19 @@ onBeforeUnmount(() => {
     gap: 8px !important;
   }
 
+  .print-card-grid {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    width: 100% !important;
+  }
+
   .print-card, .metric-box {
     background: #ffffff !important;
     background-color: #ffffff !important;
     color: #0f172a !important;
     border: 1px solid #cbd5e1 !important;
+    border-radius: 12px !important;
     box-shadow: none !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
@@ -1458,8 +1435,9 @@ onBeforeUnmount(() => {
     background-color: #ffffff !important;
     color: #0f172a !important;
     border: 1px solid #cbd5e1 !important;
+    border-radius: 12px !important;
     box-shadow: none !important;
-    padding: 8px 10px !important;
+    padding: 7px 10px !important;
     margin-bottom: 0 !important;
     box-sizing: border-box !important;
   }
@@ -1468,12 +1446,13 @@ onBeforeUnmount(() => {
     padding: 2px 7px !important;
     font-size: 9px !important;
     border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
   }
 
   .chart-container-main {
-    height: 235px !important;
-    min-height: 235px !important;
-    max-height: 235px !important;
+    height: 250px !important;
+    min-height: 250px !important;
+    max-height: 250px !important;
     width: 100% !important;
     position: relative !important;
     overflow: hidden !important;
@@ -1494,6 +1473,7 @@ onBeforeUnmount(() => {
     min-width: 0 !important;
     margin-bottom: 0 !important;
     padding: 8px !important;
+    border-radius: 12px !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
     box-sizing: border-box !important;
@@ -1501,9 +1481,9 @@ onBeforeUnmount(() => {
   }
 
   .chart-container-2x2 {
-    height: 170px !important;
-    min-height: 170px !important;
-    max-height: 170px !important;
+    height: 165px !important;
+    min-height: 165px !important;
+    max-height: 165px !important;
     width: 100% !important;
     position: relative !important;
     overflow: hidden !important;
@@ -1512,13 +1492,19 @@ onBeforeUnmount(() => {
   .clinical-footer {
     width: 100% !important;
     box-sizing: border-box !important;
-    padding: 6px 12px !important;
-    margin-top: 24px !important;
+    padding: 8px 12px !important;
+    margin-top: auto !important;
     margin-bottom: 0 !important;
     border-top: 1.5px solid #a3b88c !important;
     background: #ffffff !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
+  }
+
+  .footer-logo img {
+    width: 75px !important;
+    height: 75px !important;
+    object-fit: contain !important;
   }
 
   canvas {
@@ -1608,36 +1594,10 @@ onBeforeUnmount(() => {
   margin-left: 16px;
 }
 
-.footer-logo-img {
-  width: 32px;
-  height: 32px;
-  margin-bottom: 2px;
-  display: block;
-}
 
-.footer-logo-title {
-  font-size: 8.5px;
-  font-weight: 800;
-  color: #556637;
-  letter-spacing: 0.6px;
-}
 
-:root.dark .footer-logo-title,
-.dark .footer-logo-title {
-  color: #87ff70;
-}
 
-.footer-logo-sub {
-  font-size: 7px;
-  font-weight: 600;
-  color: #8c9b74;
-  letter-spacing: 1.5px;
-}
 
-:root.dark .footer-logo-sub,
-.dark .footer-logo-sub {
-  color: #4edea3;
-}
 
 /* PDF Export styles when capturing canvas with html-to-image */
 .is-pdf-export,

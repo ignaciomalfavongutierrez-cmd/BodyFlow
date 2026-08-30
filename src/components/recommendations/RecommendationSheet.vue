@@ -4,30 +4,12 @@
     <!-- Header Section -->
     <header class="sheet-header">
       <div class="logo-brand">
-        <!-- Apple with Measuring Tape SVG -->
-        <svg class="apple-icon" viewBox="0 0 120 120" width="44" height="44">
-          <path d="M58 26 C56 16 48 9 40 5" fill="none" stroke="#526433" stroke-width="4" stroke-linecap="round"/>
-          <path d="M57 20 C64 10 78 10 88 16 C86 26 72 30 57 20 Z" fill="#6f8745"/>
-          <path d="M60 36 C48 26 26 26 16 40 C4 56 6 84 22 100 C30 108 44 110 60 103 C76 110 90 108 98 100 C114 84 116 56 104 40 C94 26 72 26 60 36 Z" fill="#9eb07a"/>
-          <path d="M16 63 C32 72 88 72 104 63 C103 73 89 82 60 82 C31 82 17 73 16 63 Z" fill="#ffffff"/>
-          <line x1="28" y1="66" x2="28" y2="73" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="38" y1="68" x2="38" y2="75" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="48" y1="69.5" x2="48" y2="77" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="58" y1="70" x2="58" y2="78" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="68" y1="70" x2="68" y2="78" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="78" y1="69" x2="78" y2="76.5" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="88" y1="67" x2="88" y2="74" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-        </svg>
-
-        <div class="brand-text">
-          <h1>Talia Tinoco Fabián</h1>
-          <p>Nutrición Clínica</p>
-        </div>
+        <TaliaOfficialLogo :size="82" class="brand-logo-img" />
       </div>
 
       <div class="main-banner">
         <h2>Recomendaciones</h2>
-        <p>{{ objective.bannerSubtitle }}</p>
+        <p>{{ bannerSubtitle }}</p>
       </div>
 
       <div class="cedula-box">
@@ -61,7 +43,7 @@
 
       <div class="objective-badge-field">
         <strong>Objetivo:</strong> 
-        <span class="objective-badge-text">{{ objective.badgeLabel }}</span>
+        <span class="ms-1 objective-badge-text">{{ objective.badgeLabel }}</span>
       </div>
     </div>
 
@@ -104,10 +86,10 @@
       <div class="summary-bar">
         <div class="highlight-text">
           <i class="fa-solid fa-seedling"></i>
-          <span>{{ objective.summaryText }}</span>
+          <span>{{ summaryText }}</span>
         </div>
         <div class="summary-tag">
-          {{ objective.summaryTag }}
+          {{ summaryTag }}
         </div>
       </div>
     </main>
@@ -140,21 +122,7 @@
       </div>
 
       <div class="footer-logo">
-        <svg class="footer-logo-img" viewBox="0 0 120 120" width="32" height="32">
-          <path d="M58 26 C56 16 48 9 40 5" fill="none" stroke="#526433" stroke-width="4" stroke-linecap="round"/>
-          <path d="M57 20 C64 10 78 10 88 16 C86 26 72 30 57 20 Z" fill="#6f8745"/>
-          <path d="M60 36 C48 26 26 26 16 40 C4 56 6 84 22 100 C30 108 44 110 60 103 C76 110 90 108 98 100 C114 84 116 56 104 40 C94 26 72 26 60 36 Z" fill="#9eb07a"/>
-          <path d="M16 63 C32 72 88 72 104 63 C103 73 89 82 60 82 C31 82 17 73 16 63 Z" fill="#ffffff"/>
-          <line x1="28" y1="66" x2="28" y2="73" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="38" y1="68" x2="38" y2="75" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="48" y1="69.5" x2="48" y2="77" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="58" y1="70" x2="58" y2="78" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="68" y1="70" x2="68" y2="78" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="78" y1="69" x2="78" y2="76.5" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="88" y1="67" x2="88" y2="74" stroke="#9eb07a" stroke-width="2.5" stroke-linecap="round"/>
-        </svg>
-        <div class="footer-logo-title">TALIA TINOCO FABIÁN</div>
-        <div class="footer-logo-sub">NUTRICIÓN</div>
+        <TaliaOfficialLogo :size="100" class="footer-logo-img" />
       </div>
     </footer>
 
@@ -164,6 +132,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { RecommendationObjective, RecommendationCard } from '../../types/recommendations';
+import TaliaOfficialLogo from '../common/TaliaOfficialLogo.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -171,11 +140,19 @@ const props = withDefaults(
     patientName?: string;
     specificIndications?: string;
     customCards?: RecommendationCard[];
+    customBannerSubtitle?: string;
+    customSummaryText?: string;
+    customSummaryTag?: string;
+    isAiAdapted?: boolean;
     isPrinting?: boolean;
   }>(),
   {
     patientName: '',
     specificIndications: '',
+    customBannerSubtitle: '',
+    customSummaryText: '',
+    customSummaryTag: '',
+    isAiAdapted: false,
     isPrinting: false,
   }
 );
@@ -188,6 +165,18 @@ const cards = computed(() => {
   return props.customCards && props.customCards.length > 0
     ? props.customCards
     : props.objective.cards;
+});
+
+const bannerSubtitle = computed(() => {
+  return props.customBannerSubtitle || props.objective.bannerSubtitle;
+});
+
+const summaryText = computed(() => {
+  return props.customSummaryText || props.objective.summaryText;
+});
+
+const summaryTag = computed(() => {
+  return props.customSummaryTag || props.objective.summaryTag;
 });
 
 const formattedDate = computed(() => {
@@ -206,10 +195,10 @@ const formattedDate = computed(() => {
 <style scoped>
 /* Scoped typography & color tokens matching Lic. Talia's branding */
 .sheet-wrapper {
-  --primary-green: #7e9455;
-  --primary-dark: #4d5e2c;
+  --primary-green: #556637;
+  --primary-dark: #3b4625;
   --primary-light: #eef3e5;
-  --accent-sage: #93a669;
+  --accent-sage: #8c9b74;
   --soft-banner: #d7dac3;
   --border-green: #cad7b7;
   --text-dark: #2b351e;
@@ -217,22 +206,24 @@ const formattedDate = computed(() => {
   --bg-cream: #fafbf7;
 
   font-family: 'Montserrat', sans-serif;
-  max-width: 900px;
+  width: 100%;
+  max-width: 850px;
   margin: 0 auto;
   background: var(--bg-cream);
   color: var(--text-dark);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
   overflow: hidden;
   border: 1px solid #d8dfcc;
   position: relative;
   line-height: 1.35;
   text-align: left;
+  box-sizing: border-box;
 }
 
 /* Header Section */
 .sheet-header {
-  padding: 12px 24px 10px 24px;
+  padding: 14px 24px 12px 24px;
   display: grid;
   grid-template-columns: 210px 1fr 150px;
   align-items: center;
@@ -248,10 +239,12 @@ const formattedDate = computed(() => {
 }
 
 .apple-icon {
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   flex-shrink: 0;
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .brand-text h1 {
@@ -279,7 +272,7 @@ const formattedDate = computed(() => {
   color: #3b4625;
   text-align: center;
   padding: 6px 12px;
-  border-radius: 5px;
+  border-radius: 6px;
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
@@ -303,7 +296,7 @@ const formattedDate = computed(() => {
 .cedula-box {
   border: 1.2px solid #bdcbb0;
   background: #fbfcf9;
-  border-radius: 5px;
+  border-radius: 6px;
   padding: 5px 8px;
   text-align: right;
 }
@@ -390,7 +383,7 @@ const formattedDate = computed(() => {
   color: #3f4e24;
   background: #ffffff;
   padding: 2px 8px;
-  border-radius: 3px;
+  border-radius: 4px;
   border: 1px solid #cad7b7;
   font-size: 10.5px;
 }
@@ -450,46 +443,51 @@ const formattedDate = computed(() => {
 
 /* Content Area */
 .sheet-body {
-  padding: 10px 24px 8px 24px;
+  padding: 12px 24px 10px 24px;
 }
 
-/* Grid Layout: 2 Columns x 3 Rows */
+/* Symmetrical Grid Layout: 2 Columns x 3 Rows with EQUAL heights */
 .recom-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 8px 10px;
+  grid-auto-rows: 1fr;
+  gap: 10px 12px;
+  align-items: stretch;
 }
 
 .recom-card {
   background: #ffffff;
-  border: 1px solid #d3dec3;
-  border-radius: 6px;
-  padding: 8px 12px;
+  border: 1.2px solid #d3dec3;
+  border-radius: 8px;
+  padding: 9px 13px;
   box-shadow: 0 1px 3px rgba(100, 120, 70, 0.03);
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
+  justify-content: space-between;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .card-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   margin-bottom: 5px;
-  padding-bottom: 3px;
+  padding-bottom: 4px;
   border-bottom: 1px solid #e7eee0;
+  flex-shrink: 0;
 }
 
 .card-icon-badge {
-  width: 21px;
-  height: 21px;
+  width: 22px;
+  height: 22px;
   background: #7e9455;
   color: #ffffff;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 10.5px;
   flex-shrink: 0;
 }
 
@@ -507,7 +505,9 @@ const formattedDate = computed(() => {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  justify-content: space-evenly;
+  flex: 1;
+  gap: 5px;
 }
 
 .recom-list li {
@@ -535,7 +535,7 @@ const formattedDate = computed(() => {
 
 .recom-card.highlight {
   background: linear-gradient(135deg, #f7f9f2 0%, #ffffff 100%);
-  border: 1px solid #9fb084;
+  border: 1.2px solid #9fb084;
 }
 
 .recom-card.highlight .card-icon-badge {
@@ -544,15 +544,15 @@ const formattedDate = computed(() => {
 
 /* Summary Bar */
 .summary-bar {
-  margin-top: 8px;
+  margin-top: 10px;
   border: 1.2px solid #8e9f69;
   background: #ffffff;
-  padding: 6px 14px;
-  border-radius: 5px;
+  padding: 7px 14px;
+  border-radius: 6px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 9px;
+  font-size: 9.2px;
   font-weight: 700;
   color: #435227;
 }
@@ -573,7 +573,7 @@ const formattedDate = computed(() => {
 
 /* Professional Footer */
 .sheet-footer {
-  margin-top: 8px;
+  margin-top: 6px;
   border-top: 1.5px solid var(--border-green);
   background: #ffffff;
   padding: 8px 24px;
@@ -584,7 +584,7 @@ const formattedDate = computed(() => {
 
 .contact-card {
   background: #f4f7ee;
-  border-radius: 5px;
+  border-radius: 6px;
   padding: 6px 12px;
   border: 1px solid #d4dfc7;
   max-width: 580px;
@@ -594,7 +594,7 @@ const formattedDate = computed(() => {
 .contact-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 2px 14px;
+  gap: 3px 14px;
   font-size: 8.8px;
   color: #43512b;
 }
