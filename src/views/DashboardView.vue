@@ -5,13 +5,15 @@ import { useDietStore } from '../stores/diet'
 import { useLogStore } from '../stores/log'
 import { useAuthStore } from '../stores/auth'
 import { isAdminEmail } from '../router'
-import { Wrench } from 'lucide-vue-next'
+import { Wrench, Sun, Moon } from 'lucide-vue-next'
+import { useTheme } from '../composables/useTheme'
 import MealCard from '../components/MealCard.vue'
 
 const userStore = useUserStore()
 const dietStore = useDietStore()
 const logStore = useLogStore()
 const authStore = useAuthStore()
+const { isDark, toggleTheme } = useTheme()
 
 const isAdmin = computed(() => isAdminEmail(authStore.user?.email))
 
@@ -145,52 +147,61 @@ function loadDemoDiet() {
   <div class="h-full flex flex-col relative max-w-md mx-auto w-full">
     <!-- Sticky Top Summary -->
     <div class="sticky top-0 z-10 px-4 pt-6 pb-4" style="background: var(--surface-container); border-bottom: 1px solid var(--glass-border); border-radius: 0 0 1.5rem 1.5rem;">
-      <!-- Header with Navigation -->
-      <div class="flex items-center justify-between mb-6">
-        <button @click="changeDate(-1)" class="w-8 h-8 flex items-center justify-center rounded-full transition-colors" style="background: var(--surface-container-high); color: var(--on-surface-muted);">
+      <!-- Header with Navigation & Quick Theme Switcher -->
+      <div class="flex items-center justify-between mb-6 gap-2">
+        <button @click="changeDate(-1)" class="w-8 h-8 flex items-center justify-center rounded-full transition-colors shrink-0" style="background: var(--surface-container-high); color: var(--on-surface-muted);" title="Día anterior">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
           </svg>
         </button>
         
-        <h1 class="text-xl font-bold text-center flex-1" style="font-family: var(--font-display); color: var(--on-surface);">
+        <h1 class="text-xl font-bold text-center flex-1 truncate" style="font-family: var(--font-display); color: var(--on-surface);">
           {{ displayDateTitle }}
         </h1>
         
-        <button @click="changeDate(1)" class="w-8 h-8 flex items-center justify-center rounded-full transition-colors" style="background: var(--surface-container-high); color: var(--on-surface-muted);">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-          </svg>
-        </button>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button 
+            @click="toggleTheme" 
+            class="w-8 h-8 flex items-center justify-center rounded-full transition-all border border-slate-200 dark:border-white/10 shadow-xs cursor-pointer active:scale-95" 
+            :title="isDark ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'"
+            style="background: var(--surface-container-high); color: var(--on-surface-muted);"
+          >
+            <Sun v-if="isDark" class="w-4 h-4 text-amber-400 hover:text-amber-300" />
+            <Moon v-else class="w-4 h-4 text-indigo-600 hover:text-indigo-500" />
+          </button>
+
+          <button @click="changeDate(1)" class="w-8 h-8 flex items-center justify-center rounded-full transition-colors" style="background: var(--surface-container-high); color: var(--on-surface-muted);" title="Día siguiente">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <!-- Admin Nutrióloga Quick Action (Only for authorized admin emails) -->
-      <div v-if="isAdmin" class="mb-5">
-        <router-link 
-          to="/utilities" 
-          class="w-full py-2.5 px-4 rounded-2xl text-xs font-bold flex items-center justify-between transition-all active:scale-[0.98] shadow-lg shadow-[#19e80d]/10 cursor-pointer border border-[#19e80d]/35"
-          style="background: linear-gradient(135deg, rgba(25, 232, 13, 0.18) 0%, rgba(0, 165, 114, 0.18) 100%); color: #87ff70;"
-        >
-          <div class="flex items-center gap-2">
-            <span class="relative flex h-2 w-2">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#19e80d] opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-[#19e80d]"></span>
-            </span>
-            <Wrench class="w-4 h-4 text-[#87ff70]" />
-            <span class="tracking-wide">Panel de Nutrióloga</span>
+      <section v-if="isAdmin" class="glass-card p-4 sm:p-5 border border-emerald-500/30 shadow-lg relative overflow-hidden mb-5">
+        <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-emerald-500/10 dark:bg-[#19e80d]/10 rounded-full blur-xl pointer-events-none"></div>
+        <div class="flex items-center justify-between gap-3 relative z-10">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="relative flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-600 dark:bg-[#19e80d] opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-600 dark:bg-[#19e80d]"></span>
+              </span>
+              <h2 class="text-sm font-bold text-emerald-700 dark:text-[#87ff70]">Panel de Nutrióloga</h2>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-gray-400">Acceso clínico exclusivo y herramientas de pacientes.</p>
           </div>
-          <div class="flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
-            <span>Abrir</span>
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-            </svg>
-          </div>
-        </router-link>
-      </div>
+          <router-link to="/utilities" class="px-4 py-2.5 btn-primary text-xs font-bold shadow flex items-center gap-1.5 rounded-xl shrink-0">
+            <Wrench class="w-3.5 h-3.5" />
+            <span>Utilities</span>
+          </router-link>
+        </div>
+      </section>
 
       <!-- Meal Plan Override Banner -->
-      <div v-if="userStore.profile.useMealPlanOverride" class="mb-4 flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider" style="background: rgba(25, 232, 13, 0.08); color: var(--primary); border: 1px solid rgba(25, 232, 13, 0.15);">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <div v-if="userStore.profile.useMealPlanOverride" class="mb-4 flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-[var(--primary)] border border-emerald-200 dark:border-emerald-800/40">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 shrink-0 text-emerald-700 dark:text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
         Metas basadas en tu plan nutricional

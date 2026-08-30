@@ -216,7 +216,7 @@ function discardPlan() {
 <template>
   <div class="max-w-md mx-auto w-full flex flex-col h-full min-h-[calc(100vh-64px)]" style="background: var(--surface-container-lowest);">
     <!-- Sticky Header -->
-    <header class="sticky top-0 z-10 px-4 py-4 backdrop-blur-md" style="background: rgba(14, 14, 16, 0.8); border-bottom: 1px solid var(--glass-border);">
+    <header class="sticky top-0 z-10 px-4 py-4 backdrop-blur-md shadow-xs transition-colors" style="background: var(--glass-bg); border-bottom: 1px solid var(--glass-border);">
       <h1 class="text-xl font-bold" style="font-family: var(--font-display); color: var(--on-surface);">Cargar Plan</h1>
     </header>
 
@@ -337,7 +337,7 @@ function discardPlan() {
     </div>
 
     <!-- Fixed Bottom Action Bar for Preview -->
-    <div v-if="parsedPreview" class="fixed bottom-16 left-0 right-0 p-4 border-t shadow-lg md:max-w-md md:mx-auto flex gap-3 backdrop-blur-md" style="background: rgba(14, 14, 16, 0.85); border-top: 1px solid var(--glass-border);">
+    <div v-if="parsedPreview" class="fixed bottom-16 left-0 right-0 p-4 border-t shadow-lg md:max-w-md md:mx-auto flex gap-3 backdrop-blur-md transition-colors" style="background: var(--glass-bg); border-top: 1px solid var(--glass-border);">
       <button 
         @click="discardPlan"
         class="flex-1 py-4 btn-secondary text-lg"

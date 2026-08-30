@@ -414,7 +414,7 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
 <template>
   <div class="h-full flex flex-col relative max-w-md mx-auto w-full min-h-[calc(100vh-64px)] pb-16" style="background: var(--surface-container-lowest);">
     <!-- Sticky Header -->
-    <header class="sticky top-0 z-10 px-4 py-4 flex items-center backdrop-blur-md" style="background: rgba(14, 14, 16, 0.8); border-bottom: 1px solid var(--glass-border);">
+    <header class="sticky top-0 z-10 px-4 py-4 flex items-center backdrop-blur-md shadow-xs transition-colors" style="background: var(--glass-bg); border-bottom: 1px solid var(--glass-border);">
       <button @click="router.back()" class="p-2 -ml-2 transition-colors" style="color: var(--on-surface-muted); hover: color: var(--on-surface);">
         <ChevronLeft class="w-6 h-6" />
       </button>

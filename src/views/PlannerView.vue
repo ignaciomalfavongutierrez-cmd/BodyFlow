@@ -131,7 +131,7 @@ function closePlanPicker() {
 <template>
   <div class="h-full flex flex-col relative max-w-md mx-auto w-full min-h-[calc(100vh-64px)]" style="background: var(--surface-container-lowest);">
     <!-- Sticky Header & Day Selector -->
-    <header class="sticky top-0 z-10 backdrop-blur-md" style="background: rgba(14, 14, 16, 0.8); border-bottom: 1px solid var(--glass-border);">
+    <header class="sticky top-0 z-10 backdrop-blur-md shadow-xs transition-colors" style="background: var(--glass-bg); border-bottom: 1px solid var(--glass-border);">
       <div class="px-4 pt-6 pb-3">
         <div class="flex justify-between items-center mb-4">
           <h1 class="text-xl font-bold" style="font-family: var(--font-display); color: var(--on-surface);">Planificador Semanal</h1>

@@ -4,9 +4,10 @@ import { useUserStore } from '../stores/user'
 import { auth } from '../firebase'
 import { updateProfile as updateAuthProfile } from 'firebase/auth'
 import BaseInput from '../components/BaseInput.vue'
-import { CheckCircle, AlertTriangle, LogOut, Wrench } from 'lucide-vue-next'
+import { CheckCircle, AlertTriangle, LogOut, Wrench, Sun, Moon } from 'lucide-vue-next'
 import { usePwaStore } from '../stores/pwa'
 import { useAuthStore } from '../stores/auth'
+import { useTheme } from '../composables/useTheme'
 import { isAdminEmail } from '../router'
 import { generateNutritionPlan } from '../services/nutrition/calculations'
 import type { PhysicalData, NutritionGoals } from '../services/nutrition/models'
@@ -14,6 +15,7 @@ import type { PhysicalData, NutritionGoals } from '../services/nutrition/models'
 const userStore = useUserStore()
 const pwaStore = usePwaStore()
 const authStore = useAuthStore()
+const { isDark, setTheme } = useTheme()
 
 const showLogoutModal = ref(false)
 const isSaved = ref(false)
@@ -152,10 +154,10 @@ async function confirmLogout() {
 <template>
   <div class="max-w-md mx-auto w-full flex flex-col h-full min-h-[calc(100vh-64px)]" style="background: var(--surface-container-lowest);">
     <!-- Header -->
-    <header class="sticky top-0 z-10 px-4 py-4 flex justify-between items-center backdrop-blur-md" style="background: rgba(14, 14, 16, 0.8); border-bottom: 1px solid var(--glass-border);">
+    <header class="sticky top-0 z-10 px-4 py-4 flex justify-between items-center backdrop-blur-md shadow-xs transition-colors" style="background: var(--glass-bg); border-bottom: 1px solid var(--glass-border);">
       <h1 class="text-xl font-bold" style="font-family: var(--font-display); color: var(--on-surface);">Cuenta</h1>
       <transition name="fade">
-        <span v-if="isSaved" class="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full" style="background: rgba(25, 232, 13, 0.15); color: var(--primary);">
+        <span v-if="isSaved" class="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-[var(--primary)] border border-emerald-300 dark:border-emerald-700/40">
           <CheckCircle class="w-3.5 h-3.5" /> ¡Guardado!
         </span>
       </transition>
@@ -180,22 +182,55 @@ async function confirmLogout() {
 
       <!-- Admin Utilities Panel (Only for authorized admin emails) -->
       <section v-if="isAdminEmail(authStore.user?.email)" class="glass-card p-5 border border-emerald-500/30 shadow-lg relative overflow-hidden">
-        <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-[#19e80d]/10 rounded-full blur-xl pointer-events-none"></div>
+        <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-emerald-500/10 dark:bg-[#19e80d]/10 rounded-full blur-xl pointer-events-none"></div>
         <div class="flex items-center justify-between gap-3">
           <div>
             <div class="flex items-center gap-2 mb-1">
               <span class="relative flex h-2 w-2">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#19e80d] opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2 w-2 bg-[#19e80d]"></span>
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-600 dark:bg-[#19e80d] opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-600 dark:bg-[#19e80d]"></span>
               </span>
-              <h2 class="text-sm font-bold text-[#87ff70]">Panel de Nutrióloga</h2>
+              <h2 class="text-sm font-bold text-emerald-700 dark:text-[#87ff70]">Panel de Nutrióloga</h2>
             </div>
-            <p class="text-xs text-gray-400">Acceso clínico exclusivo y herramientas de pacientes.</p>
+            <p class="text-xs text-slate-500 dark:text-gray-400">Acceso clínico exclusivo y herramientas de pacientes.</p>
           </div>
           <router-link to="/utilities" class="px-4 py-2.5 btn-primary text-xs font-bold shadow flex items-center gap-1.5 rounded-xl shrink-0">
             <Wrench class="w-3.5 h-3.5" />
             <span>Utilities</span>
           </router-link>
+        </div>
+      </section>
+
+      <!-- Appearance / Theme Selector -->
+      <section class="glass-card p-5 space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-bold text-slate-800 dark:text-white">Apariencia y Tema</h2>
+            <p class="text-xs text-slate-500 dark:text-gray-400">Personaliza la visualización de la interfaz.</p>
+          </div>
+          <span class="text-lg">{{ isDark ? '🌙' : '☀️' }}</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/5">
+          <button
+            type="button"
+            @click="setTheme('light')"
+            class="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer"
+            :class="!isDark ? 'bg-white dark:bg-white/10 text-emerald-700 shadow-sm border border-emerald-500/20 ring-1 ring-emerald-500/10' : 'text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'"
+          >
+            <Sun class="w-4 h-4 text-amber-500" />
+            <span>Modo Claro</span>
+          </button>
+          
+          <button
+            type="button"
+            @click="setTheme('dark')"
+            class="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer"
+            :class="isDark ? 'bg-[#201f22] text-[#87ff70] shadow-md border border-white/10 ring-1 ring-emerald-500/20' : 'text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'"
+          >
+            <Moon class="w-4 h-4 text-[#87ff70]" />
+            <span>Modo Oscuro</span>
+          </button>
         </div>
       </section>
 
@@ -309,7 +344,7 @@ async function confirmLogout() {
 
     <!-- Fixed Bottom Save Button -->
     <transition name="fade">
-      <div v-if="isDirty" class="fixed bottom-16 left-0 right-0 p-4 border-t md:max-w-md md:mx-auto z-10 backdrop-blur-md" style="background: rgba(14, 14, 16, 0.85); border-top: 1px solid var(--glass-border);">
+      <div v-if="isDirty" class="fixed bottom-16 left-0 right-0 p-4 border-t md:max-w-md md:mx-auto z-10 backdrop-blur-md shadow-lg transition-colors" style="background: var(--glass-bg); border-top: 1px solid var(--glass-border);">
         <button
           @click="saveProfile"
           class="w-full py-4 btn-primary text-lg rounded-xl active:scale-[0.98] transition-all disabled:opacity-50"

@@ -264,21 +264,21 @@ function switchMode(register: boolean) {
           <div class="absolute inset-0 bg-[#19e80d]/20 rounded-2xl blur-lg animate-pulse"></div>
           <img :src="logoImg" alt="BodyFlow" class="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-2xl relative z-10 shadow-lg" />
         </div>
-        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-[#87ff70] via-[#4edea3] to-[#19e80d]" style="font-family: var(--font-display, 'Outfit', sans-serif);">
+        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 dark:from-[#87ff70] dark:via-[#4edea3] dark:to-[#19e80d]" style="font-family: var(--font-display, 'Outfit', sans-serif);">
           BodyFlow
         </h1>
-        <p class="mt-1 text-xs sm:text-sm text-gray-400">
+        <p class="mt-1 text-xs sm:text-sm text-slate-500 dark:text-gray-400">
           {{ isRegister ? 'Crea tu cuenta y optimiza tu nutrición con IA' : 'Tu tracking inteligente de nutrición y macros' }}
         </p>
       </div>
 
       <!-- Segmented Tab Switcher (Iniciar Sesión / Registrarse) -->
-      <div class="flex p-1 bg-white/5 rounded-2xl mb-6 border border-white/5 backdrop-blur-sm">
+      <div class="flex p-1 bg-slate-100 dark:bg-white/5 rounded-2xl mb-6 border border-slate-200 dark:border-white/5 backdrop-blur-sm">
         <button 
           type="button"
           @click="switchMode(false)"
           class="flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 cursor-pointer"
-          :class="!isRegister ? 'bg-gradient-to-r from-[#19e80d] to-[#87ff70] text-[#013a00] shadow-md' : 'text-gray-400 hover:text-white'"
+          :class="!isRegister ? 'bg-emerald-600 dark:bg-gradient-to-r dark:from-[#19e80d] dark:to-[#87ff70] text-white dark:text-[#013a00] shadow-md' : 'text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'"
         >
           Iniciar Sesión
         </button>
@@ -286,7 +286,7 @@ function switchMode(register: boolean) {
           type="button"
           @click="switchMode(true)"
           class="flex-1 py-2.5 text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 cursor-pointer"
-          :class="isRegister ? 'bg-gradient-to-r from-[#19e80d] to-[#87ff70] text-[#013a00] shadow-md' : 'text-gray-400 hover:text-white'"
+          :class="isRegister ? 'bg-emerald-600 dark:bg-gradient-to-r dark:from-[#19e80d] dark:to-[#87ff70] text-white dark:text-[#013a00] shadow-md' : 'text-slate-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'"
         >
           Crear Cuenta
         </button>
@@ -298,7 +298,7 @@ function switchMode(register: boolean) {
         class="mb-4 p-3.5 text-xs rounded-xl flex items-start gap-2.5 animate-shake"
         style="background: rgba(147, 0, 10, 0.4); color: #ffb4ab; border: 1px solid rgba(255, 180, 171, 0.25);"
       >
-        <AlertCircle class="w-4 h-4 shrink-0 mt-0.5" />
+        <span class="text-base">⚠️</span>
         <span class="leading-relaxed">{{ error }}</span>
       </div>
 
@@ -313,11 +313,11 @@ function switchMode(register: boolean) {
       </div>
 
       <!-- Form (Login & Register) -->
-      <form @submit.prevent="handleSubmit" class="space-y-3.5">
+      <form @submit.prevent="handleSubmit" class="space-y-4">
         
         <!-- Name (Register Only) -->
         <div v-if="isRegister" class="transition-all duration-300">
-          <label class="block text-[11px] font-bold uppercase tracking-wider mb-1.5 ml-1 text-gray-400">
+          <label class="block text-[11px] font-bold uppercase tracking-wider mb-1.5 ml-1 text-slate-600 dark:text-gray-400">
             Nombre Completo
           </label>
           <div class="relative">
@@ -325,8 +325,9 @@ function switchMode(register: boolean) {
             <input 
               v-model="name"
               type="text" 
-              placeholder="Ej. Alex García"
+              placeholder="Tu nombre"
               class="w-full input-field pl-10 text-sm"
+              autocomplete="name"
               required
             >
           </div>
@@ -334,7 +335,7 @@ function switchMode(register: boolean) {
 
         <!-- Email -->
         <div>
-          <label class="block text-[11px] font-bold uppercase tracking-wider mb-1.5 ml-1 text-gray-400">
+          <label class="block text-[11px] font-bold uppercase tracking-wider mb-1.5 ml-1 text-slate-600 dark:text-gray-400">
             Correo Electrónico
           </label>
           <div class="relative">
@@ -342,7 +343,7 @@ function switchMode(register: boolean) {
             <input 
               v-model="email"
               type="email" 
-              placeholder="nombre@ejemplo.com"
+              placeholder="tu@email.com"
               class="w-full input-field pl-10 text-sm"
               autocomplete="email"
               required
@@ -353,14 +354,14 @@ function switchMode(register: boolean) {
         <!-- Password -->
         <div>
           <div class="flex justify-between items-center mb-1.5 ml-1">
-            <label class="block text-[11px] font-bold uppercase tracking-wider text-gray-400">
+            <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-gray-400">
               Contraseña
             </label>
             <button 
               v-if="!isRegister"
               type="button" 
               @click="openResetModal" 
-              class="text-[11px] text-[#87ff70] hover:underline cursor-pointer font-medium"
+              class="text-[11px] text-emerald-700 dark:text-[#87ff70] hover:underline cursor-pointer font-bold"
             >
               ¿Olvidaste tu contraseña?
             </button>
@@ -388,7 +389,7 @@ function switchMode(register: boolean) {
 
         <!-- Confirm Password (Register Only) -->
         <div v-if="isRegister" class="transition-all duration-300">
-          <label class="block text-[11px] font-bold uppercase tracking-wider mb-1.5 ml-1 text-gray-400">
+          <label class="block text-[11px] font-bold uppercase tracking-wider mb-1.5 ml-1 text-slate-600 dark:text-gray-400">
             Confirmar Contraseña
           </label>
           <div class="relative">
@@ -420,9 +421,9 @@ function switchMode(register: boolean) {
         <button 
           type="submit" 
           :disabled="loading || googleLoading"
-          class="w-full mt-4 py-3.5 btn-primary text-base font-bold rounded-2xl active:scale-[0.98] disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-[#19e80d]/10"
+          class="w-full mt-4 py-3.5 btn-primary text-base font-bold rounded-2xl active:scale-[0.98] disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10"
         >
-          <svg v-if="loading" class="animate-spin -ml-1 mr-2 h-4 w-4 text-[#013a00]" fill="none" viewBox="0 0 24 24">
+          <svg v-if="loading" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white dark:text-[#013a00]" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
@@ -434,7 +435,7 @@ function switchMode(register: boolean) {
       <!-- Divider -->
       <div class="my-5 flex items-center gap-4">
         <div class="flex-1 h-px" style="background: var(--glass-border, rgba(255,255,255,0.08));"></div>
-        <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">o</span>
+        <span class="text-xs font-semibold text-slate-400 dark:text-gray-400 uppercase tracking-wider">o</span>
         <div class="flex-1 h-px" style="background: var(--glass-border, rgba(255,255,255,0.08));"></div>
       </div>
 
@@ -444,7 +445,7 @@ function switchMode(register: boolean) {
         :disabled="googleLoading || loading"
         class="w-full py-3 rounded-2xl font-semibold text-sm flex items-center justify-center gap-3 transition-all btn-secondary disabled:opacity-60 cursor-pointer shadow-sm"
       >
-        <svg v-if="googleLoading" class="animate-spin h-4 w-4 text-[#87ff70]" fill="none" viewBox="0 0 24 24">
+        <svg v-if="googleLoading" class="animate-spin h-4 w-4 text-emerald-600 dark:text-[#87ff70]" fill="none" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
@@ -453,12 +454,12 @@ function switchMode(register: boolean) {
       </button>
 
       <!-- Footer Help / Toggle -->
-      <p class="mt-6 text-center text-xs sm:text-sm text-gray-400">
+      <p class="mt-6 text-center text-xs sm:text-sm text-slate-500 dark:text-gray-400">
         {{ isRegister ? '¿Ya tienes una cuenta?' : '¿Aún no tienes cuenta?' }}
         <button 
           type="button"
           @click="switchMode(!isRegister)" 
-          class="font-bold ml-1 text-[#87ff70] hover:underline cursor-pointer"
+          class="font-bold ml-1 text-emerald-700 dark:text-[#87ff70] hover:underline cursor-pointer"
         >
           {{ isRegister ? 'Inicia sesión' : 'Regístrate gratis' }}
         </button>

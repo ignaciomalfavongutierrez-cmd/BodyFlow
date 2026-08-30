@@ -27,11 +27,11 @@ const showBottomNav = computed(() => {
     <!-- Floating PWA Install Prompt Banner -->
     <InstallPrompt />
 
-    <!-- Bottom Navigation (Dark Glass) - Only for patient views -->
+    <!-- Bottom Navigation - Only for patient views -->
     <nav
       v-if="showBottomNav"
-      class="fixed bottom-0 w-full flex justify-around p-3 pb-safe z-50 backdrop-blur-md no-print"
-      style="background: rgba(14, 14, 16, 0.85); border-top: 1px solid var(--glass-border);"
+      class="fixed bottom-0 w-full flex justify-around p-3 pb-safe z-50 backdrop-blur-md no-print shadow-lg transition-colors"
+      style="background: var(--glass-bg); border-top: 1px solid var(--glass-border);"
     >
       <router-link to="/" class="nav-item flex flex-col items-center transition-colors">
         <Home class="h-6 w-6" />

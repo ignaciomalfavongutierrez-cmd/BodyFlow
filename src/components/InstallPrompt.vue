@@ -30,8 +30,8 @@ function handleDismiss() {
   <transition name="slide-fade">
     <div 
       v-if="isVisible" 
-      class="fixed bottom-20 left-4 right-4 p-4 rounded-2xl shadow-2xl z-50 md:max-w-md md:mx-auto md:left-0 md:right-0 border border-glass-border-hover backdrop-blur-xl"
-      style="background: rgba(14, 14, 16, 0.92); box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.8), 0 0 20px rgba(25, 232, 13, 0.15);"
+      class="fixed bottom-20 left-4 right-4 p-4 rounded-2xl shadow-2xl z-50 md:max-w-md md:mx-auto md:left-0 md:right-0 border border-slate-200 dark:border-white/10 backdrop-blur-xl transition-all"
+      style="background: var(--glass-bg);"
     >
       <div class="flex items-start justify-between gap-3">
         <!-- Icon & Info -->
@@ -46,7 +46,7 @@ function handleDismiss() {
               Acceso rápido desde tu pantalla de inicio
             </p>
             <p v-else class="text-xs mt-0.5 leading-snug" style="color: var(--on-surface-muted);">
-              Toca <Share class="inline h-3.5 w-3.5 mx-0.5 text-[#87ff70]" /> y selecciona <strong class="text-white">"Agregar a inicio"</strong>
+              Toca <Share class="inline h-3.5 w-3.5 mx-0.5 text-emerald-600 dark:text-[#87ff70]" /> y selecciona <strong class="text-slate-800 dark:text-white">"Agregar a inicio"</strong>
             </p>
           </div>
         </div>

@@ -82,6 +82,25 @@ html.light {
   --on-surface-variant: #334155;
   --on-surface-muted: #64748b;
 
+  /* Primary - Saturated High-Contrast Emerald (AAA contrast against white) */
+  --primary: #15803d;
+  --primary-container: #dcfce7;
+  --on-primary: #ffffff;
+  --on-primary-container: #14532d;
+
+  /* Secondary */
+  --secondary: #047857;
+  --secondary-container: #d1fae5;
+  --on-secondary: #ffffff;
+
+  /* Outline */
+  --outline: #94a3b8;
+  --outline-variant: #cbd5e1;
+
+  /* Gradients */
+  --kinetic-glow: linear-gradient(135deg, #16a34a 0%, #059669 100%);
+  --velocity-fade: linear-gradient(180deg, rgba(22, 163, 74, 0.08) 0%, transparent 100%);
+
   --glass-bg: rgba(255, 255, 255, 0.85);
   --glass-border: rgba(226, 232, 240, 0.9);
   --glass-border-hover: rgba(203, 213, 225, 1);
