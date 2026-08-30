@@ -20,8 +20,8 @@
             @change="$emit('update:sex', ($event.target as HTMLSelectElement).value as BiologicalSex)"
             class="border border-slate-200 dark:border-white/15 rounded-lg px-2 py-1 text-xs bg-white dark:bg-[#201f22] text-slate-800 dark:text-white font-semibold outline-none focus:ring-1 focus:ring-indigo-500"
           >
-            <option value="H">Hombre</option>
-            <option value="M">Mujer</option>
+            <option value="H" class="bg-white dark:bg-[#1e1e24] text-slate-900 dark:text-white">Hombre</option>
+            <option value="M" class="bg-white dark:bg-[#1e1e24] text-slate-900 dark:text-white">Mujer</option>
           </select>
         </div>
 
@@ -316,8 +316,8 @@
                   @change="onRecordChange"
                   class="w-full p-1.5 border border-slate-200 dark:border-white/15 rounded-lg bg-white dark:bg-[#201f22] text-xs font-semibold text-slate-800 dark:text-white outline-none"
                 >
-                  <option value="formula">Fórmula (Pliegues Durnin)</option>
-                  <option value="bascula">Báscula (Bioimpedancia)</option>
+                  <option value="formula" class="bg-white dark:bg-[#1e1e24] text-slate-900 dark:text-white">Fórmula (Pliegues Durnin)</option>
+                  <option value="bascula" class="bg-white dark:bg-[#1e1e24] text-slate-900 dark:text-white">Báscula (Bioimpedancia)</option>
                 </select>
               </div>
               <div class="w-24">

@@ -9,12 +9,8 @@ import {
   Sparkles, 
   BarChart3, 
   ArrowLeft,
-  Search,
-  Plus,
-  Clock,
   CheckCircle2,
   FileText,
-  TrendingUp,
   AlertCircle,
   X,
   Sun,
@@ -24,15 +20,28 @@ import { useTheme } from '../composables/useTheme'
 import ShoppingListWizard from '../components/shopping/ShoppingListWizard.vue'
 import PatientProgressWizard from '../components/progress/PatientProgressWizard.vue'
 import RecommendationsWizard from '../components/recommendations/RecommendationsWizard.vue'
+import PatientDirectory from '../components/patients/PatientDirectory.vue'
+import PatientDetailLayout from '../components/patients/PatientDetailLayout.vue'
+import type { Patient } from '../types/patient'
 
 const router = useRouter()
 const { isDark, toggleTheme } = useTheme()
 
 // Main Navigation: 'pacientes' | 'home' | 'utilities'
-const currentTab = ref<'pacientes' | 'utilities'>('utilities')
+const currentTab = ref<'pacientes' | 'utilities'>('pacientes')
 
 // Active sub-tool within utilities: 'hub' | 'shopping-list' | 'patient-progress' | 'recommendations'
 const activeTool = ref<'hub' | 'shopping-list' | 'patient-progress' | 'recommendations'>('hub')
+
+// Selected patient ID for detail view
+const selectedPatientId = ref<string | null>(null)
+
+// Prefilled recommendations state when launched from a patient
+const prefilledRecommendations = ref({
+  patientName: '',
+  objectiveId: 'general',
+  indications: ''
+})
 
 // Modal state for coming soon features
 const comingSoonModal = ref<{
@@ -56,7 +65,9 @@ function handleTabClick(tab: 'pacientes' | 'home' | 'utilities') {
     navigateToHome()
   } else {
     currentTab.value = tab
-    activeTool.value = 'hub'
+    if (tab === 'utilities') {
+      activeTool.value = 'hub'
+    }
   }
 }
 
@@ -77,14 +88,31 @@ function openTool(tool: 'shopping-list' | 'diet-generator' | 'patient-progress' 
   }
 }
 
-// Sample patient list for the Pacientes tab
-const patientSearch = ref('')
-const samplePatients = [
-  { id: '1', name: 'Laura Martínez Soto', goal: 'Pérdida de grasa', plan: 'Plan Hipocalórico 1,600 kcal', lastUpdate: 'Hoy', status: 'Activo' },
-  { id: '2', name: 'Carlos Mendoza Cruz', goal: 'Hipertrofia muscular', plan: 'Plan Hiperproteico 2,400 kcal', lastUpdate: 'Ayer', status: 'Activo' },
-  { id: '3', name: 'Valeria Rivas Gómez', goal: 'Recomposición corporal', plan: 'Plan Balanceado 1,850 kcal', lastUpdate: 'Hace 3 días', status: 'Seguimiento' },
-  { id: '4', name: 'Diego Hernández Vega', goal: 'Rendimiento deportivo', plan: 'Plan Ciclado de Carbs 2,700 kcal', lastUpdate: 'Hace 5 días', status: 'Activo' },
-]
+function onSelectPatient(patientId: string) {
+  selectedPatientId.value = patientId
+}
+
+function handlePatientRecommendations(patient: Patient) {
+  let mappedObj = 'general'
+  const g = (patient.objetivoPrincipal || '').toLowerCase()
+  if (g.includes('grasa') || g.includes('déficit') || g.includes('peso')) mappedObj = 'deficit'
+  else if (g.includes('hipertrofia') || g.includes('músculo') || g.includes('masa')) mappedObj = 'hipertrofia'
+  else if (g.includes('digestiv') || g.includes('gastritis') || g.includes('inflam')) mappedObj = 'digestivo'
+  else if (g.includes('glucem') || g.includes('diabetes') || g.includes('insulina')) mappedObj = 'glucemia'
+
+  prefilledRecommendations.value = {
+    patientName: patient.nombre,
+    objectiveId: mappedObj,
+    indications: (patient.alertasMedicas || []).join(', ') || patient.notasGenerales || ''
+  }
+  currentTab.value = 'utilities'
+  activeTool.value = 'recommendations'
+}
+
+function handlePatientShoppingList(_patient: Patient) {
+  currentTab.value = 'utilities'
+  activeTool.value = 'shopping-list'
+}
 </script>
 
 <template>
@@ -174,108 +202,24 @@ const samplePatients = [
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
       
       <!-- ============================================================ -->
-      <!-- TAB 1: PACIENTES                                             -->
+      <!-- TAB 1: PACIENTES (DIRECTORIO & EXPEDIENTE DE DETALLE)       -->
       <!-- ============================================================ -->
-      <section v-if="currentTab === 'pacientes'" class="space-y-6">
+      <section v-if="currentTab === 'pacientes'">
         
-        <!-- Header -->
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white" style="font-family: var(--font-display);">
-              Gestión de Pacientes
-            </h2>
-            <p class="text-xs sm:text-sm mt-1 text-slate-500 dark:text-slate-400">
-              Monitorea el progreso, planes nutricionales asignados y registros activos.
-            </p>
-          </div>
+        <!-- View A: Patient Directory -->
+        <PatientDirectory
+          v-if="!selectedPatientId"
+          @selectPatient="onSelectPatient"
+        />
 
-          <button 
-            @click="openTool('diet-generator')"
-            class="inline-flex items-center gap-2 px-4 py-2.5 btn-primary text-xs sm:text-sm font-bold shadow-lg"
-          >
-            <Plus class="w-4 h-4" />
-            <span>Nuevo Paciente</span>
-          </button>
-        </div>
-
-        <!-- Metric Badges -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div class="bg-white dark:bg-white/5 p-5 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm flex items-center gap-4 transition-colors">
-            <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-              <Users class="w-6 h-6" />
-            </div>
-            <div>
-              <p class="text-xs uppercase tracking-wider font-bold text-slate-500 dark:text-slate-400">Pacientes Activos</p>
-              <h3 class="text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5">4</h3>
-            </div>
-          </div>
-
-          <div class="bg-white dark:bg-white/5 p-5 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm flex items-center gap-4 transition-colors">
-            <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-              <FileText class="w-6 h-6" />
-            </div>
-            <div>
-              <p class="text-xs uppercase tracking-wider font-bold text-slate-500 dark:text-slate-400">Dietas Generadas</p>
-              <h3 class="text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5">12</h3>
-            </div>
-          </div>
-
-          <div class="bg-white dark:bg-white/5 p-5 rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm flex items-center gap-4 transition-colors">
-            <div class="w-12 h-12 rounded-xl flex items-center justify-center bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-              <TrendingUp class="w-6 h-6" />
-            </div>
-            <div>
-              <p class="text-xs uppercase tracking-wider font-bold text-slate-500 dark:text-slate-400">Adherencia Media</p>
-              <h3 class="text-2xl font-extrabold text-slate-900 dark:text-white mt-0.5">92%</h3>
-            </div>
-          </div>
-        </div>
-
-        <!-- Search Bar -->
-        <div class="relative">
-          <Search class="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
-          <input
-            v-model="patientSearch"
-            type="text"
-            placeholder="Buscar por nombre, plan u objetivo del paciente..."
-            class="w-full pl-12 pr-4 py-3 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl text-sm text-slate-800 dark:text-white focus:outline-none focus:border-emerald-500 transition-colors shadow-xs"
-          />
-        </div>
-
-        <!-- Patient Cards List -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div
-            v-for="p in samplePatients"
-            :key="p.id"
-            class="bg-white dark:bg-white/5 p-5 rounded-2xl border border-slate-200 dark:border-white/10 hover:border-emerald-500/50 dark:hover:border-white/25 transition-all group cursor-pointer shadow-sm"
-          >
-            <div class="flex items-start justify-between">
-              <div class="flex items-center gap-3">
-                <div class="w-11 h-11 rounded-xl bg-emerald-500/10 dark:bg-emerald-400/20 border border-emerald-500/20 dark:border-emerald-400/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-extrabold text-base">
-                  {{ p.name.charAt(0) }}
-                </div>
-                <div>
-                  <h4 class="font-bold text-slate-900 dark:text-white text-base group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{{ p.name }}</h4>
-                  <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{{ p.goal }}</p>
-                </div>
-              </div>
-              <span class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
-                {{ p.status }}
-              </span>
-            </div>
-
-            <div class="mt-4 pt-3 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-              <span class="flex items-center gap-1.5">
-                <FileText class="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                {{ p.plan }}
-              </span>
-              <span class="flex items-center gap-1.5 text-slate-400 dark:text-slate-500">
-                <Clock class="w-3.5 h-3.5" />
-                {{ p.lastUpdate }}
-              </span>
-            </div>
-          </div>
-        </div>
+        <!-- View B: Patient Detail Layout -->
+        <PatientDetailLayout
+          v-else
+          :patientId="selectedPatientId"
+          @back="selectedPatientId = null"
+          @openRecommendations="handlePatientRecommendations"
+          @openShoppingList="handlePatientShoppingList"
+        />
 
       </section>
 
@@ -467,7 +411,11 @@ const samplePatients = [
 
         <!-- ACTIVE SUB-TOOL: Nutrition Recommendations Sheet -->
         <div v-else-if="activeTool === 'recommendations'">
-          <RecommendationsWizard />
+          <RecommendationsWizard
+            :initialPatientName="prefilledRecommendations.patientName"
+            :initialObjectiveId="prefilledRecommendations.objectiveId"
+            :initialIndications="prefilledRecommendations.indications"
+          />
         </div>
 
         <!-- ACTIVE SUB-TOOL: Patient Progress & Anthropometry -->

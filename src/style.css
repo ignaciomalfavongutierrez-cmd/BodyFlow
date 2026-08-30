@@ -227,6 +227,37 @@ html.dark {
     box-shadow: 0 0 0 2px rgba(25, 232, 13, 0.15), inset 0 0 8px rgba(25, 232, 13, 0.05);
   }
 
+  /* ─── Global Select & Option styling for Theme Consistency ─── */
+  select {
+    color-scheme: light dark;
+  }
+
+  html.dark select,
+  .dark select {
+    color-scheme: dark;
+    background-color: var(--surface-container);
+    color: var(--on-surface);
+  }
+
+  html.light select,
+  .light select {
+    color-scheme: light;
+    background-color: #ffffff;
+    color: #0f172a;
+  }
+
+  select option {
+    background-color: #ffffff;
+    color: #0f172a;
+  }
+
+  html.dark select option,
+  .dark select option,
+  .dark select optgroup {
+    background-color: #1e1e24 !important;
+    color: #f8fafc !important;
+  }
+
   /* ─── Progress bars ─── */
   .progress-track {
     background: rgba(255, 255, 255, 0.1);

@@ -36,44 +36,53 @@ export class GeminiDietParserService {
     const localText = await LocalDocumentParserService.extractTextFromFile(file);
     let lastError: any = null;
 
-    // Supported production model for Google Gemini API
-    const modelName = 'gemini-3.6-flash';
+    // Candidate models starting with gemini-3.7-flash, then gemini-3.6-flash and fallbacks
+    const candidateModels = [
+      'gemini-3.7-flash',
+      'gemini-3.6-flash',
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash'
+    ];
 
-    // If client API key is available, attempt direct GoogleGenerativeAI call
+    // If client API key is available, attempt direct GoogleGenerativeAI call with model fallback
     if (apiKey) {
       const genAI = new GoogleGenerativeAI(apiKey);
-      try {
-        const model = genAI.getGenerativeModel({
-          model: modelName,
-          generationConfig: {
-            responseMimeType: 'application/json',
-          },
-        });
 
-        let resultText = '';
+      for (const modelName of candidateModels) {
+        try {
+          const model = genAI.getGenerativeModel({
+            model: modelName,
+            generationConfig: {
+              responseMimeType: 'application/json',
+            },
+          });
 
-        if (!isImage && localText && localText.length > 30) {
-          // High-speed text prompt with extracted content
-          const prompt = `${GEMINI_DIET_SYSTEM_PROMPT}\n\nDOCUMENTO DE DIETA EXTRACTADO (${file.name}):\n${localText}`;
-          const result = await model.generateContent(prompt);
-          resultText = result.response.text();
-        } else {
-          // Multimodal prompt for Images or Scanned Documents
-          const filePart = await LocalDocumentParserService.fileToBase64(file);
-          const prompt = isImage
-            ? `${GEMINI_DIET_SYSTEM_PROMPT}\n\nPor favor analiza la imagen adjunta del plan de alimentación / menú / dieta y devuelve la estructura JSON requerida.`
-            : `${GEMINI_DIET_SYSTEM_PROMPT}\n\nPor favor analiza el archivo adjunto (${file.name}) de dieta y devuelve la estructura JSON requerida.`;
-          
-          const result = await model.generateContent([prompt, filePart]);
-          resultText = result.response.text();
+          let resultText = '';
+
+          if (!isImage && localText && localText.length > 30) {
+            // High-speed text prompt with extracted content
+            const prompt = `${GEMINI_DIET_SYSTEM_PROMPT}\n\nDOCUMENTO DE DIETA EXTRACTADO (${file.name}):\n${localText}`;
+            const result = await model.generateContent(prompt);
+            resultText = result.response.text();
+          } else {
+            // Multimodal prompt for Images or Scanned Documents
+            const filePart = await LocalDocumentParserService.fileToBase64(file);
+            const prompt = isImage
+              ? `${GEMINI_DIET_SYSTEM_PROMPT}\n\nPor favor analiza la imagen adjunta del plan de alimentación / menú / dieta y devuelve la estructura JSON requerida.`
+              : `${GEMINI_DIET_SYSTEM_PROMPT}\n\nPor favor analiza el archivo adjunto (${file.name}) de dieta y devuelve la estructura JSON requerida.`;
+            
+            const result = await model.generateContent([prompt, filePart]);
+            resultText = result.response.text();
+          }
+
+          if (resultText && resultText.trim() !== '') {
+            return this.cleanAndParseJson(resultText);
+          }
+        } catch (err: any) {
+          console.warn(`[GeminiDietParserService] Falló intento con modelo ${modelName}:`, err?.message || err);
+          lastError = err;
         }
-
-        if (resultText && resultText.trim() !== '') {
-          return this.cleanAndParseJson(resultText);
-        }
-      } catch (err: any) {
-        console.warn(`[GeminiDietParserService] Falló con el modelo ${modelName}:`, err?.message || err);
-        lastError = err;
       }
     }
 

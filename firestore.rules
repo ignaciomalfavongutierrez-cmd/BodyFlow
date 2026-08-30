@@ -1,0 +1,22 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Colección de Pacientes (Módulo Nutrióloga) y todas sus subcolecciones
+    match /pacientes/{document=**} {
+      allow read, write: if true;
+    }
+
+    // 2. Colección de Usuarios y subcolecciones
+    match /users/{document=**} {
+      allow read, write: if true;
+    }
+
+    // 3. Regla global por defecto para desarrollo
+    match /{document=**} {
+      allow read, write: if true;
+    }
+
+  }
+}

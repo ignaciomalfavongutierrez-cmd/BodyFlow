@@ -1,11 +1,24 @@
 <template>
-  <div class="inline-flex items-center justify-center shrink-0">
-    <img
-      src="/talia-official-logo.png"
-      alt="L.N. Talia Tinoco Fabián - Nutrición"
-      class="w-full h-full object-contain select-none"
-      loading="eager"
-    />
-  </div>
+  <TaliaOfficialLogo
+    :watermark="watermark"
+    :size="size"
+    :customClass="customClass"
+  />
 </template>
 
+<script setup lang="ts">
+import TaliaOfficialLogo from '../common/TaliaOfficialLogo.vue';
+
+withDefaults(
+  defineProps<{
+    watermark?: boolean;
+    size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | number;
+    customClass?: string;
+  }>(),
+  {
+    watermark: false,
+    size: 'md',
+    customClass: ''
+  }
+);
+</script>

@@ -32,43 +32,56 @@ export default async function handler(req, res) {
     });
   }
 
+  const candidateModels = [
+    'gemini-3.7-flash',
+    'gemini-3.6-flash',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash'
+  ];
+
   const genAI = new GoogleGenerativeAI(apiKey);
+  let lastError = null;
 
-  try {
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-3.6-flash',
-      generationConfig: {
-        responseMimeType: 'application/json'
-      }
-    });
+  for (const modelName of candidateModels) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig: {
+          responseMimeType: 'application/json'
+        }
+      });
 
-    let response;
-    if (contents) {
-      let parts = contents;
-      if (Array.isArray(contents)) {
-        parts = contents.map(item => {
-          if (item && item.inlineData) {
-            return {
-              inlineData: {
-                data: item.inlineData.data,
-                mimeType: item.inlineData.mimeType || 'application/pdf'
-              }
-            };
-          }
-          return item;
-        });
+      let response;
+      if (contents) {
+        let parts = contents;
+        if (Array.isArray(contents)) {
+          parts = contents.map(item => {
+            if (item && item.inlineData) {
+              return {
+                inlineData: {
+                  data: item.inlineData.data,
+                  mimeType: item.inlineData.mimeType || 'application/pdf'
+                }
+              };
+            }
+            return item;
+          });
+        }
+        response = await model.generateContent(parts);
+      } else {
+        response = await model.generateContent(prompt);
       }
-      response = await model.generateContent(parts);
-    } else {
-      response = await model.generateContent(prompt);
+
+      const text = response.response.text();
+      return res.status(200).json({ text });
+    } catch (err) {
+      console.warn(`[api/chat] Falló intento con modelo ${modelName}:`, err?.message || err);
+      lastError = err;
     }
-
-    const text = response.response.text();
-    return res.status(200).json({ text });
-  } catch (err) {
-    console.error('[api/chat] Error procesando solicitud con Gemini gemini-3.6-flash:', err?.message || err);
-    return res.status(500).json({
-      error: err?.message || 'Error al comunicarse con Gemini.'
-    });
   }
+
+  return res.status(500).json({
+    error: lastError?.message || 'Error al comunicarse con Gemini.'
+  });
 }

@@ -1,4 +1,4 @@
-<template>
+  <template>
   <!-- 
     BrandRecommendationsPage.vue
     Segunda página imprimible con guía de marcas recomendadas según estrategia de compra.
@@ -7,28 +7,15 @@
   <div class="brands-page-container relative overflow-hidden bg-[#fbf8f3] p-5 sm:p-7 md:p-9 rounded-[32px] border border-amber-200/60 shadow-xl space-y-5 max-w-4xl mx-auto mt-8 brands-print-page">
 
     <!-- Watermark -->
-    <div class="watermark-layer pointer-events-none absolute inset-0 flex items-center justify-center select-none overflow-hidden opacity-[0.06] z-0">
+    <div class="watermark-layer pointer-events-none absolute inset-0 flex items-center justify-center select-none overflow-hidden opacity-[0.045] z-0">
       <div class="w-[340px] sm:w-[420px] md:w-[480px] h-[340px] sm:h-[420px] md:h-[480px]">
-        <TaliaLogo />
+        <TaliaLogo :watermark="true" />
       </div>
     </div>
 
-    <!-- Header: identical brand to shopping card -->
-    <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4 border-b-2 border-slate-800/10 pb-4">
-      <!-- Left: Logo & Nutritionist -->
-      <div class="flex items-center space-x-3 text-left w-full md:w-auto">
-        <div class="w-20 h-20 flex-shrink-0 flex items-center justify-center drop-shadow-xs">
-          <TaliaLogo />
-        </div>
-        <div>
-          <div class="text-[10px] text-slate-600 font-bold bg-amber-100/70 px-2.5 py-1 rounded-lg border border-amber-200/70">
-            Cédula Profesional: 11290678
-          </div>
-        </div>
-      </div>
-
-      <!-- Center: Page Title -->
-      <div class="text-center">
+    <!-- Header: Page Title & Strategy Badge -->
+    <div class="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-3 border-b-2 border-slate-800/10 pb-3">
+      <div>
         <h2 class="text-xl sm:text-2xl md:text-3xl font-black text-slate-800 tracking-tight font-sans">
           GUÍA DE MARCAS
         </h2>
@@ -37,7 +24,7 @@
 
       <!-- Right: Strategy Badge -->
       <div
-        class="flex items-center space-x-2 px-4 py-2 rounded-2xl border text-xs font-bold"
+        class="flex items-center space-x-2 px-4 py-2 rounded-2xl border text-xs font-bold shrink-0"
         :style="{ backgroundColor: strategyMeta.bgColor, borderColor: strategyMeta.borderColor, color: strategyMeta.color }"
       >
         <span class="text-lg">{{ strategyMeta.emoji }}</span>
@@ -45,6 +32,11 @@
           <div class="font-black text-[11px] uppercase tracking-wide">{{ strategyMeta.label }}</div>
         </div>
       </div>
+    </div>
+
+    <!-- Standardized Clinical Contact & Official Logo Banner -->
+    <div class="relative z-10">
+      <TaliaClinicalBanner :logoSize="90" />
     </div>
 
     <!-- Strategy description banner -->
@@ -127,6 +119,7 @@ import { computed } from 'vue';
 import type { PurchaseStrategy  } from '../../types/shoppingDiet';
 import { BrandRecommendationService, type CategoryBrandRecommendation } from '../../services/shopping/BrandRecommendationService';
 import TaliaLogo from './TaliaLogo.vue';
+import TaliaClinicalBanner from '../common/TaliaClinicalBanner.vue';
 
 const props = defineProps<{
   purchaseStrategy: PurchaseStrategy;

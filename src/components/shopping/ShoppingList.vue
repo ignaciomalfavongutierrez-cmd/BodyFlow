@@ -47,29 +47,37 @@
         </div>
       </div>
 
-      <!-- Right: Action Buttons -->
-      <div class="flex items-center space-x-2">
+      <!-- Right: Action Buttons (Styled to match Recommendations Wizard) -->
+      <div class="flex items-center flex-wrap gap-2.5">
         <button
           @click="showAuditModal = true"
-          class="px-3 py-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 rounded-xl text-xs font-bold border border-emerald-200 dark:border-emerald-800/40"
+          class="px-3 py-2 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/15 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold border border-slate-200 dark:border-white/10 transition-colors cursor-pointer"
         >
           📊 Datos Detectados
         </button>
+
         <button
           @click="triggerPrint"
-          class="px-4 py-2 bg-slate-800 dark:bg-white/10 hover:bg-slate-900 dark:hover:bg-white/20 text-white rounded-xl text-xs font-bold shadow-sm flex items-center space-x-1.5 border border-slate-700 dark:border-white/15"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/15 text-slate-800 dark:text-white text-xs font-bold transition-all border border-slate-200 dark:border-white/10 cursor-pointer shadow-xs"
         >
-          <span>🖨️ Imprimir Carta</span>
+          <Printer class="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <span>Imprimir</span>
         </button>
+
         <button
-          @click="downloadHtml"
-          class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center space-x-1.5"
+          @click="downloadPDF"
+          :disabled="isGeneratingPdf"
+          class="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-md cursor-pointer disabled:opacity-50"
+          style="background: linear-gradient(135deg, #7e9455 0%, #5b6f39 100%);"
         >
-          <span>📥 Descargar HTML</span>
+          <Loader2 v-if="isGeneratingPdf" class="w-4 h-4 animate-spin" />
+          <Download v-else class="w-4 h-4" />
+          <span>{{ isGeneratingPdf ? 'Generando PDF...' : 'Descargar en PDF' }}</span>
         </button>
+
         <button
           @click="$emit('newList')"
-          class="px-4 py-2 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl text-xs font-bold transition-colors"
+          class="px-3.5 py-2 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl text-xs font-bold transition-colors cursor-pointer"
         >
           🔄 Nueva Lista
         </button>
@@ -89,29 +97,27 @@
       class="bg-white dark:bg-[#18181b] p-6 sm:p-8 md:p-10 rounded-3xl border border-slate-200 dark:border-white/10 shadow-xl space-y-6 print-letter-card relative overflow-hidden transition-colors"
     >
       <!-- Watermark Official Logo Image Layer -->
-      <div class="watermark-layer pointer-events-none absolute inset-0 flex items-center justify-center select-none overflow-hidden opacity-[0.05] z-0">
+      <div class="watermark-layer pointer-events-none absolute inset-0 flex items-center justify-center select-none overflow-hidden opacity-[0.045] z-0">
         <div class="w-[340px] sm:w-[420px] md:w-[480px] h-[340px] sm:h-[420px] md:h-[480px]">
-          <TaliaLogo />
+          <TaliaLogo :watermark="true" />
         </div>
       </div>
 
       <!-- Printable Header -->
       <div class="border-b-2 border-slate-200 dark:border-white/10 pb-5 space-y-4 relative z-10">
-        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div class="flex items-center space-x-3">
-            <div class="w-20 h-20 flex-shrink-0 flex items-center justify-center drop-shadow-xs">
-              <TaliaLogo />
-            </div>
-            <div>
-              <h1 class="text-2xl sm:text-3xl font-black text-emerald-700 dark:text-emerald-400 tracking-tight">LISTA DE COMPRAS</h1>
-              <p class="text-xs text-slate-600 dark:text-slate-400 font-bold">
-                <span class="text-emerald-700 dark:text-emerald-400">Cédula Profesional: 11290678</span>
-              </p>
-            </div>
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <h1 class="text-2xl sm:text-3xl font-black text-emerald-700 dark:text-emerald-400 tracking-tight">LISTA DE COMPRAS</h1>
+            <p class="text-xs text-slate-600 dark:text-slate-400 font-medium">Plan Nutricional Saludable</p>
           </div>
           <div class="text-right text-xs text-slate-500 dark:text-slate-400 font-mono">
             <div>Fecha: <strong>{{ result.generated_at }}</strong></div>
           </div>
+        </div>
+
+        <!-- Standardized Clinical Contact & Official Logo Banner -->
+        <div>
+          <TaliaClinicalBanner :logoSize="90" />
         </div>
 
         <!-- Meta info pill grid -->
@@ -270,11 +276,14 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { Printer, Download, Loader2 } from 'lucide-vue-next';
+import jsPDF from 'jspdf';
+import { toJpeg } from 'html-to-image';
 import type { ShoppingListCalculationResult, PurchaseStrategy  } from '../../types/shoppingDiet';
-import { HtmlExporter } from '../../services/shopping/HtmlExporter';
 import AuditDialog from './AuditDialog.vue';
 import StylizedShoppingCard from './StylizedShoppingCard.vue';
 import TaliaLogo from './TaliaLogo.vue';
+import TaliaClinicalBanner from '../common/TaliaClinicalBanner.vue';
 import BrandRecommendationsPage from './BrandRecommendationsPage.vue';
 
 const props = defineProps<{
@@ -288,6 +297,7 @@ defineEmits<{
 const viewMode = ref<'stylized' | 'standard'>('stylized'); // Default to stylized per request
 const globalPatientName = ref('');
 const showAuditModal = ref(false);
+const isGeneratingPdf = ref(false);
 
 // Category slugs for brand recommendations page
 const listCategorySlugs = computed(() =>
@@ -298,8 +308,114 @@ function triggerPrint() {
   window.print();
 }
 
-function downloadHtml() {
-  HtmlExporter.downloadHtml(props.result);
+async function downloadPDF() {
+  if (isGeneratingPdf.value) return;
+  isGeneratingPdf.value = true;
+
+  try {
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'letter',
+    });
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 4;
+    const contentWidth = pageWidth - margin * 2;
+
+    if (viewMode.value === 'stylized') {
+      // 1. Capture Page 1: Stylized Shopping List
+      const page1El = document.querySelector<HTMLElement>('.stylized-shopping-container');
+      if (!page1El) throw new Error('No se encontró la página de la lista de compras.');
+
+      const imgData1 = await toJpeg(page1El, {
+        quality: 0.95,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff',
+        filter: (node: Node) => {
+          if (node instanceof HTMLElement && node.classList.contains('no-print')) {
+            return false;
+          }
+          return true;
+        },
+      });
+
+      const img1 = new Image();
+      img1.src = imgData1;
+      await new Promise<void>((res) => {
+        if (img1.complete) res();
+        else img1.onload = () => res();
+      });
+
+      const imgHeight1 = (img1.height * contentWidth) / img1.width;
+      const finalHeight1 = Math.min(imgHeight1, pageHeight - margin * 2);
+      pdf.addImage(imgData1, 'JPEG', margin, margin, contentWidth, finalHeight1);
+
+      // 2. Capture Page 2: Brand Recommendations Page
+      const page2El = document.querySelector<HTMLElement>('.brands-page-container');
+      if (page2El) {
+        const imgData2 = await toJpeg(page2El, {
+          quality: 0.95,
+          pixelRatio: 2,
+          backgroundColor: '#ffffff',
+          filter: (node: Node) => {
+            if (node instanceof HTMLElement && node.classList.contains('no-print')) {
+              return false;
+            }
+            return true;
+          },
+        });
+
+        const img2 = new Image();
+        img2.src = imgData2;
+        await new Promise<void>((res) => {
+          if (img2.complete) res();
+          else img2.onload = () => res();
+        });
+
+        pdf.addPage('letter', 'portrait');
+        const imgHeight2 = (img2.height * contentWidth) / img2.width;
+        const finalHeight2 = Math.min(imgHeight2, pageHeight - margin * 2);
+        pdf.addImage(imgData2, 'JPEG', margin, margin, contentWidth, finalHeight2);
+      }
+    } else {
+      // Standard list mode
+      const listEl = document.querySelector<HTMLElement>('.print-letter-card');
+      if (listEl) {
+        const imgData = await toJpeg(listEl, {
+          quality: 0.95,
+          pixelRatio: 2,
+          backgroundColor: '#ffffff',
+          filter: (node: Node) => {
+            if (node instanceof HTMLElement && node.classList.contains('no-print')) {
+              return false;
+            }
+            return true;
+          },
+        });
+
+        const img = new Image();
+        img.src = imgData;
+        await new Promise<void>((res) => {
+          if (img.complete) res();
+          else img.onload = () => res();
+        });
+
+        const imgHeight = (img.height * contentWidth) / img.width;
+        const finalHeight = Math.min(imgHeight, pageHeight - margin * 2);
+        pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, finalHeight);
+      }
+    }
+
+    const filename = `Lista_de_Compras_Talia_Tinoco.pdf`;
+    pdf.save(filename);
+  } catch (err: any) {
+    console.error('Error generando PDF de lista de compras:', err);
+    alert('Ocurrió un error al generar el archivo PDF: ' + (err.message || err));
+  } finally {
+    isGeneratingPdf.value = false;
+  }
 }
 
 function toggleAllCheckboxes(purchased: boolean) {

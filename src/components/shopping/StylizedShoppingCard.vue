@@ -2,9 +2,9 @@
   <div class="stylized-shopping-container relative overflow-hidden bg-[#fbf8f3] p-5 sm:p-7 md:p-9 rounded-[32px] border border-amber-200/60 shadow-xl space-y-5 max-w-4xl mx-auto print-letter-card">
     
     <!-- Watermark Official Logo Image Layer (Centered, Subtle & Clean) -->
-    <div class="watermark-layer pointer-events-none absolute inset-0 flex items-center justify-center select-none overflow-hidden opacity-[0.06] z-0">
+    <div class="watermark-layer pointer-events-none absolute inset-0 flex items-center justify-center select-none overflow-hidden opacity-[0.045] z-0">
       <div class="w-[340px] sm:w-[420px] md:w-[480px] h-[340px] sm:h-[420px] md:h-[480px]">
-        <TaliaLogo />
+        <TaliaLogo :watermark="true" />
       </div>
     </div>
 
@@ -27,22 +27,8 @@
     </div>
 
     <!-- Header Section -->
-    <div class="relative z-10 flex flex-col md:flex-row items-center justify-between gap-4 border-b-2 border-slate-800/10 pb-4">
-      <!-- Left: Official Logo & Nutritionist Brand -->
-      <div class="flex items-center space-x-3 text-left w-full md:w-auto">
-        <!-- Official Logo -->
-        <div class="w-20 h-20 flex-shrink-0 flex items-center justify-center drop-shadow-xs">
-          <TaliaLogo />
-        </div>
-        <div>
-          <div class="text-[10px] text-slate-600 font-bold bg-amber-100/70 px-2.5 py-1 rounded-lg border border-amber-200/70">
-            Cédula Profesional: 11290678
-          </div>
-        </div>
-      </div>
-
-      <!-- Center: Main Title -->
-      <div class="text-center">
+    <div class="relative z-10 flex items-center justify-between gap-4 border-b-2 border-slate-800/10 pb-3">
+      <div class="text-left">
         <h1 class="text-2xl sm:text-3xl md:text-4xl font-black text-slate-800 tracking-tight font-sans">
           LISTA DE COMPRAS
         </h1>
@@ -53,8 +39,8 @@
       </div>
 
       <!-- Right: Modern unDraw-style Grocery Basket -->
-      <div class="hidden md:flex items-center justify-end w-16 h-16 flex-shrink-0">
-        <svg viewBox="0 0 100 100" class="w-14 h-14 drop-shadow-sm">
+      <div class="flex items-center justify-end w-14 h-14 shrink-0">
+        <svg viewBox="0 0 100 100" class="w-12 h-12 drop-shadow-xs">
           <!-- Paper Bag -->
           <path d="M24 38 L29 88 C29 91 32 93 35 93 L65 93 C68 93 71 91 71 88 L76 38 Z" fill="#dfa86c" />
           <path d="M29 38 L34 93 L66 93 L71 38 Z" fill="#cf9456" opacity="0.3" />
@@ -70,6 +56,11 @@
           <path d="M31 20 C33 18 36 18 37 21 C34 22 32 22 31 20 Z" fill="#15803d" />
         </svg>
       </div>
+    </div>
+
+    <!-- Standardized Clinical Contact & Official Logo Banner -->
+    <div class="relative z-10">
+      <TaliaClinicalBanner :logoSize="90" />
     </div>
 
     <!-- Subheader / Date & Info Bar -->
@@ -256,6 +247,7 @@
 import { ref, computed } from 'vue';
 import type { ShoppingListCalculationResult  } from '../../types/shoppingDiet';
 import TaliaLogo from './TaliaLogo.vue';
+import TaliaClinicalBanner from '../common/TaliaClinicalBanner.vue';
 import BrandRecommendationsPage from './BrandRecommendationsPage.vue';
 
 const props = defineProps<{

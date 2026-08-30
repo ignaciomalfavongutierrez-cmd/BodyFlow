@@ -93,7 +93,7 @@
                   -- Seleccionar Paciente Registrado --
                 </option>
                 <option 
-                  v-for="p in SAMPLE_PATIENTS_LIST" 
+                  v-for="p in allPatientOptions" 
                   :key="p.id" 
                   :value="p.id"
                   class="bg-white dark:bg-[#1f1f23] text-slate-800 dark:text-white py-1"
@@ -209,7 +209,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import jsPDF from 'jspdf';
 import { toJpeg } from 'html-to-image';
 import { 
@@ -228,11 +228,28 @@ import { RECOMMENDATION_OBJECTIVES, SAMPLE_PATIENTS_LIST } from '../../catalog/r
 import type { RecommendationObjective, RecommendationCard } from '../../types/recommendations';
 import { GeminiRecommendationAdapterService } from '../../services/recommendations/GeminiRecommendationAdapterService';
 import RecommendationSheet from './RecommendationSheet.vue';
+import { PatientsService } from '../../services/patients/patients.service';
+import type { Patient } from '../../types/patient';
 
-const selectedObjectiveId = ref<string>('general');
+const props = withDefaults(
+  defineProps<{
+    initialPatientName?: string;
+    initialObjectiveId?: string;
+    initialIndications?: string;
+  }>(),
+  {
+    initialPatientName: '',
+    initialObjectiveId: 'general',
+    initialIndications: ''
+  }
+);
+
+const registeredPatients = ref<Patient[]>([]);
+
+const selectedObjectiveId = ref<string>(props.initialObjectiveId || 'general');
 const selectedPatientId = ref<string>('');
-const patientName = ref<string>('');
-const specificIndications = ref<string>('');
+const patientName = ref<string>(props.initialPatientName || '');
+const specificIndications = ref<string>(props.initialIndications || '');
 const isPrintingState = ref<boolean>(false);
 const isGeneratingPdf = ref<boolean>(false);
 
@@ -249,6 +266,46 @@ const currentObjective = computed<RecommendationObjective>(() => {
   return found || RECOMMENDATION_OBJECTIVES[0];
 });
 
+// Patients options list (from Firestore service + sample)
+const allPatientOptions = computed(() => {
+  if (registeredPatients.value.length > 0) {
+    return registeredPatients.value.map(p => ({
+      id: p.id,
+      name: p.nombre,
+      goal: p.objetivoPrincipal || 'General',
+      notes: (p.alertasMedicas || []).join(', ') || p.notasGenerales || '',
+      objectiveId: mapGoalToObjectiveId(p.objetivoPrincipal)
+    }));
+  }
+  return SAMPLE_PATIENTS_LIST;
+});
+
+function mapGoalToObjectiveId(goal?: string): string {
+  if (!goal) return 'general';
+  const g = goal.toLowerCase();
+  if (g.includes('grasa') || g.includes('déficit') || g.includes('peso')) return 'deficit';
+  if (g.includes('hipertrofia') || g.includes('músculo') || g.includes('masa')) return 'hipertrofia';
+  if (g.includes('digestiv') || g.includes('gastritis') || g.includes('inflam')) return 'digestivo';
+  if (g.includes('glucem') || g.includes('diabetes') || g.includes('insulina')) return 'glucemia';
+  return 'general';
+}
+
+onMounted(async () => {
+  const list = await PatientsService.getPatients();
+  if (list && list.length > 0) {
+    registeredPatients.value = list;
+  }
+  if (props.initialPatientName) {
+    patientName.value = props.initialPatientName;
+  }
+  if (props.initialIndications) {
+    specificIndications.value = props.initialIndications;
+  }
+  if (props.initialObjectiveId) {
+    selectedObjectiveId.value = props.initialObjectiveId;
+  }
+});
+
 // Reset AI customizations if user selects a different base objective
 watch(selectedObjectiveId, () => {
   resetToBaseRecommendations();
@@ -256,7 +313,7 @@ watch(selectedObjectiveId, () => {
 
 function handlePatientSelect() {
   if (!selectedPatientId.value) return;
-  const patient = SAMPLE_PATIENTS_LIST.find((p) => p.id === selectedPatientId.value);
+  const patient = allPatientOptions.value.find((p) => p.id === selectedPatientId.value);
   if (patient) {
     patientName.value = patient.name;
     if (patient.objectiveId) {

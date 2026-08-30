@@ -15,7 +15,7 @@ import { useAuthStore, classifyAuthError, friendlyAuthMessage } from '../stores/
 import { useUserStore } from '../stores/user'
 import { isAdminEmail } from '../router'
 import logoImg from '../assets/logo.png'
-import { Mail, Lock, User, Eye, EyeOff, KeyRound, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-vue-next'
+import { Mail, Lock, User, Eye, EyeOff, KeyRound, ArrowRight, CheckCircle2 } from 'lucide-vue-next'
 
 const router = useRouter()
 const route = useRoute()

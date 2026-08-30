@@ -628,26 +628,7 @@ const formattedDate = computed(() => {
   margin-left: 15px;
 }
 
-.footer-logo-img {
-  width: 32px;
-  height: 32px;
-  margin-bottom: 2px;
-  display: block;
-}
 
-.footer-logo-title {
-  font-size: 8.5px;
-  font-weight: 800;
-  color: #556637;
-  letter-spacing: 0.6px;
-}
-
-.footer-logo-sub {
-  font-size: 7px;
-  font-weight: 600;
-  color: #8c9b74;
-  letter-spacing: 1.5px;
-}
 
 /* Print & PDF optimization */
 @page {
@@ -706,8 +687,6 @@ const formattedDate = computed(() => {
   .contact-item {
     justify-content: center;
   }
-  .footer-logo {
-    margin-left: 0;
-  }
+
 }
 </style>

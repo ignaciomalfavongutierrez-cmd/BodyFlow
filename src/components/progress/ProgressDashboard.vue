@@ -104,6 +104,88 @@
               </div>
             </div>
 
+            <!-- Patient Clinical Status & Diagnostic Banner (Estado Actual del Paciente) -->
+            <div v-if="patientClinicalStatus" class="patient-status-card bg-white dark:bg-[#18181b] rounded-2xl border border-slate-200 dark:border-white/10 p-3 sm:p-3.5 shadow-sm print-card transition-colors">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-slate-100 dark:border-white/5 pb-2 mb-2">
+                <div class="flex items-center gap-2">
+                  <span class="text-base shrink-0">🩺</span>
+                  <div>
+                    <h3 class="text-xs sm:text-sm font-black text-slate-900 dark:text-white print:!text-slate-900 leading-snug">
+                      Estado Actual & Diagnóstico Nutricional
+                    </h3>
+                    <p class="text-[9.5px] text-slate-500 dark:text-slate-400 print:!text-slate-600 leading-normal">
+                      Evaluación clínica de la última consulta ({{ patientClinicalStatus.latestDate }})
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Overall Status Badge -->
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="text-[9.5px] font-bold px-2.5 py-0.5 rounded-full border" :class="patientClinicalStatus.imcColor">
+                    IMC: {{ patientClinicalStatus.imc }} • {{ patientClinicalStatus.imcCategory }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Diagnostic Grid -->
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                <!-- Col 1: Peso & Avance de Meta -->
+                <div class="bg-slate-50/80 dark:bg-white/5 p-2 rounded-xl border border-slate-100 dark:border-white/5 space-y-1">
+                  <div class="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+                    <span>⚖️ Peso Corporal</span>
+                    <span v-if="patientClinicalStatus.goalProgress" class="text-indigo-600 dark:text-indigo-400 font-extrabold">
+                      {{ patientClinicalStatus.goalProgress.percent }}% de Meta
+                    </span>
+                  </div>
+                  <div class="flex items-baseline gap-1.5">
+                    <span class="text-base font-black text-slate-900 dark:text-white print:!text-slate-900">{{ patientClinicalStatus.latestPeso }} kg</span>
+                    <span class="text-[10px] font-bold" :class="patientClinicalStatus.deltaPeso <= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'">
+                      ({{ patientClinicalStatus.deltaPeso > 0 ? '+' : '' }}{{ patientClinicalStatus.deltaPeso }} kg)
+                    </span>
+                  </div>
+                  <div class="text-[9px] text-slate-500 dark:text-slate-400 print:!text-slate-600">
+                    Inicial: <strong>{{ patientClinicalStatus.initialPeso }} kg</strong>
+                    <span v-if="patientClinicalStatus.goalProgress"> • Meta: <strong>{{ patientClinicalStatus.goalProgress.target }} kg</strong></span>
+                  </div>
+                </div>
+
+                <!-- Col 2: Composición Corporal Actual -->
+                <div class="bg-slate-50/80 dark:bg-white/5 p-2 rounded-xl border border-slate-100 dark:border-white/5 space-y-1">
+                  <div class="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">
+                    🧬 Composición Corporal
+                  </div>
+                  <div class="flex items-center justify-between text-[11px] pt-0.5">
+                    <div>
+                      <span class="text-slate-400 text-[9px] block">Grasa:</span>
+                      <strong class="text-rose-600 dark:text-rose-400 font-extrabold">{{ patientClinicalStatus.latestGrasa }}%</strong>
+                      <span class="text-[9px] text-slate-400 block font-normal">({{ patientClinicalStatus.deltaGrasa > 0 ? '+' : '' }}{{ patientClinicalStatus.deltaGrasa }}%)</span>
+                    </div>
+                    <div class="text-right">
+                      <span class="text-slate-400 text-[9px] block">Masa Muscular:</span>
+                      <strong class="text-emerald-600 dark:text-emerald-400 font-extrabold">{{ patientClinicalStatus.latestMusculo ? `${patientClinicalStatus.latestMusculo} kg` : 'N/D' }}</strong>
+                      <span v-if="patientClinicalStatus.latestMusculo" class="text-[9px] text-slate-400 block font-normal">({{ patientClinicalStatus.deltaMusculo > 0 ? '+' : '' }}{{ patientClinicalStatus.deltaMusculo }} kg)</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Col 3: Riesgo Cardiovascular (ICC) & Diagnóstico -->
+                <div class="bg-slate-50/80 dark:bg-white/5 p-2 rounded-xl border border-slate-100 dark:border-white/5 space-y-1">
+                  <div class="text-[9.5px] font-bold text-slate-400 uppercase tracking-wider">
+                    ❤️ Riesgo Cardiovascular (ICC)
+                  </div>
+                  <div class="flex items-baseline gap-1.5">
+                    <span class="text-base font-black text-slate-900 dark:text-white print:!text-slate-900">{{ patientClinicalStatus.icc || 'N/D' }}</span>
+                    <span class="text-[9.5px] font-bold" :class="patientClinicalStatus.iccRisk.includes('Bajo') ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'">
+                      {{ patientClinicalStatus.iccRisk }}
+                    </span>
+                  </div>
+                  <div class="text-[9px] text-slate-500 dark:text-slate-400 print:!text-slate-600">
+                    Cintura/Cadera • Relación Antropométrica
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Distinct Metric Summary Cards (5 Color Accents) -->
             <div v-if="summaryMetrics.length" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 print:!grid-cols-5 gap-2 print-card-grid">
               <div
@@ -165,7 +247,7 @@
           <!-- BLOCK 2: Banner de Progreso / Logros Antropométricos (Bar de Progreso) -->
           <div v-if="achievements.badges.length" class="achievements-banner bg-white dark:bg-[#18181b] rounded-2xl border border-slate-200 dark:border-white/10 p-3 shadow-sm print-card transition-colors print-block-middle">
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 mb-1.5">
-              <h3 class="text-xs sm:text-sm font-bold flex items-center gap-1.5 text-slate-900 dark:text-white print:!text-slate-900">
+              <h3 class="text-xs sm:text-sm font-bold flex items-center gap-1.5 text-slate-900 dark:text-white print:!text-slate-900 leading-snug">
                 <span>🎉</span>
                 <span>Logros y Evolución Antropométrica</span>
               </h3>
@@ -198,21 +280,21 @@
             v-show="visibleCharts.composicion"
             class="bg-white dark:bg-[#18181b] p-3.5 sm:p-4 rounded-2xl border border-slate-200 dark:border-white/10 border-l-4 border-l-indigo-500 shadow-sm print-card transition-colors print-block-chart"
           >
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2">
-              <div class="flex items-center space-x-2">
-                <span class="text-base">📈</span>
-                <div>
-                  <h3 class="chart-heading text-xs sm:text-sm font-bold text-slate-900 dark:text-white print:!text-slate-900">
+            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2">
+              <div class="flex items-start space-x-2 min-w-0">
+                <span class="text-base shrink-0 mt-0.5">📈</span>
+                <div class="min-w-0">
+                  <h3 class="chart-heading text-xs sm:text-sm font-bold text-slate-900 dark:text-white print:!text-slate-900 leading-snug">
                     1. Evolución de Composición Corporal
                   </h3>
-                  <p class="text-[10px] text-slate-500 dark:text-slate-400 print:!text-slate-600">
+                  <p class="text-[10px] text-slate-500 dark:text-slate-400 print:!text-slate-600 leading-normal mt-0.5">
                     Peso total (kg), Porcentaje de grasa (%) y Masa muscular (kg) con líneas de meta
                   </p>
                 </div>
               </div>
 
               <!-- Series Filter Buttons (Hidden on print) -->
-              <div class="flex items-center gap-1.5 no-print">
+              <div class="flex items-center gap-1.5 no-print shrink-0">
                 <button
                   @click="toggleFilter('peso')"
                   class="px-2 py-1 rounded-lg border text-[11px] font-bold transition-all flex items-center space-x-1 cursor-pointer"
@@ -297,21 +379,21 @@
             v-show="visibleCharts.dona"
             class="bg-white dark:bg-[#18181b] p-3 rounded-2xl border border-slate-200 dark:border-white/10 border-l-4 border-l-rose-500 shadow-sm print-card transition-colors chart-card-2x2"
           >
-            <div class="flex items-center justify-between mb-1">
-              <div class="flex items-center space-x-1.5">
-                <span class="text-sm">🍩</span>
-                <div>
-                  <h3 class="chart-heading text-xs sm:text-sm font-bold text-slate-900 dark:text-white print:!text-slate-900">
+            <div class="flex items-start justify-between gap-2 mb-1.5">
+              <div class="flex items-start gap-1.5 min-w-0">
+                <span class="text-sm shrink-0 mt-0.5">🍩</span>
+                <div class="min-w-0">
+                  <h3 class="chart-heading text-xs sm:text-sm font-bold text-slate-900 dark:text-white print:!text-slate-900 leading-snug break-words">
                     2. Composición Actual — Última Consulta
                   </h3>
-                  <p class="text-[9.5px] text-slate-500 dark:text-slate-400 print:!text-slate-600">
+                  <p class="text-[9.5px] text-slate-500 dark:text-slate-400 print:!text-slate-600 leading-normal mt-0.5">
                     Masa Grasa vs. Masa Magra
                   </p>
                 </div>
               </div>
               <button
                 @click="toggleChartVisibility('dona')"
-                class="no-print text-slate-400 hover:text-red-500 p-1 text-xs cursor-pointer"
+                class="no-print text-slate-400 hover:text-red-500 p-1 text-xs cursor-pointer shrink-0"
                 title="Ocultar gráfica"
               >
                 ✕
@@ -327,21 +409,21 @@
             v-show="visibleCharts.pliegues"
             class="bg-white dark:bg-[#18181b] p-3 rounded-2xl border border-slate-200 dark:border-white/10 border-l-4 border-l-amber-500 shadow-sm print-card transition-colors chart-card-2x2"
           >
-            <div class="flex items-center justify-between mb-1">
-              <div class="flex items-center space-x-1.5">
-                <span class="text-sm">📏</span>
-                <div>
-                  <h3 class="chart-heading text-xs sm:text-sm font-bold text-slate-900 dark:text-white print:!text-slate-900">
+            <div class="flex items-start justify-between gap-2 mb-1.5">
+              <div class="flex items-start gap-1.5 min-w-0">
+                <span class="text-sm shrink-0 mt-0.5">📏</span>
+                <div class="min-w-0">
+                  <h3 class="chart-heading text-xs sm:text-sm font-bold text-slate-900 dark:text-white print:!text-slate-900 leading-snug break-words">
                     3. Sumatoria de Pliegues Cutáneos (mm)
                   </h3>
-                  <p class="text-[9.5px] text-slate-500 dark:text-slate-400 print:!text-slate-600">
+                  <p class="text-[9.5px] text-slate-500 dark:text-slate-400 print:!text-slate-600 leading-normal mt-0.5">
                     Tríceps, Bíceps, Subescapular y Cresta
                   </p>
                 </div>
               </div>
               <button
                 @click="toggleChartVisibility('pliegues')"
-                class="no-print text-slate-400 hover:text-red-500 p-1 text-xs cursor-pointer"
+                class="no-print text-slate-400 hover:text-red-500 p-1 text-xs cursor-pointer shrink-0"
                 title="Ocultar gráfica"
               >
                 ✕
@@ -357,21 +439,21 @@
             v-show="visibleCharts.circunferencias"
             class="bg-white dark:bg-[#18181b] p-3 rounded-2xl border border-slate-200 dark:border-white/10 border-l-4 border-l-blue-500 shadow-sm print-card transition-colors chart-card-2x2"
           >
-            <div class="flex items-center justify-between gap-1 mb-1">
-              <div class="flex items-center space-x-1.5">
-                <span class="text-sm">📐</span>
-                <div>
-                  <h3 class="chart-heading text-xs sm:text-sm font-bold text-slate-900 dark:text-white print:!text-slate-900">
+            <div class="flex items-start justify-between gap-2 mb-1.5">
+              <div class="flex items-start gap-1.5 min-w-0">
+                <span class="text-sm shrink-0 mt-0.5">📐</span>
+                <div class="min-w-0">
+                  <h3 class="chart-heading text-xs sm:text-sm font-bold text-slate-900 dark:text-white print:!text-slate-900 leading-snug break-words">
                     4. Circunferencias Corporales (cm)
                   </h3>
-                  <p class="text-[9.5px] text-slate-500 dark:text-slate-400 print:!text-slate-600">
+                  <p class="text-[9.5px] text-slate-500 dark:text-slate-400 print:!text-slate-600 leading-normal mt-0.5">
                     Cadera/Pompa, Cintura, Pecho, Brazo, Muslo
                   </p>
                 </div>
               </div>
               <button
                 @click="toggleChartVisibility('circunferencias')"
-                class="no-print text-slate-400 hover:text-red-500 p-1 text-xs cursor-pointer"
+                class="no-print text-slate-400 hover:text-red-500 p-1 text-xs cursor-pointer shrink-0"
                 title="Ocultar gráfica"
               >
                 ✕
@@ -406,21 +488,21 @@
             v-show="visibleCharts.indicadores"
             class="bg-white dark:bg-[#18181b] p-3 rounded-2xl border border-slate-200 dark:border-white/10 border-l-4 border-l-fuchsia-500 shadow-sm print-card transition-colors chart-card-2x2"
           >
-            <div class="flex items-center justify-between mb-1">
-              <div class="flex items-center space-x-1.5">
-                <span class="text-sm">🧮</span>
-                <div>
-                  <h3 class="chart-heading text-xs sm:text-sm font-bold text-slate-900 dark:text-white print:!text-slate-900">
+            <div class="flex items-start justify-between gap-2 mb-1.5">
+              <div class="flex items-start gap-1.5 min-w-0">
+                <span class="text-sm shrink-0 mt-0.5">🧮</span>
+                <div class="min-w-0">
+                  <h3 class="chart-heading text-xs sm:text-sm font-bold text-slate-900 dark:text-white print:!text-slate-900 leading-snug break-words">
                     5. Indicadores Antropométricos
                   </h3>
-                  <p class="text-[9.5px] text-slate-500 dark:text-slate-400 print:!text-slate-600">
+                  <p class="text-[9.5px] text-slate-500 dark:text-slate-400 print:!text-slate-600 leading-normal mt-0.5">
                     IMC (izq) e Índice Cintura-Cadera (der)
                   </p>
                 </div>
               </div>
               <button
                 @click="toggleChartVisibility('indicadores')"
-                class="no-print text-slate-400 hover:text-red-500 p-1 text-xs cursor-pointer"
+                class="no-print text-slate-400 hover:text-red-500 p-1 text-xs cursor-pointer shrink-0"
                 title="Ocultar gráfica"
               >
                 ✕
@@ -587,6 +669,101 @@ const currentDate = computed(() =>
 );
 
 const summaryMetrics = computed(() => ProgressCalculationService.buildSummary(props.records));
+
+const patientClinicalStatus = computed(() => {
+  if (!props.records || props.records.length === 0) return null;
+  const initial = props.records[0];
+  const latest = props.records[props.records.length - 1];
+
+  const initialPeso = parseFloat(String(initial.Peso)) || 0;
+  const latestPeso = parseFloat(String(latest.Peso)) || 0;
+  const deltaPeso = Number((latestPeso - initialPeso).toFixed(1));
+
+  const initialGrasa = parseFloat(String(initial.Grasa_Porcentaje)) || 0;
+  const latestGrasa = parseFloat(String(latest.Grasa_Porcentaje)) || 0;
+  const deltaGrasa = Number((latestGrasa - initialGrasa).toFixed(1));
+
+  const latestMusculo = parseFloat(String(latest.Musculo_Kg)) || 0;
+  const initialMusculo = parseFloat(String(initial.Musculo_Kg)) || 0;
+  const deltaMusculo = Number((latestMusculo - initialMusculo).toFixed(1));
+
+  const imc = parseFloat(String(latest.IMC)) || 0;
+  let imcCategory = 'No calculado';
+  let imcColor = 'text-slate-600 bg-slate-100 border-slate-200';
+  if (imc > 0) {
+    if (imc < 18.5) {
+      imcCategory = 'Bajo Peso';
+      imcColor = 'text-sky-700 bg-sky-50 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800/40';
+    } else if (imc < 25.0) {
+      imcCategory = 'Normopeso (Saludable)';
+      imcColor = 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40';
+    } else if (imc < 30.0) {
+      imcCategory = 'Sobrepeso';
+      imcColor = 'text-amber-700 bg-amber-50 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40';
+    } else if (imc < 35.0) {
+      imcCategory = 'Obesidad Grado I';
+      imcColor = 'text-orange-700 bg-orange-50 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800/40';
+    } else {
+      imcCategory = 'Obesidad Grado II/III';
+      imcColor = 'text-rose-700 bg-rose-50 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/40';
+    }
+  }
+
+  const icc = parseFloat(String(latest.ICC)) || 0;
+  let iccRisk = 'No calculado';
+  if (icc > 0) {
+    if (props.sex === 'H') {
+      if (icc < 0.90) {
+        iccRisk = 'Bajo Riesgo Cardiovascular';
+      } else if (icc <= 0.95) {
+        iccRisk = 'Riesgo Moderado';
+      } else {
+        iccRisk = 'Alto Riesgo';
+      }
+    } else {
+      if (icc < 0.80) {
+        iccRisk = 'Bajo Riesgo Cardiovascular';
+      } else if (icc <= 0.85) {
+        iccRisk = 'Riesgo Moderado';
+      } else {
+        iccRisk = 'Alto Riesgo';
+      }
+    }
+  }
+
+  // Goal Progress
+  const metaPeso = parseFloat(String(props.goals.metaPeso)) || 0;
+  let goalProgress = null;
+  if (metaPeso > 0 && initialPeso > metaPeso) {
+    const totalToLose = initialPeso - metaPeso;
+    const lostSoFar = initialPeso - latestPeso;
+    const pct = Math.max(0, Math.min(100, Math.round((lostSoFar / totalToLose) * 100)));
+    goalProgress = {
+      target: metaPeso,
+      percent: pct,
+      remaining: Math.max(0, Number((latestPeso - metaPeso).toFixed(1)))
+    };
+  }
+
+  return {
+    latestDate: latest.Fecha,
+    latestPeso,
+    initialPeso,
+    deltaPeso,
+    latestGrasa,
+    initialGrasa,
+    deltaGrasa,
+    latestMusculo,
+    initialMusculo,
+    deltaMusculo,
+    imc,
+    imcCategory,
+    imcColor,
+    icc,
+    iccRisk,
+    goalProgress
+  };
+});
 
 const achievements = computed(() =>
   ProgressCalculationService.buildAchievements(
@@ -827,16 +1004,63 @@ function renderAllCharts() {
         });
       }
 
+      const pointDataLabelsPlugin = {
+        id: 'pointDataLabels',
+        afterDatasetsDraw(chart: any) {
+          const cCtx = chart.ctx;
+          chart.data.datasets.forEach((dataset: any, i: number) => {
+            if (dataset.label?.includes('Meta') || dataset.hidden) return;
+            const meta = chart.getDatasetMeta(i);
+            if (meta.hidden) return;
+
+            meta.data.forEach((element: any, index: number) => {
+              const val = dataset.data[index];
+              if (val === null || val === undefined || isNaN(val)) return;
+
+              const unit = dataset.label?.includes('%') ? '%' : ' kg';
+              const text = `${val}${unit}`;
+              const { x, y } = element.tooltipPosition();
+
+              cCtx.save();
+              cCtx.font = 'bold 8.5px system-ui, -apple-system, sans-serif';
+              cCtx.textAlign = 'center';
+              cCtx.textBaseline = 'middle';
+
+              const textWidth = cCtx.measureText(text).width;
+              const padX = 3;
+              const pillY = i === 1 ? y + 13 : (i === 2 ? y - 20 : y - 13);
+
+              cCtx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+              cCtx.strokeStyle = dataset.borderColor;
+              cCtx.lineWidth = 1.2;
+              cCtx.beginPath();
+              if (cCtx.roundRect) {
+                cCtx.roundRect(x - textWidth / 2 - padX, pillY - 5.5, textWidth + padX * 2, 11, 2.5);
+              } else {
+                cCtx.rect(x - textWidth / 2 - padX, pillY - 5.5, textWidth + padX * 2, 11);
+              }
+              cCtx.fill();
+              cCtx.stroke();
+
+              cCtx.fillStyle = '#0f172a';
+              cCtx.fillText(text, x, pillY + 0.5);
+              cCtx.restore();
+            });
+          });
+        }
+      };
+
       instComposicion = new Chart(ctx, {
         type: 'line',
         data: { labels, datasets },
+        plugins: [pointDataLabelsPlugin],
         options: {
           animation: false,
           responsive: true,
           maintainAspectRatio: false,
           interaction: { mode: 'index', intersect: false },
           layout: {
-            padding: { top: 8, bottom: 6, left: 6, right: 14 }
+            padding: { top: 24, bottom: 8, left: 8, right: 16 }
           },
           plugins: {
             legend: {

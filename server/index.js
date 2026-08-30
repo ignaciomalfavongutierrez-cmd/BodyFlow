@@ -231,18 +231,31 @@ app.post('/api/chat', async (req, res) => {
   }
 
   const ai = new GoogleGenAI({ apiKey: geminiKey })
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.6-flash',
-      contents: contents || prompt,
-    })
+  const candidateModels = [
+    'gemini-3.7-flash',
+    'gemini-3.6-flash',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash'
+  ]
 
-    const text = response.text || ''
-    return res.json({ text })
-  } catch (err) {
-    console.error('[/api/chat] Error procesando solicitud con Gemini gemini-3.6-flash:', err)
-    return res.status(500).json({ error: err?.message || 'Error interno al comunicarse con Gemini.' })
+  let lastError = null
+  for (const modelName of candidateModels) {
+    try {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: contents || prompt,
+      })
+
+      const text = response.text || ''
+      return res.json({ text })
+    } catch (err) {
+      console.warn(`[/api/chat] Falló intento con modelo ${modelName}:`, err?.message || err)
+      lastError = err
+    }
   }
+
+  return res.status(500).json({ error: lastError?.message || 'Error interno al comunicarse con Gemini.' })
 })
 
 // ---------------------------------------------------------------------------

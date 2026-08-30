@@ -112,13 +112,19 @@ export async function sendPromptToGemini(prompt: string): Promise<string> {
     const apiKey = (import.meta.env.VITE_GEMINI_API_KEY as string | undefined) || localStorage.getItem('bodyflow_gemini_api_key') || undefined
     if (apiKey) {
       const genAI = new GoogleGenerativeAI(apiKey)
-      try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' })
-        const result = await model.generateContent(prompt)
-        return result.response.text()
-      } catch (err: any) {
-        throw new Error(err?.message || 'Error al comunicarse con Gemini (directo).')
+      const candidateModels = ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+      let lastErr: any = null
+      for (const modelName of candidateModels) {
+        try {
+          const model = genAI.getGenerativeModel({ model: modelName })
+          const result = await model.generateContent(prompt)
+          return result.response.text()
+        } catch (err: any) {
+          console.warn(`[aiParser] Falló intento con modelo ${modelName}:`, err?.message || err)
+          lastErr = err
+        }
       }
+      throw new Error(lastErr?.message || 'Error al comunicarse con Gemini (directo).')
     }
     throw error
   }
@@ -164,13 +170,19 @@ export async function sendContentsToGemini(contents: any): Promise<string> {
         }
         return c
       })
-      try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' })
-        const result = await model.generateContent(parts)
-        return result.response.text()
-      } catch (err: any) {
-        throw new Error(err?.message || 'Error al comunicarse con Gemini (directo).')
+      const candidateModels = ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+      let lastErr: any = null
+      for (const modelName of candidateModels) {
+        try {
+          const model = genAI.getGenerativeModel({ model: modelName })
+          const result = await model.generateContent(parts)
+          return result.response.text()
+        } catch (err: any) {
+          console.warn(`[aiParser] Falló intento con modelo ${modelName}:`, err?.message || err)
+          lastErr = err
+        }
       }
+      throw new Error(lastErr?.message || 'Error al comunicarse con Gemini (directo).')
     }
     throw error
   }
