@@ -17,12 +17,12 @@
         <button @click="globalError = ''" class="text-red-400 font-bold px-2 hover:text-red-300">✕</button>
       </div>
 
-      <!-- STEP 1: Upload PDF -->
+      <!-- STEP 1: Upload Diet File (PDF, Word, Images, Excel, etc.) -->
       <template v-if="currentStep === 1">
         <DietAnalysisProgress v-if="isLoading" />
         <DietPdfUploader
           v-else
-          @fileSelected="handlePdfSelected"
+          @fileSelected="handleFileSelected"
           @loadSample="handleLoadSample"
         />
       </template>
@@ -97,19 +97,19 @@ const availableDays = computed(() => {
   return dietData.value.days.map((d) => d.day_number).sort((a, b) => a - b);
 });
 
-async function handlePdfSelected(file: File) {
+async function handleFileSelected(file: File) {
   isLoading.value = true;
   globalError.value = '';
 
   try {
-    const rawParsed = await GeminiDietParserService.parseDietPdf(file);
+    const rawParsed = await GeminiDietParserService.parseDietFile(file);
     dietData.value = DietExtractionService.validateAndStructure(rawParsed);
     selectedDays.value = [...availableDays.value];
     cycleMultiplier.value = 1;
     currentStep.value = 2;
   } catch (error: any) {
-    console.error('Error analizando el PDF:', error);
-    globalError.value = error.message || 'Ocurrió un error al procesar el archivo PDF con Gemini.';
+    console.error('Error analizando el archivo de dieta:', error);
+    globalError.value = error.message || 'Ocurrió un error al procesar el archivo con Gemini.';
   } finally {
     isLoading.value = false;
   }

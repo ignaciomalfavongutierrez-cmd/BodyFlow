@@ -3,12 +3,28 @@
     <!-- Header Card -->
     <div class="bg-white dark:bg-[#18181b] rounded-2xl p-6 sm:p-8 border border-slate-200 dark:border-white/10 shadow-sm text-center space-y-3 transition-colors relative">
       <div class="inline-flex p-4 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 rounded-full text-4xl mb-2 border border-emerald-200 dark:border-emerald-800/40">
-        📄
+        🥗
       </div>
-      <h2 class="text-2xl font-bold text-slate-800 dark:text-white">Subir Dieta en PDF</h2>
+      <h2 class="text-2xl font-bold text-slate-800 dark:text-white">Subir Dieta o Menú</h2>
       <p class="text-slate-500 dark:text-slate-400 text-xs max-w-lg mx-auto leading-relaxed">
-        Sube un plan nutricional en formato PDF para que la Inteligencia Artificial analice automáticamente los días, comidas, ingredientes y cantidades.
+        Sube un plan de alimentación en formato <strong>PDF, Word (.docx), Imagen (.jpg, .png) o Excel (.xlsx)</strong> para que la Inteligencia Artificial analice automáticamente los días, comidas, ingredientes y cantidades.
       </p>
+
+      <!-- Supported Formats Pills -->
+      <div class="flex items-center justify-center flex-wrap gap-2 pt-1">
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800/40">
+          📄 PDF
+        </span>
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/40">
+          📝 Word (.docx)
+        </span>
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40">
+          🖼️ Imagen (.png, .jpg)
+        </span>
+        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40">
+          📊 Excel (.xlsx, .csv)
+        </span>
+      </div>
 
       <!-- Gemini Key Status Badge & Button -->
       <div class="pt-2 flex items-center justify-center gap-2">
@@ -44,7 +60,7 @@
       <input
         ref="fileInput"
         type="file"
-        accept="application/pdf"
+        accept=".pdf, .docx, .doc, .xlsx, .xls, .csv, .txt, .png, .jpg, .jpeg, .webp, image/*, application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         class="hidden"
         @change="handleFileChange"
       />
@@ -55,9 +71,11 @@
         </div>
         <div>
           <p class="text-slate-800 dark:text-slate-200 font-semibold text-base">
-            Haz clic para seleccionar o arrastra tu archivo PDF aquí
+            Haz clic para seleccionar o arrastra tu archivo aquí
           </p>
-          <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Exclusivamente archivos .PDF (Máximo 10 MB)</p>
+          <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">
+            Formatos soportados: PDF, Word (.docx), Imágenes (.png, .jpg, .webp), Excel (.xlsx, .csv) o Texto (Máx. 20 MB)
+          </p>
         </div>
       </div>
     </div>
@@ -82,7 +100,7 @@
 
     <!-- Sample Diet Button -->
     <div class="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-white/10">
-      <span class="text-xs text-slate-500 dark:text-slate-400">¿No tienes un PDF a la mano?</span>
+      <span class="text-xs text-slate-500 dark:text-slate-400">¿No tienes un archivo a la mano?</span>
       <button
         @click="$emit('loadSample')"
         class="px-4 py-2.5 bg-slate-800 dark:bg-white/10 hover:bg-slate-900 dark:hover:bg-white/20 text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center space-x-2 border border-slate-700 dark:border-white/10 cursor-pointer"
@@ -194,16 +212,24 @@ function triggerFileInput() {
   fileInput.value?.click();
 }
 
+const SUPPORTED_EXTENSIONS = [
+  'pdf', 'docx', 'doc', 'xlsx', 'xls', 'csv', 'txt', 'md', 'png', 'jpg', 'jpeg', 'webp', 'bmp'
+];
+
 function validateAndProcess(file: File) {
   errorMessage.value = '';
 
-  if (file.type !== 'application/pdf' && !file.name.endsWith('.pdf')) {
-    errorMessage.value = 'El archivo seleccionado debe ser exclusivamente de extensión .PDF';
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  const isImage = file.type.startsWith('image/') || ['png', 'jpg', 'jpeg', 'webp', 'bmp'].includes(ext);
+  const isSupported = SUPPORTED_EXTENSIONS.includes(ext) || isImage;
+
+  if (!isSupported) {
+    errorMessage.value = 'Formato no soportado. Por favor sube un archivo PDF, Word (.docx), Imagen (.png, .jpg), Excel (.xlsx) o Texto.';
     return;
   }
 
-  if (file.size > 10 * 1024 * 1024) {
-    errorMessage.value = 'El archivo PDF supera el tamaño máximo permitido de 10 MB';
+  if (file.size > 20 * 1024 * 1024) {
+    errorMessage.value = 'El archivo supera el tamaño máximo permitido de 20 MB.';
     return;
   }
 

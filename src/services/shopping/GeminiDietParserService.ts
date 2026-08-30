@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { DietStructure } from '../../types/shoppingDiet';
 import { GEMINI_DIET_SYSTEM_PROMPT } from '../../prompts/geminiDietPrompt';
-import { LocalPdfParserService } from './LocalPdfParserService';
+import { LocalDocumentParserService } from './LocalDocumentParserService';
 
 export class GeminiDietParserService {
   /**
@@ -20,21 +20,29 @@ export class GeminiDietParserService {
   }
 
   /**
-   * Parses a Diet PDF file by extracting text locally first (speed/efficiency)
-   * or using Gemini multimodal vision if text extraction is sparse/scanned.
+   * Backward-compatible alias for parseDietFile.
    */
   public static async parseDietPdf(file: File): Promise<DietStructure> {
+    return this.parseDietFile(file);
+  }
+
+  /**
+   * Parses any Diet document or image (PDF, Word .docx, Image .jpg/.png/.webp, Excel .xlsx, TXT).
+   * Extracts text locally for maximum speed, or sends image/scanned document to Gemini Vision.
+   */
+  public static async parseDietFile(file: File): Promise<DietStructure> {
     const apiKey = this.getApiKey();
-    const localText = await LocalPdfParserService.extractTextFromPdf(file);
+    const isImage = LocalDocumentParserService.isImageFile(file);
+    const localText = await LocalDocumentParserService.extractTextFromFile(file);
     let lastError: any = null;
 
     // Supported production models for Google Gemini API (with priority on latest Flash models)
     const candidateModels = [
-      'gemini-3.6-flash',
-      'gemini-3.5-flash',
       'gemini-2.5-flash',
       'gemini-2.0-flash',
       'gemini-1.5-flash',
+      'gemini-3.6-flash',
+      'gemini-3.5-flash',
     ];
 
     // If client API key is available, attempt direct GoogleGenerativeAI call
@@ -46,7 +54,6 @@ export class GeminiDietParserService {
           const config: any = {
             responseMimeType: 'application/json',
           };
-          // 3.6-flash removed custom temperature/top-k params
           if (!modelName.includes('3.6')) {
             config.temperature = 0.1;
           }
@@ -58,13 +65,18 @@ export class GeminiDietParserService {
 
           let resultText = '';
 
-          if (localText && localText.length > 50) {
-            const prompt = `${GEMINI_DIET_SYSTEM_PROMPT}\n\nDOCUMENTO DE DIETA EXTRACTADO:\n${localText}`;
+          if (!isImage && localText && localText.length > 30) {
+            // High-speed text prompt with extracted content
+            const prompt = `${GEMINI_DIET_SYSTEM_PROMPT}\n\nDOCUMENTO DE DIETA EXTRACTADO (${file.name}):\n${localText}`;
             const result = await model.generateContent(prompt);
             resultText = result.response.text();
           } else {
-            const filePart = await LocalPdfParserService.fileToBase64(file);
-            const prompt = `${GEMINI_DIET_SYSTEM_PROMPT}\n\nPor favor analiza el siguiente archivo PDF de dieta adjunto y devuelve la estructura JSON requerida.`;
+            // Multimodal prompt for Images or Scanned Documents
+            const filePart = await LocalDocumentParserService.fileToBase64(file);
+            const prompt = isImage
+              ? `${GEMINI_DIET_SYSTEM_PROMPT}\n\nPor favor analiza la imagen adjunta del plan de alimentación / menú / dieta y devuelve la estructura JSON requerida.`
+              : `${GEMINI_DIET_SYSTEM_PROMPT}\n\nPor favor analiza el archivo adjunto (${file.name}) de dieta y devuelve la estructura JSON requerida.`;
+            
             const result = await model.generateContent([prompt, filePart]);
             resultText = result.response.text();
           }
@@ -85,12 +97,14 @@ export class GeminiDietParserService {
       let promptContent = '';
       let contentsPayload: any = null;
 
-      if (localText && localText.length > 50) {
-        promptContent = `${GEMINI_DIET_SYSTEM_PROMPT}\n\nDOCUMENTO DE DIETA EXTRACTADO:\n${localText}`;
+      if (!isImage && localText && localText.length > 30) {
+        promptContent = `${GEMINI_DIET_SYSTEM_PROMPT}\n\nDOCUMENTO DE DIETA EXTRACTADO (${file.name}):\n${localText}`;
         contentsPayload = promptContent;
       } else {
-        const filePart = await LocalPdfParserService.fileToBase64(file);
-        promptContent = `${GEMINI_DIET_SYSTEM_PROMPT}\n\nPor favor analiza el siguiente archivo PDF de dieta adjunto y devuelve la estructura JSON requerida.`;
+        const filePart = await LocalDocumentParserService.fileToBase64(file);
+        promptContent = isImage
+          ? `${GEMINI_DIET_SYSTEM_PROMPT}\n\nPor favor analiza la imagen adjunta del plan de alimentación / menú / dieta y devuelve la estructura JSON requerida.`
+          : `${GEMINI_DIET_SYSTEM_PROMPT}\n\nPor favor analiza el archivo adjunto (${file.name}) de dieta y devuelve la estructura JSON requerida.`;
         contentsPayload = [promptContent, filePart];
       }
 
@@ -117,12 +131,12 @@ export class GeminiDietParserService {
     if (!apiKey) {
       throw new Error(
         'No se encontró la clave de API de Gemini (VITE_GEMINI_API_KEY). ' +
-        'Por favor agrégala en las variables de entorno de tu proyecto en Vercel o en tu archivo .env local.'
+        'Por favor agrégala en la configuración con el botón "Configurar Gemini API Key".'
       );
     }
 
     throw new Error(
-      `No se pudo procesar el PDF con Gemini (${lastError?.message || 'Error de conexión'}). ` +
+      `No se pudo procesar el archivo con Gemini (${lastError?.message || 'Error de conexión'}). ` +
       'Verifica que tu API Key de Gemini sea válida y tenga cuota disponible.'
     );
   }
