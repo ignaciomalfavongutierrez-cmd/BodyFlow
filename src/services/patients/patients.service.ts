@@ -157,31 +157,7 @@ export class PatientsService {
     return list;
   }
 
-  private static loadLocalPatientsList(): Patient[] {
-    try {
-      const raw = localStorage.getItem('bf_patients_list');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch {}
-    return [];
-  }
-
-  private static saveLocalPatientsList(list: Patient[]) {
-    try {
-      localStorage.setItem('bf_patients_list', JSON.stringify(list));
-    } catch {}
-  }
-
   private static getLocalFilteredPatients(filters?: { status?: PatientStatus; search?: string }): Patient[] {
-    if (this.localPatientsCache.length === 0) {
-      const stored = this.loadLocalPatientsList();
-      if (stored.length > 0) {
-        this.localPatientsCache = stored;
-      }
-    }
-
     let list = this.localPatientsCache.length > 0 
       ? [...this.localPatientsCache] 
       : SEED_PATIENTS.map(s => s.patient);
