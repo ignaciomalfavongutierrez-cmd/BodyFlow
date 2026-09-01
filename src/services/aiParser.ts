@@ -112,7 +112,7 @@ export async function sendPromptToGemini(prompt: string): Promise<string> {
     const apiKey = (import.meta.env.VITE_GEMINI_API_KEY as string | undefined) || localStorage.getItem('bodyflow_gemini_api_key') || undefined
     if (apiKey) {
       const genAI = new GoogleGenerativeAI(apiKey)
-      const candidateModels = ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+      const candidateModels = ['gemini-3.7-flash', 'gemini-3.6-flash']
       let lastErr: any = null
       for (const modelName of candidateModels) {
         try {
@@ -170,7 +170,7 @@ export async function sendContentsToGemini(contents: any): Promise<string> {
         }
         return c
       })
-      const candidateModels = ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+      const candidateModels = ['gemini-3.7-flash', 'gemini-3.6-flash']
       let lastErr: any = null
       for (const modelName of candidateModels) {
         try {

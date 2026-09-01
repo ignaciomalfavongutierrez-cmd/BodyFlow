@@ -35,9 +35,6 @@ export default async function handler(req, res) {
   const candidateModels = [
     'gemini-3.7-flash',
     'gemini-3.6-flash',
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash'
   ];
 
   const genAI = new GoogleGenerativeAI(apiKey);

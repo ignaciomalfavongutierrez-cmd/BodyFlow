@@ -13,7 +13,7 @@ import {
 import BaseInput from '../components/BaseInput.vue'
 import { 
   AlertTriangle, CheckCircle, X, Search, ChevronLeft, BookmarkPlus, Plus, BookmarkMinus, 
-  Sparkles, Wand2, Scale, AlertCircle, RefreshCw 
+  Sparkles, Wand2, Scale, AlertCircle, RefreshCw, ChevronDown, ChevronUp 
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -86,8 +86,57 @@ const availableFoodsInput = ref('')
 
 const isAiProcessing = ref(false)
 const aiError = ref('')
+const showTechnicalError = ref(false)
 const aiResult = ref<MultiOptionSubstitutionResult | null>(null)
 const selectedOptionIndex = ref(0)
+
+const singleItemQuickChips = [
+  'Pechuga de pollo',
+  'Atún en agua',
+  '2 Huevos',
+  'Queso panela',
+  'Tofu firme',
+  'Carne molida 90/10',
+  'Avena',
+  'Yogurt griego'
+]
+
+const wholeMealQuickChips = [
+  'Huevos',
+  'Atún en agua',
+  'Arroz cocido',
+  'Aguacate',
+  'Tortillas de maíz',
+  'Pechuga de pollo',
+  'Espinacas',
+  'Avena'
+]
+
+function selectQuickSubstitute(chip: string) {
+  replacementInput.value = chip
+}
+
+function appendQuickPantryItem(chip: string) {
+  if (!availableFoodsInput.value.trim()) {
+    availableFoodsInput.value = chip
+  } else {
+    availableFoodsInput.value = `${availableFoodsInput.value.trim()}, ${chip}`
+  }
+}
+
+function switchToManualSubstitution() {
+  showAiModal.value = false
+  if (!isCompleted.value) {
+    logStore.toggleMeal(date.value, mealId.value)
+  }
+  setTimeout(() => {
+    const searchInput = document.querySelector('input[placeholder*="Buscar alimentos"]') as HTMLInputElement | null
+    if (searchInput) {
+      searchInput.focus()
+      searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, 200)
+}
 
 function openSingleItemAiSubstitution(item: string, idx: number) {
   selectedOriginalItem.value = item
@@ -96,6 +145,7 @@ function openSingleItemAiSubstitution(item: string, idx: number) {
   aiResult.value = null
   selectedOptionIndex.value = 0
   aiError.value = ''
+  showTechnicalError.value = false
   aiMode.value = 'single'
   showAiModal.value = true
 }
@@ -105,6 +155,7 @@ function openWholeMealAiAdjustment() {
   aiResult.value = null
   selectedOptionIndex.value = 0
   aiError.value = ''
+  showTechnicalError.value = false
   aiMode.value = 'whole'
   showAiModal.value = true
 }
@@ -113,6 +164,7 @@ async function runAiSubstitution() {
   if (!plannedMeal.value) return
   isAiProcessing.value = true
   aiError.value = ''
+  showTechnicalError.value = false
   aiResult.value = null
   selectedOptionIndex.value = 0
 
@@ -142,7 +194,7 @@ async function runAiSubstitution() {
     }
   } catch (err: any) {
     console.error('Error en Asistente IA de Sustitución:', err)
-    aiError.value = err.message || 'Error al comunicarse con la IA.'
+    aiError.value = err.message || 'Error al comunicarse con el asistente de IA.'
   } finally {
     isAiProcessing.value = false
   }
@@ -832,193 +884,376 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
 
     </div>
 
-    <!-- AI Substitution Modal -->
-    <transition name="fade">
-      <div v-if="showAiModal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 backdrop-blur-md" style="background: rgba(0,0,0,0.8);">
-        <div class="glass-card w-full max-w-md p-5 rounded-3xl animate-fade-in space-y-4 max-h-[90vh] overflow-y-auto border shadow-2xl" style="background: var(--surface-container-lowest); border-color: var(--glass-border);">
-          
-          <!-- Modal Header -->
-          <div class="flex justify-between items-center pb-3 border-b" style="border-color: var(--glass-border);">
-            <div class="flex items-center gap-2">
-              <div class="p-2 rounded-xl" style="background: rgba(25, 232, 13, 0.15); color: var(--primary);">
-                <Sparkles class="w-5 h-5" />
-              </div>
-              <div>
-                <h3 class="font-bold text-base" style="font-family: var(--font-display); color: var(--on-surface);">Asistente de Sustitución IA</h3>
-                <p class="text-[10px]" style="color: var(--on-surface-muted);">Calcula porciones y ajusta tu comida con Gemini</p>
-              </div>
-            </div>
-            <button @click="showAiModal = false" class="p-1.5 rounded-full hover:bg-white/10" style="color: var(--on-surface-muted);">
-              <X class="w-5 h-5" />
-            </button>
-          </div>
-
-          <!-- Mode Selector Tabs -->
-          <div class="flex rounded-xl p-1 border" style="background: rgba(0,0,0,0.2); border-color: var(--glass-border);">
-            <button 
-              @click="aiMode = 'single'; aiResult = null; selectedOptionIndex = 0;" 
-              class="flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5" 
-              :class="aiMode === 'single' ? 'bg-white/10 text-white shadow-sm' : 'text-zinc-500'"
-            >
-              <Scale class="w-3.5 h-3.5" />
-              1 Ingrediente
-            </button>
-            <button 
-              @click="aiMode = 'whole'; aiResult = null; selectedOptionIndex = 0;" 
-              class="flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5" 
-              :class="aiMode === 'whole' ? 'bg-white/10 text-white shadow-sm' : 'text-zinc-500'"
-            >
-              <Wand2 class="w-3.5 h-3.5" />
-              Comida Completa ("Solo tengo...")
-            </button>
-          </div>
-
-          <!-- Mode Single Form -->
-          <div v-if="aiMode === 'single' && !aiResult?.options?.length" class="space-y-3">
-            <div>
-              <label class="text-[10px] font-bold uppercase tracking-wider mb-1 block" style="color: var(--on-surface-muted);">Ingrediente Original a sustituir</label>
-              <select v-model="selectedOriginalItem" class="w-full input-field text-xs bg-black/40">
-                <option v-for="(item, idx) in plannedMeal?.items || []" :key="idx" :value="item">{{ item }}</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="text-[10px] font-bold uppercase tracking-wider mb-1 block" style="color: var(--on-surface-muted);">Alimento sustituto disponible</label>
-              <input 
-                v-model="replacementInput" 
-                type="text" 
-                placeholder="Ej. Atún en agua, Huevo entero, Pechuga de pavo" 
-                class="w-full input-field text-xs"
-              />
-            </div>
-          </div>
-
-          <!-- Mode Whole Form -->
-          <div v-if="aiMode === 'whole' && !aiResult?.options?.length" class="space-y-3">
-            <div>
-              <label class="text-[10px] font-bold uppercase tracking-wider mb-1 block" style="color: var(--on-surface-muted);">Alimentos disponibles en tu cocina</label>
-              <textarea 
-                v-model="availableFoodsInput" 
-                placeholder="Escribe lo que tienes disponible. Ej: 3 huevos, 1 lata de atún, 100g de arroz cocido, aguacate, tortilla de maíz..." 
-                class="w-full h-24 p-3 text-xs input-field resize-none"
-              ></textarea>
-            </div>
-          </div>
-
-          <!-- Error Alert -->
-          <div v-if="aiError" class="p-3 rounded-xl flex items-start gap-2 border text-xs" style="background: var(--error-container); border-color: rgba(255,180,171,0.2); color: var(--error);">
-            <AlertTriangle class="w-4 h-4 shrink-0 mt-0.5" />
-            <span>{{ aiError }}</span>
-          </div>
-
-          <!-- AI Action Button -->
-          <button 
-            v-if="!aiResult?.options?.length" 
-            @click="runAiSubstitution" 
-            :disabled="isAiProcessing"
-            class="w-full py-3.5 btn-primary text-sm flex items-center justify-center gap-2 shadow-md"
+    <!-- AI Substitution Modal (Teleported to Body for Mobile Full-Screen Stacking) -->
+    <Teleport to="body">
+      <transition name="fade">
+        <div 
+          v-if="showAiModal" 
+          class="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-md transition-all" 
+          style="background: rgba(0, 0, 0, 0.85);"
+        >
+          <!-- Modal Dialog (Full screen on mobile, floating card on desktop) -->
+          <div 
+            class="w-full h-[100dvh] sm:h-auto sm:max-h-[88vh] sm:max-w-lg rounded-none sm:rounded-3xl flex flex-col overflow-hidden border shadow-2xl animate-modal-in transition-all" 
+            style="background: var(--surface-container-lowest); border-color: var(--glass-border);"
           >
-            <RefreshCw v-if="isAiProcessing" class="w-4 h-4 animate-spin" />
-            <Sparkles v-else class="w-4 h-4" />
-            {{ isAiProcessing ? 'Calculando Porciones con IA...' : 'Calcular Porciones con IA' }}
-          </button>
-
-          <!-- AI Result View -->
-          <div v-if="aiResult?.options?.length" class="space-y-4 animate-fade-in">
-            <!-- Option Selector Tabs -->
-            <div class="flex rounded-xl p-1 border" style="background: rgba(0,0,0,0.25); border-color: var(--glass-border);">
+            
+            <!-- Sticky Modal Header -->
+            <div class="px-5 py-4 flex items-center justify-between border-b shrink-0 backdrop-blur-md" style="background: var(--glass-bg); border-color: var(--glass-border);">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm" style="background: linear-gradient(135deg, rgba(25, 232, 13, 0.2), rgba(16, 185, 129, 0.1)); color: var(--primary); border: 1px solid rgba(25, 232, 13, 0.3);">
+                  <Sparkles class="w-5 h-5" />
+                </div>
+                <div class="min-w-0">
+                  <h3 class="font-bold text-sm sm:text-base truncate leading-tight" style="font-family: var(--font-display); color: var(--on-surface);">
+                    Asistente de Sustitución IA
+                  </h3>
+                  <p class="text-[11px] truncate" style="color: var(--on-surface-muted);">
+                    Calcula porciones y equivalencias con Gemini
+                  </p>
+                </div>
+              </div>
               <button 
-                v-for="(opt, optIdx) in aiResult.options" 
-                :key="opt.id" 
-                @click="selectedOptionIndex = optIdx"
-                class="flex-1 py-2 text-[10px] font-bold rounded-lg transition-all text-center"
-                :class="selectedOptionIndex === optIdx ? 'shadow-sm' : 'text-zinc-500 hover:text-zinc-300'"
-                :style="selectedOptionIndex === optIdx ? { background: 'rgba(25, 232, 13, 0.15)', color: 'var(--primary)' } : {}"
+                @click="showAiModal = false" 
+                class="p-2 rounded-full hover:bg-white/10 transition-colors shrink-0 -mr-1" 
+                style="color: var(--on-surface-muted);"
+                aria-label="Cerrar modal"
               >
-                Opción {{ optIdx + 1 }}
+                <X class="w-5 h-5" />
               </button>
             </div>
 
-            <!-- Selected Option Title -->
-            <div class="text-xs font-bold" style="color: var(--on-surface);">
-              {{ aiResult.options[selectedOptionIndex].title }}
-            </div>
-
-            <!-- Explanation Box -->
-            <div class="p-3.5 rounded-xl border" style="background: rgba(25, 232, 13, 0.1); border-color: rgba(25, 232, 13, 0.25);">
-              <p class="text-xs font-semibold leading-relaxed" style="color: var(--primary);">
-                💡 {{ aiResult.options[selectedOptionIndex].explanation }}
-              </p>
-            </div>
-
-            <!-- Warning Banner -->
-            <div v-if="aiResult.options[selectedOptionIndex].alertMessage" class="p-3.5 rounded-xl border flex items-start gap-2.5" style="background: rgba(251, 191, 36, 0.12); border-color: rgba(251, 191, 36, 0.3); color: #fbbf24;">
-              <AlertCircle class="w-5 h-5 shrink-0 mt-0.5" />
-              <div class="text-xs font-semibold leading-snug">
-                {{ aiResult.options[selectedOptionIndex].alertMessage }}
+            <!-- Scrollable Modal Body -->
+            <div class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+              
+              <!-- Mode Selector Tabs (Single vs Whole) -->
+              <div class="flex rounded-xl p-1 border shadow-inner" style="background: rgba(0,0,0,0.3); border-color: var(--glass-border);">
+                <button 
+                  @click="aiMode = 'single'; aiResult = null; selectedOptionIndex = 0; aiError = '';" 
+                  class="flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5" 
+                  :class="aiMode === 'single' ? 'bg-white/15 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'"
+                >
+                  <Scale class="w-3.5 h-3.5" />
+                  1 Ingrediente
+                </button>
+                <button 
+                  @click="aiMode = 'whole'; aiResult = null; selectedOptionIndex = 0; aiError = '';" 
+                  class="flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5" 
+                  :class="aiMode === 'whole' ? 'bg-white/15 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'"
+                >
+                  <Wand2 class="w-3.5 h-3.5" />
+                  Comida Completa ("Solo tengo...")
+                </button>
               </div>
-            </div>
 
-            <!-- Replacement Items List -->
-            <div>
-              <h4 class="text-[10px] font-bold uppercase tracking-wider mb-2" style="color: var(--on-surface-muted);">Porciones Sugeridas por IA</h4>
-              <div class="space-y-2">
-                <div v-for="(item, idx) in aiResult.options[selectedOptionIndex].replacementFoods" :key="idx" class="p-3 rounded-xl border flex justify-between items-center" style="background: rgba(255,255,255,0.02); border-color: var(--glass-border);">
-                  <div>
-                    <div class="font-semibold text-xs" style="color: var(--on-surface);">{{ item.name }}</div>
-                    <div class="text-[10px] font-bold" style="color: var(--primary);">{{ item.quantity }}</div>
-                  </div>
-                  <div class="text-right text-[10px]" style="color: var(--on-surface-muted);">
-                    <div class="font-bold" style="color: var(--on-surface);">{{ Math.round(item.macros.calories) }} kcal</div>
-                    <div>P: {{ Math.round(item.macros.protein) }}g | C: {{ Math.round(item.macros.carbs) }}g | G: {{ Math.round(item.macros.fat) }}g</div>
+              <!-- Target Macros Mini Badge -->
+              <div v-if="plannedMeal?.plannedMacros" class="p-3 rounded-xl border flex items-center justify-between text-xs" style="background: rgba(255,255,255,0.02); border-color: var(--glass-border);">
+                <span class="text-[11px] font-semibold" style="color: var(--on-surface-muted);">Objetivo de la comida:</span>
+                <span class="font-bold text-xs" style="color: var(--primary);">
+                  {{ plannedMeal.plannedMacros.calories }} kcal 
+                  <span class="text-zinc-400 font-normal">| P: {{ plannedMeal.plannedMacros.protein }}g C: {{ plannedMeal.plannedMacros.carbs }}g G: {{ plannedMeal.plannedMacros.fat }}g</span>
+                </span>
+              </div>
+
+              <!-- 1 Ingrediente Inputs -->
+              <div v-if="aiMode === 'single' && !aiResult?.options?.length" class="space-y-4">
+                <div>
+                  <label class="text-[11px] font-bold uppercase tracking-wider mb-1.5 block" style="color: var(--on-surface-muted);">
+                    1. Ingrediente original a sustituir
+                  </label>
+                  <select v-model="selectedOriginalItem" class="w-full input-field text-xs bg-black/40">
+                    <option v-for="(item, idx) in plannedMeal?.items || []" :key="idx" :value="item">{{ item }}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="text-[11px] font-bold uppercase tracking-wider mb-1.5 block" style="color: var(--on-surface-muted);">
+                    2. ¿Qué alimento tienes para sustituirlo?
+                  </label>
+                  <input 
+                    v-model="replacementInput" 
+                    type="text" 
+                    placeholder="Ej. Atún en agua, Pechuga de pavo, Huevos..." 
+                    class="w-full input-field text-xs py-3"
+                  />
+                  <!-- Quick suggestion chips -->
+                  <div class="mt-2.5">
+                    <p class="text-[10px] font-semibold mb-1.5" style="color: var(--on-surface-muted);">Sugerencias rápidas:</p>
+                    <div class="flex flex-wrap gap-1.5">
+                      <button 
+                        v-for="chip in singleItemQuickChips" 
+                        :key="chip" 
+                        @click="selectQuickSubstitute(chip)" 
+                        type="button"
+                        class="px-2.5 py-1 rounded-lg text-[10px] font-medium border transition-all hover:scale-102"
+                        :style="replacementInput === chip 
+                          ? { background: 'rgba(25, 232, 13, 0.18)', color: 'var(--primary)', borderColor: 'rgba(25, 232, 13, 0.35)' } 
+                          : { background: 'rgba(255,255,255,0.03)', color: 'var(--on-surface-muted)', borderColor: 'var(--glass-border)' }"
+                      >
+                        {{ chip }}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
+
+              <!-- Comida Completa Inputs -->
+              <div v-if="aiMode === 'whole' && !aiResult?.options?.length" class="space-y-4">
+                <div>
+                  <label class="text-[11px] font-bold uppercase tracking-wider mb-1.5 block" style="color: var(--on-surface-muted);">
+                    Alimentos disponibles en tu cocina
+                  </label>
+                  <textarea 
+                    v-model="availableFoodsInput" 
+                    placeholder="Escribe lo que tienes disponible. Ej: 3 huevos, 1 lata de atún, arroz cocido, aguacate, tortilla de maíz..." 
+                    class="w-full h-28 p-3 text-xs input-field resize-none leading-relaxed"
+                  ></textarea>
+
+                  <!-- Quick pantry suggestion chips -->
+                  <div class="mt-2.5">
+                    <p class="text-[10px] font-semibold mb-1.5" style="color: var(--on-surface-muted);">Toca para agregar alimentos comunes:</p>
+                    <div class="flex flex-wrap gap-1.5">
+                      <button 
+                        v-for="chip in wholeMealQuickChips" 
+                        :key="chip" 
+                        @click="appendQuickPantryItem(chip)" 
+                        type="button"
+                        class="px-2.5 py-1 rounded-lg text-[10px] font-medium border transition-all hover:scale-102"
+                        style="background: rgba(255,255,255,0.03); color: var(--on-surface-muted); border-color: var(--glass-border);"
+                      >
+                        + {{ chip }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- LOADING STATE (AI Thinking Animation) -->
+              <div v-if="isAiProcessing" class="py-10 flex flex-col items-center justify-center text-center space-y-4 animate-fade-in">
+                <div class="relative flex items-center justify-center">
+                  <div class="w-16 h-16 rounded-full animate-ping opacity-20" style="background: var(--primary);"></div>
+                  <div class="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg border absolute" style="background: rgba(25, 232, 13, 0.15); border-color: rgba(25, 232, 13, 0.4); color: var(--primary);">
+                    <Sparkles class="w-7 h-7 animate-pulse" />
+                  </div>
+                </div>
+                <div>
+                  <h4 class="font-bold text-sm" style="color: var(--on-surface);">Calculando equivalencias nutricionales...</h4>
+                  <p class="text-xs mt-1 max-w-xs leading-relaxed" style="color: var(--on-surface-muted);">
+                    El Asistente IA está ajustando las porciones exactas para respetar tus macros objetivo.
+                  </p>
+                </div>
+              </div>
+
+              <!-- FRIENDLY ERROR / UNAVAILABLE STATE -->
+              <div v-if="aiError && !isAiProcessing" class="p-5 rounded-2xl border flex flex-col items-center text-center space-y-3.5 animate-fade-in" style="background: rgba(251, 191, 36, 0.08); border-color: rgba(251, 191, 36, 0.3);">
+                <div class="w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner" style="background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3);">
+                  <Sparkles class="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 class="font-bold text-sm" style="color: #fbbf24;">
+                    Asistente IA no disponible por ahora
+                  </h4>
+                  <p class="text-xs mt-1.5 leading-relaxed max-w-xs" style="color: var(--on-surface-muted);">
+                    El servicio de inteligencia artificial se encuentra temporalmente ocupado o en mantenimiento. Puedes intentar nuevamente o realizar el ajuste manual desde el buscador de alimentos.
+                  </p>
+                </div>
+
+                <!-- Action Buttons inside error card -->
+                <div class="flex flex-col sm:flex-row gap-2 w-full pt-1">
+                  <button 
+                    @click="runAiSubstitution" 
+                    type="button"
+                    class="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                    style="background: rgba(251, 191, 36, 0.2); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.4);"
+                  >
+                    <RefreshCw class="w-3.5 h-3.5" />
+                    Reintentar con IA
+                  </button>
+                  <button 
+                    @click="switchToManualSubstitution" 
+                    type="button"
+                    class="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                    style="background: rgba(25, 232, 13, 0.2); color: var(--primary); border: 1px solid rgba(25, 232, 13, 0.4);"
+                  >
+                    <Search class="w-3.5 h-3.5" />
+                    Sustituir Manualmente
+                  </button>
+                </div>
+
+                <!-- Collapsible technical detail for diagnostics -->
+                <div class="w-full pt-2 border-t" style="border-color: rgba(251, 191, 36, 0.15);">
+                  <button 
+                    @click="showTechnicalError = !showTechnicalError" 
+                    type="button"
+                    class="text-[10px] flex items-center justify-center gap-1 mx-auto transition-colors"
+                    style="color: var(--on-surface-muted);"
+                  >
+                    <span>{{ showTechnicalError ? 'Ocultar diagnóstico técnico' : 'Ver diagnóstico técnico' }}</span>
+                    <ChevronDown v-if="!showTechnicalError" class="w-3 h-3" />
+                    <ChevronUp v-else class="w-3 h-3" />
+                  </button>
+                  <div v-if="showTechnicalError" class="mt-2 p-2.5 rounded-lg text-[10px] font-mono text-left break-all max-h-24 overflow-y-auto" style="background: rgba(0,0,0,0.5); color: #fca5a5;">
+                    {{ aiError }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- AI RESULT VIEW (3 Options) -->
+              <div v-if="aiResult?.options?.length && !isAiProcessing" class="space-y-4 animate-fade-in">
+                
+                <!-- Option Selector Pills -->
+                <div class="flex rounded-xl p-1 border" style="background: rgba(0,0,0,0.3); border-color: var(--glass-border);">
+                  <button 
+                    v-for="(opt, optIdx) in aiResult.options" 
+                    :key="opt.id" 
+                    @click="selectedOptionIndex = optIdx"
+                    class="flex-1 py-2 text-xs font-bold rounded-lg transition-all text-center"
+                    :class="selectedOptionIndex === optIdx ? 'shadow-sm' : 'text-zinc-500 hover:text-zinc-300'"
+                    :style="selectedOptionIndex === optIdx ? { background: 'rgba(25, 232, 13, 0.18)', color: 'var(--primary)', border: '1px solid rgba(25, 232, 13, 0.3)' } : {}"
+                  >
+                    Opción {{ optIdx + 1 }}
+                  </button>
+                </div>
+
+                <!-- Selected Option Header & Explanation -->
+                <div class="p-4 rounded-2xl border space-y-2" style="background: rgba(25, 232, 13, 0.08); border-color: rgba(25, 232, 13, 0.25);">
+                  <div class="text-sm font-bold" style="color: var(--on-surface);">
+                    {{ aiResult.options[selectedOptionIndex].title }}
+                  </div>
+                  <p class="text-xs font-medium leading-relaxed" style="color: var(--primary);">
+                    💡 {{ aiResult.options[selectedOptionIndex].explanation }}
+                  </p>
+                </div>
+
+                <!-- Alert Message if any -->
+                <div v-if="aiResult.options[selectedOptionIndex].alertMessage" class="p-3.5 rounded-xl border flex items-start gap-2.5" style="background: rgba(251, 191, 36, 0.12); border-color: rgba(251, 191, 36, 0.3); color: #fbbf24;">
+                  <AlertCircle class="w-5 h-5 shrink-0 mt-0.5" />
+                  <div class="text-xs font-semibold leading-snug">
+                    {{ aiResult.options[selectedOptionIndex].alertMessage }}
+                  </div>
+                </div>
+
+                <!-- Replacement Items List -->
+                <div>
+                  <h4 class="text-[10px] font-bold uppercase tracking-wider mb-2.5" style="color: var(--on-surface-muted);">
+                    Porciones calculadas equivalentes
+                  </h4>
+                  <div class="space-y-2">
+                    <div 
+                      v-for="(item, idx) in aiResult.options[selectedOptionIndex].replacementFoods" 
+                      :key="idx" 
+                      class="p-3.5 rounded-xl border flex justify-between items-center" 
+                      style="background: rgba(255,255,255,0.02); border-color: var(--glass-border);"
+                    >
+                      <div class="min-w-0 pr-2">
+                        <div class="font-semibold text-xs truncate" style="color: var(--on-surface);">{{ item.name }}</div>
+                        <div class="text-[11px] font-bold mt-0.5" style="color: var(--primary);">{{ item.quantity }}</div>
+                      </div>
+                      <div class="text-right text-[10px] shrink-0" style="color: var(--on-surface-muted);">
+                        <div class="font-bold text-xs" style="color: var(--on-surface);">{{ Math.round(item.macros.calories) }} kcal</div>
+                        <div class="text-[10px]">P: {{ Math.round(item.macros.protein) }}g | C: {{ Math.round(item.macros.carbs) }}g | G: {{ Math.round(item.macros.fat) }}g</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Total Macros Comparison -->
+                <div v-if="aiResult.options[selectedOptionIndex].totalMacros" class="grid grid-cols-4 gap-2 p-3 rounded-xl border" style="background: rgba(0,0,0,0.3); border-color: var(--glass-border);">
+                  <div class="text-center">
+                    <div class="text-[9px] font-bold uppercase tracking-wider mb-0.5" style="color: var(--on-surface-muted);">Kcal</div>
+                    <div class="text-sm font-bold" style="color: var(--on-surface);">{{ Math.round(aiResult.options[selectedOptionIndex].totalMacros.calories) }}</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-[9px] font-bold uppercase tracking-wider mb-0.5" style="color: var(--on-surface-muted);">Prot</div>
+                    <div class="text-sm font-bold" style="color: var(--on-surface);">{{ Math.round(aiResult.options[selectedOptionIndex].totalMacros.protein) }}g</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-[9px] font-bold uppercase tracking-wider mb-0.5" style="color: var(--on-surface-muted);">Carb</div>
+                    <div class="text-sm font-bold" style="color: var(--on-surface);">{{ Math.round(aiResult.options[selectedOptionIndex].totalMacros.carbs) }}g</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-[9px] font-bold uppercase tracking-wider mb-0.5" style="color: var(--on-surface-muted);">Grasa</div>
+                    <div class="text-sm font-bold" style="color: var(--on-surface);">{{ Math.round(aiResult.options[selectedOptionIndex].totalMacros.fat) }}g</div>
+                  </div>
+                </div>
+
+              </div>
+
             </div>
 
-            <!-- Total Macros Summary -->
-            <div v-if="aiResult.options[selectedOptionIndex].totalMacros" class="flex justify-around p-3 rounded-xl border" style="background: rgba(0,0,0,0.2); border-color: var(--glass-border);">
-              <div class="text-center">
-                <div class="text-[9px] font-bold uppercase" style="color: var(--on-surface-muted);">Kcal</div>
-                <div class="text-sm font-bold" style="color: var(--on-surface);">{{ Math.round(aiResult.options[selectedOptionIndex].totalMacros.calories) }}</div>
+            <!-- Sticky Modal Footer with Actions (Never covered by bottom navigation bar) -->
+            <div class="p-4 border-t shrink-0 backdrop-blur-md pb-safe" style="background: var(--glass-bg); border-color: var(--glass-border);">
+              <!-- If no results yet -->
+              <div v-if="!aiResult?.options?.length" class="flex gap-2">
+                <button 
+                  @click="showAiModal = false" 
+                  type="button"
+                  class="w-1/3 py-3 rounded-xl font-bold text-xs transition-colors"
+                  style="background: rgba(255,255,255,0.05); color: var(--on-surface-muted);"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  @click="runAiSubstitution" 
+                  :disabled="isAiProcessing"
+                  type="button"
+                  class="flex-1 py-3 btn-primary text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md disabled:opacity-50"
+                >
+                  <RefreshCw v-if="isAiProcessing" class="w-4 h-4 animate-spin" />
+                  <Sparkles v-else class="w-4 h-4" />
+                  {{ isAiProcessing ? 'Calculando...' : 'Calcular Porciones con IA' }}
+                </button>
               </div>
-              <div class="text-center">
-                <div class="text-[9px] font-bold uppercase" style="color: var(--on-surface-muted);">Prot</div>
-                <div class="text-sm font-bold" style="color: var(--on-surface);">{{ Math.round(aiResult.options[selectedOptionIndex].totalMacros.protein) }}g</div>
-              </div>
-              <div class="text-center">
-                <div class="text-[9px] font-bold uppercase" style="color: var(--on-surface-muted);">Carb</div>
-                <div class="text-sm font-bold" style="color: var(--on-surface);">{{ Math.round(aiResult.options[selectedOptionIndex].totalMacros.carbs) }}g</div>
-              </div>
-              <div class="text-center">
-                <div class="text-[9px] font-bold uppercase" style="color: var(--on-surface-muted);">Grasa</div>
-                <div class="text-sm font-bold" style="color: var(--on-surface);">{{ Math.round(aiResult.options[selectedOptionIndex].totalMacros.fat) }}g</div>
+
+              <!-- If results exist -->
+              <div v-else class="flex gap-2">
+                <button 
+                  @click="aiResult = null; selectedOptionIndex = 0;" 
+                  type="button"
+                  class="w-1/3 py-3 btn-secondary text-xs"
+                >
+                  Recalcular
+                </button>
+                <button 
+                  @click="applyAiSubstitution" 
+                  type="button"
+                  class="flex-1 py-3 btn-primary text-xs sm:text-sm shadow-md flex items-center justify-center gap-1.5"
+                >
+                  <CheckCircle class="w-4 h-4" />
+                  Aplicar Opción {{ selectedOptionIndex + 1 }}
+                </button>
               </div>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="flex gap-2 pt-2">
-              <button @click="aiResult = null; selectedOptionIndex = 0;" class="flex-1 py-3 btn-secondary text-xs">
-                Recalcular
-              </button>
-              <button @click="applyAiSubstitution" class="flex-1 py-3 btn-primary text-xs shadow-md">
-                Aplicar Opción {{ selectedOptionIndex + 1 }}
-              </button>
-            </div>
           </div>
-
         </div>
-      </div>
-    </transition>
+      </transition>
+    </Teleport>
   </div>
 </template>
 
 <style scoped>
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
+}
 .fade-enter-active, .fade-leave-active {
   transition: opacity 0.2s ease;
 }
 .fade-enter-from, .fade-leave-to {
   opacity: 0;
+}
+.animate-modal-in {
+  animation: modalIn 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 .animate-fade-in {
   animation: fadeIn 0.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
