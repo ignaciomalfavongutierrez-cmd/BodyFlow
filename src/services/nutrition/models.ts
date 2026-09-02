@@ -28,4 +28,6 @@ export interface UserProfile extends PhysicalData, NutritionGoals {
   mealPlanTargets?: MacroTargets
   /** When true, macroTargets reflects the imported plan instead of TDEE calculations */
   useMealPlanOverride?: boolean
+  /** Daily water intake target in milliliters (default: 2000 ml) */
+  waterTarget?: number
 }

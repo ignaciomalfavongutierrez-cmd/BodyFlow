@@ -34,6 +34,7 @@ const protein = ref(0)
 const carbs = ref(0)
 const fat = ref(0)
 const sugar = ref(0)
+const waterTarget = ref(2000)
 
 const isDirty = ref(false)
 const isLoggingOut = ref(false)
@@ -55,6 +56,7 @@ watch(
     carbs.value = p.macroTargets.carbs
     fat.value = p.macroTargets.fat
     sugar.value = p.macroTargets.sugar
+    waterTarget.value = p.waterTarget || 2000
   },
   { deep: true, immediate: true }
 )
@@ -99,7 +101,8 @@ async function saveProfile() {
       carbs: Number(carbs.value),
       fat: Number(fat.value),
       sugar: Number(sugar.value)
-    }
+    },
+    waterTarget: Number(waterTarget.value) || 2000
   })
 
   isDirty.value = false
@@ -294,12 +297,14 @@ async function confirmLogout() {
 
         <BaseInput label="Calorías (kcal)" v-model="calories" type="number" placeholder="Ej. 2000" class="mb-4" @input="markDirty" />
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-2 gap-4 mb-4">
           <BaseInput label="Proteína (g)" v-model="protein" type="number" placeholder="Ej. 150" @input="markDirty" />
           <BaseInput label="Carbs (g)" v-model="carbs" type="number" placeholder="Ej. 200" @input="markDirty" />
           <BaseInput label="Grasa (g)" v-model="fat" type="number" placeholder="Ej. 60" @input="markDirty" />
           <BaseInput label="Azúcar (g)" v-model="sugar" type="number" placeholder="Ej. 30" @input="markDirty" />
         </div>
+
+        <BaseInput label="Meta de Agua Diaria (ml)" v-model="waterTarget" type="number" placeholder="Ej. 2000" @input="markDirty" />
       </section>
 
       <!-- Macro Source Toggle (visible when a plan has been imported) -->

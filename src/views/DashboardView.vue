@@ -9,6 +9,10 @@ import { Wrench, Sun, Moon } from 'lucide-vue-next'
 import { useTheme } from '../composables/useTheme'
 import MealCard from '../components/MealCard.vue'
 
+import DateBubbleSlider from '../components/dashboard/DateBubbleSlider.vue'
+import WaterTracker from '../components/dashboard/WaterTracker.vue'
+import MacroRings from '../components/dashboard/MacroRings.vue'
+
 const userStore = useUserStore()
 const dietStore = useDietStore()
 const logStore = useLogStore()
@@ -32,26 +36,6 @@ onMounted(async () => {
   if (dietStore.week.length === 0) {
     await dietStore.fetchDiet()
   }
-})
-
-// Computed JS Date
-const selectedDateObj = computed(() => {
-  const [y, m, d] = selectedDateStr.value.split('-').map(Number)
-  return new Date(y, m - 1, d)
-})
-
-function changeDate(daysOffset: number) {
-  const nextDate = new Date(selectedDateObj.value)
-  nextDate.setDate(nextDate.getDate() + daysOffset)
-  selectedDateStr.value = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`
-}
-
-const displayDateTitle = computed(() => {
-  const todayStr = new Date().toISOString().split('T')[0]
-  if (selectedDateStr.value === todayStr) return 'Hoy'
-  
-  const formatter = new Intl.DateTimeFormat('es-MX', { weekday: 'short', month: 'short', day: 'numeric' })
-  return formatter.format(selectedDateObj.value)
 })
 
 // Find the plan for the selected real-world date
@@ -102,12 +86,6 @@ const currentTotals = computed(() => {
   return totals
 })
 
-// Progress percentage helpers
-function getProgress(current: number, target: number) {
-  if (!target) return 0
-  return Math.min(Math.round((current / target) * 100), 100)
-}
-
 function toggleMeal(mealId: string) {
   logStore.toggleMeal(selectedDateStr.value, mealId)
 }
@@ -144,20 +122,19 @@ function loadDemoDiet() {
 </script>
 
 <template>
-  <div class="h-full flex flex-col relative max-w-md mx-auto w-full">
-    <!-- Sticky Top Summary -->
-    <div class="sticky top-0 z-10 px-4 pt-6 pb-4" style="background: var(--surface-container); border-bottom: 1px solid var(--glass-border); border-radius: 0 0 1.5rem 1.5rem;">
-      <!-- Header with Navigation & Quick Theme Switcher -->
-      <div class="flex items-center justify-between mb-6 gap-2">
-        <button @click="changeDate(-1)" class="w-8 h-8 flex items-center justify-center rounded-full transition-colors shrink-0" style="background: var(--surface-container-high); color: var(--on-surface-muted);" title="Día anterior">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-          </svg>
-        </button>
-        
-        <h1 class="text-xl font-bold text-center flex-1 truncate" style="font-family: var(--font-display); color: var(--on-surface);">
-          {{ displayDateTitle }}
-        </h1>
+  <div class="h-full flex flex-col relative max-w-md md:max-w-lg mx-auto w-full">
+    <!-- Sticky Top Bar (Brand & Date Slider) -->
+    <div class="sticky top-0 z-20 px-4 pt-4 pb-2 transition-colors backdrop-blur-md shadow-xs" style="background: var(--glass-bg); border-bottom: 1px solid var(--glass-border);">
+      <!-- Header with App Brand/Greeting & Quick Theme Switcher -->
+      <div class="flex items-center justify-between mb-3 px-1">
+        <div>
+          <h1 class="text-lg font-bold leading-tight" style="font-family: var(--font-display); color: var(--on-surface);">
+            {{ userStore.profile.name ? `Hola, ${userStore.profile.name.split(' ')[0]}` : 'Mi Plan Diario' }}
+          </h1>
+          <p class="text-[11px] font-medium" style="color: var(--on-surface-muted);">
+            Seguimiento nutricional Talia Tinoco
+          </p>
+        </div>
         
         <div class="flex items-center gap-1.5 shrink-0">
           <button 
@@ -169,17 +146,18 @@ function loadDemoDiet() {
             <Sun v-if="isDark" class="w-4 h-4 text-amber-400 hover:text-amber-300" />
             <Moon v-else class="w-4 h-4 text-indigo-600 hover:text-indigo-500" />
           </button>
-
-          <button @click="changeDate(1)" class="w-8 h-8 flex items-center justify-center rounded-full transition-colors" style="background: var(--surface-container-high); color: var(--on-surface-muted);" title="Día siguiente">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-            </svg>
-          </button>
         </div>
       </div>
 
+      <!-- Date Bubble Slider (Weekly Calendar Strip) -->
+      <DateBubbleSlider v-model="selectedDateStr" />
+    </div>
+
+    <!-- Main Content Area (Scrollable Feed) -->
+    <div class="flex-1 p-4 pb-24 overflow-y-auto space-y-4">
+      
       <!-- Admin Nutrióloga Quick Action (Only for authorized admin emails) -->
-      <section v-if="isAdmin" class="glass-card p-4 sm:p-5 border border-emerald-500/30 shadow-lg relative overflow-hidden mb-5">
+      <section v-if="isAdmin" class="glass-card p-4 sm:p-5 border border-emerald-500/30 shadow-lg relative overflow-hidden">
         <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-emerald-500/10 dark:bg-[#19e80d]/10 rounded-full blur-xl pointer-events-none"></div>
         <div class="flex items-center justify-between gap-3 relative z-10">
           <div>
@@ -199,86 +177,8 @@ function loadDemoDiet() {
         </div>
       </section>
 
-      <!-- Meal Plan Override Banner -->
-      <div v-if="userStore.profile.useMealPlanOverride" class="mb-4 flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-[var(--primary)] border border-emerald-200 dark:border-emerald-800/40">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 shrink-0 text-emerald-700 dark:text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-        Metas basadas en tu plan nutricional
-      </div>
-      
-      <!-- Calories Summary -->
-      <div class="mb-6 flex justify-between items-end">
-        <div>
-          <div class="text-3xl font-bold" style="font-family: var(--font-display); color: var(--primary);">{{ currentTotals.calories }}</div>
-          <div class="text-xs font-bold uppercase tracking-wider mt-1" style="color: var(--on-surface-muted);">Consumido</div>
-        </div>
-        
-        <div class="text-center">
-          <div class="text-sm font-medium" style="color: var(--on-surface-muted);">
-            <span class="font-bold" style="color: var(--primary-container);">{{ targets.calories - currentTotals.calories > 0 ? targets.calories - currentTotals.calories : 0 }}</span> kcal restantes
-          </div>
-        </div>
-        
-        <div class="text-right">
-          <div class="text-xl font-bold" style="font-family: var(--font-display); color: var(--on-surface-muted);">{{ targets.calories }}</div>
-          <div class="text-xs font-bold uppercase tracking-wider mt-1" style="color: var(--on-surface-muted);">Meta</div>
-        </div>
-      </div>
-      
-      <!-- Macros Progress Bars -->
-      <div class="grid grid-cols-4 gap-3">
-        <!-- Protein -->
-        <div>
-          <div class="flex justify-between text-xs mb-1">
-            <span class="font-medium" style="color: var(--on-surface-variant);">Proteína</span>
-          </div>
-          <div class="progress-track">
-            <div class="progress-fill" style="background: #60a5fa;" :style="{ width: `${getProgress(currentTotals.protein, targets.protein)}%` }"></div>
-          </div>
-          <div class="text-[10px] mt-1 text-center" style="color: var(--on-surface-muted);">{{ currentTotals.protein }} / {{ targets.protein }}g</div>
-        </div>
-        
-        <!-- Carbs -->
-        <div>
-          <div class="flex justify-between text-xs mb-1">
-            <span class="font-medium" style="color: var(--on-surface-variant);">Carbs</span>
-          </div>
-          <div class="progress-track">
-            <div class="progress-fill" style="background: var(--primary-container);" :style="{ width: `${getProgress(currentTotals.carbs, targets.carbs)}%` }"></div>
-          </div>
-          <div class="text-[10px] mt-1 text-center" style="color: var(--on-surface-muted);">{{ currentTotals.carbs }} / {{ targets.carbs }}g</div>
-        </div>
-        
-        <!-- Fat -->
-        <div>
-          <div class="flex justify-between text-xs mb-1">
-            <span class="font-medium" style="color: var(--on-surface-variant);">Grasa</span>
-          </div>
-          <div class="progress-track">
-            <div class="progress-fill" style="background: #fbbf24;" :style="{ width: `${getProgress(currentTotals.fat, targets.fat)}%` }"></div>
-          </div>
-          <div class="text-[10px] mt-1 text-center" style="color: var(--on-surface-muted);">{{ currentTotals.fat }} / {{ targets.fat }}g</div>
-        </div>
-
-        <!-- Sugar -->
-        <div>
-          <div class="flex justify-between text-xs mb-1">
-            <span class="font-medium" style="color: var(--on-surface-variant);">Azúcar</span>
-          </div>
-          <div class="progress-track">
-            <div class="progress-fill" style="background: var(--error);" :style="{ width: `${getProgress(currentTotals.sugar, targets.sugar)}%` }"></div>
-          </div>
-          <div class="text-[10px] mt-1 text-center" style="color: var(--on-surface-muted);">{{ currentTotals.sugar }} / {{ targets.sugar }}g</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Main Content Area (Scrollable) -->
-    <div class="flex-1 p-4 pb-20 overflow-y-auto">
-      
       <!-- Empty State: No Profile -->
-      <div v-if="!hasProfile" class="glass-card p-6 text-center mb-6 mt-4">
+      <div v-if="!hasProfile" class="glass-card p-6 text-center mt-2">
         <div class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style="background: rgba(25, 232, 13, 0.1); color: var(--primary);">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -291,44 +191,57 @@ function loadDemoDiet() {
         </router-link>
       </div>
 
-      <!-- Meals List -->
-      <div v-else>
-        <div class="flex justify-between items-end mb-4">
-          <h2 class="text-lg font-bold" style="font-family: var(--font-display); color: var(--on-surface);">Comidas</h2>
-          <span class="text-xs font-medium" style="color: var(--on-surface-muted);">{{ todayMeals.length }} planificadas</span>
-        </div>
+      <!-- Logged User Content -->
+      <template v-else>
+        <!-- Interactive Circular Macro Rings Dial -->
+        <MacroRings 
+          :current="currentTotals" 
+          :targets="targets" 
+          :isMealPlanOverride="userStore.profile.useMealPlanOverride" 
+        />
 
-        <div v-if="todayMeals.length > 0">
-          <MealCard 
-            v-for="meal in todayMeals" 
-            :key="meal.id"
-            :date="selectedDateStr"
-            :meal="meal as any"
-            :isCompleted="isMealCompleted(meal.id)"
-            :customFoods="getMealCustomFoods(meal.id)"
-            @toggle="toggleMeal(meal.id)"
-          />
-        </div>
-        
-        <!-- Empty State: No Diet -->
-        <div v-else class="glass-card p-6 text-center mt-2">
-          <div class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style="background: var(--surface-container-high); color: var(--on-surface-muted);">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
+        <!-- Daily Water Tracker Widget -->
+        <WaterTracker :date="selectedDateStr" />
+
+        <!-- Meals Section -->
+        <div>
+          <div class="flex justify-between items-end mb-3 px-1">
+            <h2 class="text-lg font-bold" style="font-family: var(--font-display); color: var(--on-surface);">Comidas</h2>
+            <span class="text-xs font-medium" style="color: var(--on-surface-muted);">{{ todayMeals.length }} planificadas</span>
           </div>
-          <h3 class="font-bold mb-1" style="color: var(--on-surface);">Sin dieta cargada</h3>
-          <p class="text-sm mb-4" style="color: var(--on-surface-muted);">Sube tu plan de dieta en PDF para generar automáticamente tus comidas diarias.</p>
+
+          <div v-if="todayMeals.length > 0">
+            <MealCard 
+              v-for="meal in todayMeals" 
+              :key="meal.id"
+              :date="selectedDateStr"
+              :meal="meal as any"
+              :isCompleted="isMealCompleted(meal.id)"
+              :customFoods="getMealCustomFoods(meal.id)"
+              @toggle="toggleMeal(meal.id)"
+            />
+          </div>
           
-          <router-link to="/upload" class="inline-block w-full py-3 btn-primary text-sm font-bold rounded-xl mb-3">
-            Subir Plan PDF
-          </router-link>
-          
-          <button @click="loadDemoDiet" class="inline-block btn-secondary text-xs px-4 py-2 rounded-lg">
-            Cargar Demo
-          </button>
+          <!-- Empty State: No Diet -->
+          <div v-else class="glass-card p-6 text-center mt-2">
+            <div class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style="background: var(--surface-container-high); color: var(--on-surface-muted);">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h3 class="font-bold mb-1" style="color: var(--on-surface);">Sin comidas planificadas</h3>
+            <p class="text-sm mb-4" style="color: var(--on-surface-muted);">Sube tu plan de dieta en PDF para generar automáticamente tus comidas diarias.</p>
+            
+            <router-link to="/upload" class="inline-block w-full py-3 btn-primary text-sm font-bold rounded-xl mb-3">
+              Subir Plan PDF
+            </router-link>
+            
+            <button @click="loadDemoDiet" class="inline-block btn-secondary text-xs px-4 py-2 rounded-lg">
+              Cargar Demo
+            </button>
+          </div>
         </div>
-      </div>
+      </template>
 
     </div>
   </div>

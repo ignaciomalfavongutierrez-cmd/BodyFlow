@@ -29,6 +29,7 @@ export interface LoggedMeal {
 export interface DailyLog {
   date: string // YYYY-MM-DD
   meals: LoggedMeal[]
+  waterIntake?: number // Consumo de agua en ml (ej: 2000)
 }
 
 export const useLogStore = defineStore('log', () => {
@@ -187,7 +188,32 @@ export const useLogStore = defineStore('log', () => {
     } else {
       meal.substitutedItems.push(itemIndex)
     }
+    await saveDayLog(date)
+  }
+
+  async function addWater(date: string, amountMl: number) {
+    if (!logs.value[date]) await fetchDayLog(date)
+    ensureLogExists(date)
     
+    const current = logs.value[date].waterIntake || 0
+    const updated = Math.max(0, current + amountMl)
+    logs.value[date].waterIntake = updated
+    await saveDayLog(date)
+  }
+
+  async function setWater(date: string, totalMl: number) {
+    if (!logs.value[date]) await fetchDayLog(date)
+    ensureLogExists(date)
+    
+    logs.value[date].waterIntake = Math.max(0, totalMl)
+    await saveDayLog(date)
+  }
+
+  async function resetWater(date: string) {
+    if (!logs.value[date]) await fetchDayLog(date)
+    ensureLogExists(date)
+    
+    logs.value[date].waterIntake = 0
     await saveDayLog(date)
   }
 
@@ -200,6 +226,9 @@ export const useLogStore = defineStore('log', () => {
     removeCustomFood,
     clearCustomFoods,
     toggleSubstitutedItem,
+    addWater,
+    setWater,
+    resetWater,
     reset
   }
 })

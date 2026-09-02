@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useDietStore, type DayPlan } from '../stores/diet'
 import { useLogStore } from '../stores/log'
 import MealCard from '../components/MealCard.vue'
+import DateBubbleSlider from '../components/dashboard/DateBubbleSlider.vue'
 import { FileUp } from 'lucide-vue-next'
 
 const dietStore = useDietStore()
@@ -11,60 +12,47 @@ const logStore = useLogStore()
 const DAYS_ES_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 const DAYS_ES_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
-// ─── Real week days (Mon–Sun) ───
-const realWeekDays = computed(() => {
-  const today = new Date()
-  const dow = today.getDay() // 0=Sun
-  const diff = dow === 0 ? -6 : 1 - dow // offset to Monday
-  const monday = new Date(today)
-  monday.setDate(today.getDate() + diff)
+const todayIso = new Date().toISOString().split('T')[0]
+const selectedDate = ref(todayIso)
 
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday)
-    d.setDate(monday.getDate() + i)
-    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    return {
-      iso,
-      dayIndex: d.getDay(),
-      dayName: DAYS_ES_SHORT[d.getDay()],
-      dayNum: d.getDate(),
-      isToday: d.toDateString() === today.toDateString(),
-    }
-  })
-})
+// Fetch log immediately on date change to guarantee 100% sync with Dashboard
+watch(selectedDate, (newDate) => {
+  if (newDate) {
+    logStore.fetchDayLog(newDate)
+  }
+}, { immediate: true })
 
-const selectedDate = ref('')
-
-onMounted(() => {
-  const todayEntry = realWeekDays.value.find(d => d.isToday)
-  selectedDate.value = todayEntry?.iso ?? realWeekDays.value[0]?.iso ?? ''
-})
-
-watch(() => dietStore.week.length, () => {
-  if (!selectedDate.value) {
-    const todayEntry = realWeekDays.value.find(d => d.isToday)
-    selectedDate.value = todayEntry?.iso ?? realWeekDays.value[0]?.iso ?? ''
+onMounted(async () => {
+  if (dietStore.week.length === 0) {
+    await dietStore.fetchDiet()
   }
 })
 
-function selectDate(iso: string) {
-  selectedDate.value = iso
-}
+const selectedDateObj = computed(() => {
+  if (!selectedDate.value) return new Date()
+  const [y, m, d] = selectedDate.value.split('-').map(Number)
+  return new Date(y, m - 1, d)
+})
+
+const selectedDayInfo = computed(() => {
+  if (!selectedDate.value) return null
+  const d = selectedDateObj.value
+  const today = new Date()
+  return {
+    iso: selectedDate.value,
+    dayIndex: d.getDay(),
+    dayName: DAYS_ES_SHORT[d.getDay()],
+    dayFullName: DAYS_ES_FULL[d.getDay()],
+    dayNum: d.getDate(),
+    isToday: d.toDateString() === today.toDateString(),
+  }
+})
 
 // ─── Current day plan via assignedDays ───
 const currentDayPlan = computed((): DayPlan | null => {
   if (!selectedDate.value || dietStore.week.length === 0) return null
   return dietStore.getDayPlanForDate(selectedDate.value)
 })
-
-const selectedDayInfo = computed(() => {
-  return realWeekDays.value.find(d => d.iso === selectedDate.value) || null
-})
-
-function hasPlanForDay(dayIndex: number, iso: string): boolean {
-  if (dietStore.tempAssignments[iso]) return true
-  return dietStore.week.some(dp => dp.assignedDays?.includes(dayIndex))
-}
 
 // ─── Meal tracking ───
 function isMealCompleted(mealId: string) {
@@ -129,7 +117,7 @@ function closePlanPicker() {
 </script>
 
 <template>
-  <div class="h-full flex flex-col relative max-w-md mx-auto w-full min-h-[calc(100vh-64px)]" style="background: var(--surface-container-lowest);">
+  <div class="h-full flex flex-col relative max-w-md md:max-w-lg mx-auto w-full min-h-[calc(100vh-64px)]" style="background: var(--surface-container-lowest);">
     <!-- Sticky Header & Day Selector -->
     <header class="sticky top-0 z-10 backdrop-blur-md shadow-xs transition-colors" style="background: var(--glass-bg); border-bottom: 1px solid var(--glass-border);">
       <div class="px-4 pt-6 pb-3">
@@ -148,45 +136,8 @@ function closePlanPicker() {
           </router-link>
         </div>
         
-        <!-- Day Navigation — real week -->
-        <div class="flex overflow-x-auto pb-1 hide-scrollbar snap-x">
-          <div class="flex gap-1 min-w-max px-1">
-            <button
-              v-for="day in realWeekDays"
-              :key="day.iso"
-              @click="selectDate(day.iso)"
-              class="snap-start flex flex-col items-center justify-center w-13 h-16 rounded-2xl transition-all font-medium border relative"
-              :style="selectedDate === day.iso ? {
-                background: 'var(--kinetic-glow)',
-                color: 'var(--on-primary)',
-                borderColor: 'var(--primary-container)',
-                transform: 'scale(1.05)'
-              } : day.isToday ? {
-                background: 'rgba(25, 232, 13, 0.12)',
-                color: 'var(--primary)',
-                borderColor: 'rgba(25, 232, 13, 0.3)'
-              } : {
-                background: 'rgba(255,255,255,0.02)',
-                color: 'var(--on-surface-muted)',
-                borderColor: 'var(--glass-border)'
-              }"
-            >
-              <span
-                class="text-[10px] uppercase font-bold mb-0.5 tracking-wider"
-                :style="{ color: selectedDate === day.iso ? 'var(--on-primary)' : 'var(--on-surface-muted)' }"
-              >{{ day.dayName }}</span>
-              <span class="text-lg leading-none font-bold">
-                {{ day.dayNum }}
-              </span>
-              <!-- Dot indicator: no plan -->
-              <span
-                v-if="dietStore.week.length > 0 && !hasPlanForDay(day.dayIndex, day.iso)"
-                class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-yellow-400 border-2"
-                style="border-color: var(--surface-container-lowest);"
-              ></span>
-            </button>
-          </div>
-        </div>
+        <!-- Day Navigation — using DateBubbleSlider -->
+        <DateBubbleSlider v-model="selectedDate" />
       </div>
     </header>
 
