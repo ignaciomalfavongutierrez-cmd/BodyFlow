@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { 
   Users, 
   Home, 
@@ -8,13 +8,13 @@ import {
   ShoppingCart, 
   Sparkles, 
   BarChart3, 
-  ArrowLeft,
-  CheckCircle2,
-  FileText,
-  AlertCircle,
-  X,
-  Sun,
-  Moon
+  ArrowLeft, 
+  CheckCircle2, 
+  FileText, 
+  AlertCircle, 
+  X, 
+  Sun, 
+  Moon 
 } from 'lucide-vue-next'
 import { useTheme } from '../composables/useTheme'
 import ShoppingListWizard from '../components/shopping/ShoppingListWizard.vue'
@@ -25,6 +25,7 @@ import PatientDetailLayout from '../components/patients/PatientDetailLayout.vue'
 import type { Patient } from '../types/patient'
 
 const router = useRouter()
+const route = useRoute()
 const { isDark, toggleTheme } = useTheme()
 
 // Main Navigation: 'pacientes' | 'home' | 'utilities'
@@ -35,6 +36,27 @@ const activeTool = ref<'hub' | 'shopping-list' | 'patient-progress' | 'recommend
 
 // Selected patient ID for detail view
 const selectedPatientId = ref<string | null>(null)
+const currentPatientTab = ref<string>('overview')
+const currentPlanId = ref<string | null>(null)
+
+// Synchronize state from current URL params so F5 reloads preserve state
+function syncFromRoute() {
+  const path = route.path
+  if (path.startsWith('/utilities/herramientas')) {
+    currentTab.value = 'utilities'
+    activeTool.value = (route.params.toolId as any) || 'hub'
+    selectedPatientId.value = null
+  } else {
+    currentTab.value = 'pacientes'
+    selectedPatientId.value = (route.params.patientId as string) || null
+    currentPatientTab.value = (route.params.tabId as string) || 'overview'
+    currentPlanId.value = (route.params.planId as string) || null
+  }
+}
+
+watch(route, () => {
+  syncFromRoute()
+}, { immediate: true })
 
 // Prefilled recommendations state when launched from a patient
 const prefilledRecommendations = ref({
@@ -63,33 +85,56 @@ function navigateToHome() {
 function handleTabClick(tab: 'pacientes' | 'home' | 'utilities') {
   if (tab === 'home') {
     navigateToHome()
-  } else {
-    currentTab.value = tab
-    if (tab === 'utilities') {
-      activeTool.value = 'hub'
-    }
+  } else if (tab === 'pacientes') {
+    router.push('/utilities/pacientes')
+  } else if (tab === 'utilities') {
+    router.push('/utilities/herramientas')
   }
 }
 
 function openTool(tool: 'shopping-list' | 'diet-generator' | 'patient-progress' | 'patient-stats' | 'recommendations') {
-  if (tool === 'shopping-list') {
-    activeTool.value = 'shopping-list'
-  } else if (tool === 'patient-progress' || tool === 'patient-stats') {
-    activeTool.value = 'patient-progress'
-  } else if (tool === 'recommendations') {
-    activeTool.value = 'recommendations'
-  } else if (tool === 'diet-generator') {
+  if (tool === 'diet-generator') {
     comingSoonModal.value = {
       open: true,
       title: 'Generador Inteligente de Dietas',
       description: 'Esta herramienta permitirá estructurar y crear planes alimenticios completos calculando macros automáticamente y adaptándose a las preferencias y restricciones del paciente con Inteligencia Artificial.',
       icon: Sparkles
     }
+    return
   }
+
+  const mapped = tool === 'patient-stats' ? 'patient-progress' : tool
+  router.push(`/utilities/herramientas/${mapped}`)
 }
 
 function onSelectPatient(patientId: string) {
-  selectedPatientId.value = patientId
+  router.push(`/utilities/pacientes/${patientId}`)
+}
+
+function onPatientBack() {
+  router.push('/utilities/pacientes')
+}
+
+function onPatientTabChange(tabId: string) {
+  if (selectedPatientId.value) {
+    router.push(`/utilities/pacientes/${selectedPatientId.value}/${tabId}`)
+  }
+}
+
+function onOpenMenuDesigner(planId: string) {
+  if (selectedPatientId.value) {
+    router.push(`/utilities/pacientes/${selectedPatientId.value}/planes/${planId}/menu`)
+  }
+}
+
+function onCloseMenuDesigner() {
+  if (selectedPatientId.value) {
+    router.push(`/utilities/pacientes/${selectedPatientId.value}/diet-plans`)
+  }
+}
+
+function returnToHub() {
+  router.push('/utilities/herramientas')
 }
 
 function handlePatientRecommendations(patient: Patient) {
@@ -105,13 +150,11 @@ function handlePatientRecommendations(patient: Patient) {
     objectiveId: mappedObj,
     indications: (patient.alertasMedicas || []).join(', ') || patient.notasGenerales || ''
   }
-  currentTab.value = 'utilities'
-  activeTool.value = 'recommendations'
+  router.push('/utilities/herramientas/recommendations')
 }
 
 function handlePatientShoppingList(_patient: Patient) {
-  currentTab.value = 'utilities'
-  activeTool.value = 'shopping-list'
+  router.push('/utilities/herramientas/shopping-list')
 }
 </script>
 
@@ -146,7 +189,7 @@ function handlePatientShoppingList(_patient: Patient) {
             <!-- 1. Pacientes -->
             <button
               @click="handleTabClick('pacientes')"
-              class="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200"
+              class="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer"
               :class="[
                 currentTab === 'pacientes'
                   ? 'bg-white dark:bg-white/15 text-slate-900 dark:text-white shadow-sm ring-1 ring-slate-200 dark:ring-white/20'
@@ -160,7 +203,7 @@ function handlePatientShoppingList(_patient: Patient) {
             <!-- 2. Home -->
             <button
               @click="handleTabClick('home')"
-              class="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-white/5"
+              class="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-white/5 cursor-pointer"
               title="Ir al inicio de BodyFlow"
             >
               <Home class="w-4 h-4" />
@@ -170,7 +213,7 @@ function handlePatientShoppingList(_patient: Patient) {
             <!-- 3. Utilities -->
             <button
               @click="handleTabClick('utilities')"
-              class="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200"
+              class="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer"
               :class="[
                 currentTab === 'utilities'
                   ? 'text-black font-bold shadow-md'
@@ -186,7 +229,7 @@ function handlePatientShoppingList(_patient: Patient) {
           <!-- Theme Switcher Button -->
           <button
             @click="toggleTheme"
-            class="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 transition-all shadow-xs"
+            class="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 transition-all shadow-xs cursor-pointer"
             :title="isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
             aria-label="Alternar tema"
           >
@@ -216,7 +259,12 @@ function handlePatientShoppingList(_patient: Patient) {
         <PatientDetailLayout
           v-else
           :patientId="selectedPatientId"
-          @back="selectedPatientId = null"
+          :initialTab="currentPatientTab"
+          :initialPlanId="currentPlanId || undefined"
+          @back="onPatientBack"
+          @tabChange="onPatientTabChange"
+          @openMenuDesigner="onOpenMenuDesigner"
+          @closeMenuDesigner="onCloseMenuDesigner"
           @openRecommendations="handlePatientRecommendations"
           @openShoppingList="handlePatientShoppingList"
         />
@@ -231,15 +279,15 @@ function handlePatientShoppingList(_patient: Patient) {
         <!-- Back button if inside a tool -->
         <div v-if="activeTool !== 'hub'" class="no-print">
           <button
-            @click="activeTool = 'hub'"
-            class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/15 text-slate-700 dark:text-white text-xs font-bold transition-all border border-slate-200 dark:border-white/10"
+            @click="returnToHub"
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/15 text-slate-700 dark:text-white text-xs font-bold transition-all border border-slate-200 dark:border-white/10 cursor-pointer"
           >
             <ArrowLeft class="w-4 h-4" />
             <span>Volver al Hub de Utilidades</span>
           </button>
         </div>
 
-        <!-- HUB VIEW: The 3 Requested Options -->
+        <!-- HUB VIEW: The 4 Pro Options -->
         <div v-if="activeTool === 'hub'" class="space-y-8">
           
           <!-- Banner / Hero -->
@@ -253,7 +301,7 @@ function handlePatientShoppingList(_patient: Patient) {
                 Módulos de Nutrición & Utilidades
               </h2>
               <p class="mt-2 text-xs sm:text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-                Optimiza tus consultas, extrae listas de compras automáticas desde planes en PDF con IA, calcula mermas y genera fichas imprimibles para tus pacientes.
+                Optimiza tus consultas, diseña planes nutricionales inteligentes, extrae listas de compras automáticas con IA y genera fichas clínicas imprimibles para tus pacientes.
               </p>
             </div>
             
@@ -264,7 +312,7 @@ function handlePatientShoppingList(_patient: Patient) {
           <!-- 4 Tools Grid -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            <!-- OPTION 1: Creador de Lista de Compras (Full Nutri-flow-Utilities Module) -->
+            <!-- OPTION 1: Creador de Lista de Compras -->
             <div
               @click="openTool('shopping-list')"
               class="bg-emerald-50/40 dark:bg-emerald-950/20 p-6 rounded-3xl border-2 border-emerald-500/40 dark:border-emerald-500/30 hover:border-emerald-500 transition-all duration-300 flex flex-col justify-between group cursor-pointer relative overflow-hidden shadow-lg hover:shadow-xl"
@@ -301,7 +349,7 @@ function handlePatientShoppingList(_patient: Patient) {
               </div>
             </div>
 
-            <!-- OPTION 2: Hoja de Recomendaciones Nutricionales (Full Module) -->
+            <!-- OPTION 2: Hoja de Recomendaciones Nutricionales -->
             <div
               @click="openTool('recommendations')"
               class="bg-white dark:bg-white/5 p-6 rounded-3xl border border-slate-200 dark:border-white/10 hover:border-emerald-500/50 dark:hover:border-emerald-500/40 transition-all duration-300 flex flex-col justify-between group cursor-pointer relative overflow-hidden shadow-sm hover:shadow-md"
@@ -335,7 +383,7 @@ function handlePatientShoppingList(_patient: Patient) {
               </div>
             </div>
 
-            <!-- OPTION 3: Avances y Progreso Clínico de Pacientes (Active Tool) -->
+            <!-- OPTION 3: Avances y Progreso Clínico de Pacientes -->
             <div
               @click="openTool('patient-progress')"
               class="bg-white dark:bg-white/5 p-6 rounded-3xl border border-slate-200 dark:border-white/10 hover:border-indigo-300 dark:hover:border-indigo-500/40 transition-all duration-300 flex flex-col justify-between group cursor-pointer relative overflow-hidden shadow-sm hover:shadow-md"
@@ -369,7 +417,7 @@ function handlePatientShoppingList(_patient: Patient) {
               </div>
             </div>
 
-            <!-- OPTION 4: Generador de Dietas (Placeholder) -->
+            <!-- OPTION 4: Generador de Dietas -->
             <div
               @click="openTool('diet-generator')"
               class="bg-white dark:bg-white/5 p-6 rounded-3xl border border-slate-200 dark:border-white/10 hover:border-purple-300 dark:hover:border-white/30 transition-all duration-300 flex flex-col justify-between group cursor-pointer relative overflow-hidden shadow-sm hover:shadow-md"

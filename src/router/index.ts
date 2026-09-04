@@ -34,6 +34,42 @@ const router = createRouter({
       meta: { requiresAuth: true, adminOnly: true }
     },
     {
+      path: '/utilities/pacientes',
+      name: 'utilities-patients',
+      component: () => import('../views/UtilitiesView.vue'),
+      meta: { requiresAuth: true, adminOnly: true }
+    },
+    {
+      path: '/utilities/pacientes/:patientId',
+      name: 'utilities-patient-detail',
+      component: () => import('../views/UtilitiesView.vue'),
+      meta: { requiresAuth: true, adminOnly: true }
+    },
+    {
+      path: '/utilities/pacientes/:patientId/:tabId',
+      name: 'utilities-patient-tab',
+      component: () => import('../views/UtilitiesView.vue'),
+      meta: { requiresAuth: true, adminOnly: true }
+    },
+    {
+      path: '/utilities/pacientes/:patientId/planes/:planId/menu',
+      name: 'utilities-patient-menu',
+      component: () => import('../views/UtilitiesView.vue'),
+      meta: { requiresAuth: true, adminOnly: true }
+    },
+    {
+      path: '/utilities/herramientas',
+      name: 'utilities-tools-hub',
+      component: () => import('../views/UtilitiesView.vue'),
+      meta: { requiresAuth: true, adminOnly: true }
+    },
+    {
+      path: '/utilities/herramientas/:toolId',
+      name: 'utilities-tool',
+      component: () => import('../views/UtilitiesView.vue'),
+      meta: { requiresAuth: true, adminOnly: true }
+    },
+    {
       path: '/upload',
       name: 'upload',
       component: UploadView,

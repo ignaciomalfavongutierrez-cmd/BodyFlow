@@ -1,137 +1,154 @@
 <template>
   <div class="space-y-6 max-w-7xl mx-auto w-full pb-16">
     
-    <!-- Top Persistent Patient Header -->
-    <PatientHeader
-      :patient="patient"
-      :measurements="measurements"
-      @back="$emit('back')"
-      @newAppointment="openNewAppointmentModal"
-      @newMeasurement="openNewMeasurementModal"
-      @openRecommendations="handleOpenRecommendations"
-      @editPatient="showEditPatientModal = true"
-    />
-
-    <!-- Internal Navigation Tabs Bar (Sticky on Desktop) -->
-    <div class="sticky top-16 z-30 bg-white/90 dark:bg-[#0e0e10]/90 backdrop-blur-xl py-2 -my-2 border-b border-slate-200 dark:border-white/10 no-print transition-colors">
-      <nav class="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-        
-        <button
-          v-for="tab in tabs"
-          :key="tab.id"
-          @click="activeTab = tab.id"
-          class="flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-200 cursor-pointer"
-          :class="[
-            activeTab === tab.id
-              ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md ring-1 ring-slate-900/10'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
-          ]"
-        >
-          <component :is="tab.icon" class="w-4 h-4 shrink-0" />
-          <span>{{ tab.label }}</span>
-          <span 
-            v-if="tab.badge" 
-            class="text-[10px] px-1.5 py-0.2 rounded-full font-extrabold"
-            :class="activeTab === tab.id ? 'bg-white/20 dark:bg-black/20 text-white dark:text-slate-900' : 'bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-300'"
-          >
-            {{ tab.badge }}
-          </span>
-        </button>
-
-      </nav>
+    <!-- IMMERSIVE MENU DESIGNER VIEW -->
+    <div v-if="activePlanForMenu" class="space-y-6">
+      <PatientMenuDesigner
+        :patient="patient"
+        :plan="activePlanForMenu"
+        @back="handleCloseMenuDesigner"
+        @saved="handleMenuSaved"
+      />
     </div>
 
-    <!-- Tab Contents Transition Area -->
-    <main class="min-h-[450px]">
+    <!-- STANDARD PATIENT DOSSIER & TABS VIEW -->
+    <div v-else class="space-y-6">
+      <!-- Top Persistent Patient Header -->
+      <PatientHeader
+        :patient="patient"
+        :measurements="measurements"
+        @back="$emit('back')"
+        @newAppointment="openNewAppointmentModal"
+        @newMeasurement="openNewMeasurementModal"
+        @openRecommendations="handleOpenRecommendations"
+        @editPatient="showEditPatientModal = true"
+      />
+
+      <!-- Internal Navigation Tabs Bar (Sticky on Desktop) -->
+      <div class="sticky top-16 z-30 bg-white/90 dark:bg-[#0e0e10]/90 backdrop-blur-xl py-2 -my-2 border-b border-slate-200 dark:border-white/10 no-print transition-colors">
+        <nav class="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+          
+          <button
+            v-for="tab in tabs"
+            :key="tab.id"
+            @click="setTab(tab.id)"
+            class="flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-200 cursor-pointer"
+            :class="[
+              activeTab === tab.id
+                ? 'bg-emerald-600 dark:bg-emerald-500 text-white dark:text-slate-950 shadow-md ring-1 ring-emerald-500/30'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
+            ]"
+          >
+            <component :is="tab.icon" class="w-4 h-4 shrink-0" />
+            <span>{{ tab.label }}</span>
+            <span 
+              v-if="tab.badge" 
+              class="text-[10px] px-1.5 py-0.2 rounded-full font-extrabold"
+              :class="activeTab === tab.id ? 'bg-white/20 dark:bg-black/20 text-white dark:text-slate-900' : 'bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-300'"
+            >
+              {{ tab.badge }}
+            </span>
+          </button>
+
+        </nav>
+      </div>
+
+      <!-- Tab Contents Transition Area -->
+      <main class="min-h-[450px]">
+        
+        <!-- TAB 1: Resumen / Overview -->
+        <PatientTabOverview
+          v-if="activeTab === 'overview'"
+          :patient="patient"
+          :measurements="measurements"
+          :appointments="appointments"
+          @newMeasurement="openNewMeasurementModal"
+          @scheduleAppointment="openNewAppointmentModal"
+          @openRecommendations="handleOpenRecommendations"
+          @goToAppointments="setTab('appointments')"
+          @goToMeasurements="setTab('measurements')"
+          @goToHistory="setTab('history')"
+        />
+
+        <!-- TAB 2: Historial Clínico & Preferencias IA -->
+        <PatientTabHistory
+          v-else-if="activeTab === 'history'"
+          :patientId="patient.id"
+          :initialHistory="clinicalHistory"
+          @updated="handleHistoryUpdated"
+        />
+
+        <!-- TAB 3: Citas & Consultas -->
+        <PatientTabAppointments
+          v-else-if="activeTab === 'appointments'"
+          :patientId="patient.id"
+          :appointments="appointments"
+          @scheduleAppointment="openNewAppointmentModal"
+          @editAppointment="openEditAppointmentModal"
+          @refresh="loadPatientData"
+        />
+
+        <!-- TAB 4: Mediciones & Avances -->
+        <PatientTabMeasurements
+          v-else-if="activeTab === 'measurements'"
+          :patient="patient"
+          :measurements="measurements"
+          @newMeasurement="openNewMeasurementModal"
+          @refresh="loadPatientData"
+        />
+
+        <!-- TAB 5: Planes & Dietas -->
+        <PatientTabDietPlans
+          v-else-if="activeTab === 'diet-plans'"
+          :patient="patient"
+          :clinicalHistory="clinicalHistory"
+          :measurements="measurements"
+          :dietPlans="dietPlans"
+          @openShoppingList="$emit('openShoppingList', patient)"
+          @openMenuDesigner="handleOpenMenuDesigner"
+          @goToHistory="setTab('history')"
+          @refresh="loadPatientData"
+        />
+
+        <!-- TAB 6: Archivos & Entregables Oficiales -->
+        <PatientTabFiles
+          v-else-if="activeTab === 'files'"
+          :patient="patient"
+          @openRecommendations="handleOpenRecommendations"
+          @goToMeasurements="setTab('measurements')"
+        />
+
+      </main>
+
+      <!-- Modals -->
       
-      <!-- TAB 1: Resumen / Overview -->
-      <PatientTabOverview
-        v-if="activeTab === 'overview'"
-        :patient="patient"
-        :measurements="measurements"
-        :appointments="appointments"
-        @newMeasurement="openNewMeasurementModal"
-        @scheduleAppointment="openNewAppointmentModal"
-        @openRecommendations="handleOpenRecommendations"
-        @goToAppointments="activeTab = 'appointments'"
-        @goToMeasurements="activeTab = 'measurements'"
-        @goToHistory="activeTab = 'history'"
+      <!-- 1. Edit Patient Modal -->
+      <PatientModalForm
+        v-if="showEditPatientModal"
+        :initialData="patient"
+        @close="showEditPatientModal = false"
+        @save="handleSavePatientEdit"
       />
 
-      <!-- TAB 2: Historial Clínico & Preferencias IA -->
-      <PatientTabHistory
-        v-else-if="activeTab === 'history'"
-        :patientId="patient.id"
-        :initialHistory="clinicalHistory"
-        @updated="handleHistoryUpdated"
+      <!-- 2. Appointment Modal (New / Edit) -->
+      <AppointmentModal
+        v-if="showAppointmentModal"
+        :patientName="patient.nombre"
+        :initialData="selectedAppointment"
+        @close="showAppointmentModal = false"
+        @save="handleSaveAppointment"
       />
 
-      <!-- TAB 3: Citas & Consultas -->
-      <PatientTabAppointments
-        v-else-if="activeTab === 'appointments'"
-        :patientId="patient.id"
-        :appointments="appointments"
-        @scheduleAppointment="openNewAppointmentModal"
-        @editAppointment="openEditAppointmentModal"
-        @refresh="loadPatientData"
+      <!-- 3. Quick Measurement Modal -->
+      <QuickMeasurementModal
+        v-if="showMeasurementModal"
+        :patientName="patient.nombre"
+        :sex="patient.sexo"
+        :initialData="selectedMeasurement"
+        @close="showMeasurementModal = false"
+        @save="handleSaveMeasurement"
       />
-
-      <!-- TAB 4: Mediciones & Avances -->
-      <PatientTabMeasurements
-        v-else-if="activeTab === 'measurements'"
-        :patient="patient"
-        :measurements="measurements"
-        @newMeasurement="openNewMeasurementModal"
-        @refresh="loadPatientData"
-      />
-
-      <!-- TAB 5: Planes & Dietas -->
-      <PatientTabDietPlans
-        v-else-if="activeTab === 'diet-plans'"
-        :patient="patient"
-        :dietPlans="dietPlans"
-        @openShoppingList="$emit('openShoppingList', patient)"
-        @refresh="loadPatientData"
-      />
-
-      <!-- TAB 6: Archivos & Entregables Oficiales -->
-      <PatientTabFiles
-        v-else-if="activeTab === 'files'"
-        :patient="patient"
-        @openRecommendations="handleOpenRecommendations"
-        @goToMeasurements="activeTab = 'measurements'"
-      />
-
-    </main>
-
-    <!-- Modals -->
-    
-    <!-- 1. Edit Patient Modal -->
-    <PatientModalForm
-      v-if="showEditPatientModal"
-      :initialData="patient"
-      @close="showEditPatientModal = false"
-      @save="handleSavePatientEdit"
-    />
-
-    <!-- 2. Appointment Modal (New / Edit) -->
-    <AppointmentModal
-      v-if="showAppointmentModal"
-      :patientName="patient.nombre"
-      :initialData="selectedAppointment"
-      @close="showAppointmentModal = false"
-      @save="handleSaveAppointment"
-    />
-
-    <!-- 3. Quick Measurement Modal -->
-    <QuickMeasurementModal
-      v-if="showMeasurementModal"
-      :patientName="patient.nombre"
-      :sex="patient.sexo"
-      :initialData="selectedMeasurement"
-      @close="showMeasurementModal = false"
-      @save="handleSaveMeasurement"
-    />
+    </div>
 
   </div>
 </template>
@@ -162,6 +179,7 @@ import PatientTabAppointments from './tabs/PatientTabAppointments.vue';
 import PatientTabMeasurements from './tabs/PatientTabMeasurements.vue';
 import PatientTabDietPlans from './tabs/PatientTabDietPlans.vue';
 import PatientTabFiles from './tabs/PatientTabFiles.vue';
+import PatientMenuDesigner from './menu/PatientMenuDesigner.vue';
 
 import PatientModalForm from './PatientModalForm.vue';
 import AppointmentModal from './modals/AppointmentModal.vue';
@@ -170,17 +188,22 @@ import QuickMeasurementModal from './modals/QuickMeasurementModal.vue';
 const props = defineProps<{
   patientId: string;
   initialTab?: string;
+  initialPlanId?: string;
 }>();
 
 const emit = defineEmits<{
   (e: 'back'): void;
   (e: 'openRecommendations', patient: Patient): void;
   (e: 'openShoppingList', patient: Patient): void;
+  (e: 'tabChange', tab: string): void;
+  (e: 'openMenuDesigner', planId: string): void;
+  (e: 'closeMenuDesigner'): void;
 }>();
 
 type TabId = 'overview' | 'history' | 'appointments' | 'measurements' | 'diet-plans' | 'files';
 
 const activeTab = ref<TabId>((props.initialTab as TabId) || 'overview');
+const activePlanForMenu = ref<PatientDietPlan | null>(null);
 
 const patient = ref<Patient>({
   id: props.patientId,
@@ -214,6 +237,26 @@ const tabs = computed(() => [
   { id: 'files' as const, label: 'Archivos & Fichas', icon: FolderArchive }
 ]);
 
+function setTab(tabId: TabId) {
+  activeTab.value = tabId;
+  emit('tabChange', tabId);
+}
+
+function handleOpenMenuDesigner(plan: PatientDietPlan) {
+  activePlanForMenu.value = plan;
+  emit('openMenuDesigner', plan.id);
+}
+
+function handleCloseMenuDesigner() {
+  activePlanForMenu.value = null;
+  emit('closeMenuDesigner');
+}
+
+async function handleMenuSaved(updatedPlan: PatientDietPlan) {
+  await loadPatientData();
+  activePlanForMenu.value = updatedPlan;
+}
+
 async function loadPatientData() {
   if (!props.patientId) return;
   const p = await PatientsService.getPatientById(props.patientId);
@@ -224,6 +267,14 @@ async function loadPatientData() {
   appointments.value = await PatientsService.getAppointments(props.patientId);
   measurements.value = await PatientsService.getMeasurements(props.patientId);
   dietPlans.value = await PatientsService.getPatientDietPlans(props.patientId);
+
+  // If initialPlanId was passed, restore the menu designer immediately
+  if (props.initialPlanId) {
+    const found = dietPlans.value.find(dp => dp.id === props.initialPlanId);
+    if (found) {
+      activePlanForMenu.value = found;
+    }
+  }
 }
 
 onMounted(() => {
@@ -232,6 +283,23 @@ onMounted(() => {
 
 watch(() => props.patientId, () => {
   loadPatientData();
+});
+
+watch(() => props.initialTab, (newTab) => {
+  if (newTab && newTab !== activeTab.value) {
+    activeTab.value = newTab as TabId;
+  }
+});
+
+watch(() => props.initialPlanId, (newPlanId) => {
+  if (newPlanId && dietPlans.value.length) {
+    const found = dietPlans.value.find(dp => dp.id === newPlanId);
+    if (found) {
+      activePlanForMenu.value = found;
+    }
+  } else if (!newPlanId) {
+    activePlanForMenu.value = null;
+  }
 });
 
 function openNewAppointmentModal() {

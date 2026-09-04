@@ -13,7 +13,19 @@ export interface Skinfolds {
 export type BiologicalSex = 'H' | 'M';
 export type FatSource = 'formula' | 'bascula';
 
-export type CircumferenceKey = 'cadera' | 'cintura' | 'pecho' | 'brazo' | 'muslo' | 'pantorrilla';
+export type CircumferenceKey = 
+  | 'cadera' 
+  | 'cintura' 
+  | 'pecho' 
+  | 'brazo' 
+  | 'brazo_relajado'
+  | 'brazo_contraido'
+  | 'antebrazo'
+  | 'muslo' 
+  | 'muslo_medio'
+  | 'pantorrilla'
+  | 'hombros'
+  | 'cuello';
 
 export interface CircumferenceCatalogItem {
   key: CircumferenceKey;
@@ -27,9 +39,14 @@ export const CIRCUMFERENCE_CATALOG: CircumferenceCatalogItem[] = [
   { key: 'cadera', label: 'Cadera / Glúteo (Pompa)', shortLabel: 'Cadera/Pompa', color: 'rgb(139, 92, 246)', defaultActive: true },
   { key: 'cintura', label: 'Cintura', shortLabel: 'Cintura', color: 'rgb(59, 130, 246)', defaultActive: true },
   { key: 'pecho', label: 'Pecho / Tórax', shortLabel: 'Pecho', color: 'rgb(249, 115, 22)', defaultActive: false },
-  { key: 'brazo', label: 'Brazo / Bíceps', shortLabel: 'Brazo', color: 'rgb(16, 185, 129)', defaultActive: false },
-  { key: 'muslo', label: 'Muslo', shortLabel: 'Muslo', color: 'rgb(236, 72, 153)', defaultActive: false },
-  { key: 'pantorrilla', label: 'Pantorrilla', shortLabel: 'Pantorrilla', color: 'rgb(20, 184, 166)', defaultActive: false },
+  { key: 'brazo', label: 'Brazo / Bíceps Relajado', shortLabel: 'Brazo', color: 'rgb(16, 185, 129)', defaultActive: false },
+  { key: 'brazo_contraido', label: 'Brazo / Bíceps Contraído (Fuerza)', shortLabel: 'Bíceps (Contr.)', color: 'rgb(5, 150, 105)', defaultActive: false },
+  { key: 'antebrazo', label: 'Antebrazo', shortLabel: 'Antebrazo', color: 'rgb(14, 165, 233)', defaultActive: false },
+  { key: 'muslo', label: 'Muslo / Pierna (Máximo)', shortLabel: 'Muslo Máx', color: 'rgb(236, 72, 153)', defaultActive: false },
+  { key: 'muslo_medio', label: 'Muslo / Pierna Medio', shortLabel: 'Muslo Med', color: 'rgb(219, 39, 119)', defaultActive: false },
+  { key: 'pantorrilla', label: 'Pantorrilla / Gemelo', shortLabel: 'Pantorrilla', color: 'rgb(20, 184, 166)', defaultActive: false },
+  { key: 'hombros', label: 'Hombros / Deltoides', shortLabel: 'Hombros', color: 'rgb(245, 158, 11)', defaultActive: false },
+  { key: 'cuello', label: 'Cuello', shortLabel: 'Cuello', color: 'rgb(99, 102, 241)', defaultActive: false },
 ];
 
 export interface ClinicalRecord {
@@ -42,8 +59,14 @@ export interface ClinicalRecord {
   Cadera: number | string;
   Pecho?: number | string;
   Brazo?: number | string;
+  Brazo_Relajado?: number | string;
+  Brazo_Contraido?: number | string;
+  Antebrazo?: number | string;
   Muslo?: number | string;
+  Muslo_Medio?: number | string;
   Pantorrilla?: number | string;
+  Hombros?: number | string;
+  Cuello?: number | string;
   Pliegues: Skinfolds;
   Suma_Pliegues: number | string;
   Suma_Manual?: boolean;

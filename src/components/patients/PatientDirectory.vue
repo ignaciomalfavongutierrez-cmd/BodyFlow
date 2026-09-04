@@ -97,13 +97,13 @@
       </div>
 
       <!-- Filter Pills -->
-      <div class="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+      <div class="flex flex-wrap items-center gap-1.5">
         <button
           v-for="f in filterOptions"
           :key="f.value"
           @click="selectedStatus = f.value"
           class="px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all"
-          :class="selectedStatus === f.value ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-2xs' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'"
+          :class="selectedStatus === f.value ? 'bg-emerald-600 dark:bg-emerald-500 text-white dark:text-slate-950 font-black shadow-xs ring-1 ring-emerald-500/30' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'"
         >
           {{ f.label }}
         </button>

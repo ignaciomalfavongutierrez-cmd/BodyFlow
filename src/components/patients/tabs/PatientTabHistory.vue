@@ -420,7 +420,7 @@ const historyData = reactive<ClinicalHistory>({
     gustosFavoritos: [...(props.initialHistory?.preferenciasAlimentarias?.gustosFavoritos || [])],
     aversionesDisgustos: [...(props.initialHistory?.preferenciasAlimentarias?.aversionesDisgustos || [])],
     recordatorio24h: props.initialHistory?.preferenciasAlimentarias?.recordatorio24h || '',
-    comidasAlDia: props.initialHistory?.preferenciasAlimentarias?.comidasAlDia || 4,
+    comidasAlDia: props.initialHistory?.preferenciasAlimentarias?.comidasAlDia || 5,
     consumoAguaLitros: props.initialHistory?.preferenciasAlimentarias?.consumoAguaLitros || 2.5,
     restriccionesEspeciales: props.initialHistory?.preferenciasAlimentarias?.restriccionesEspeciales || ''
   },

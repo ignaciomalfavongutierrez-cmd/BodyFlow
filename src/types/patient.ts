@@ -1,4 +1,5 @@
 import type { ClinicalRecord, BiologicalSex } from './patientProgress';
+import type { DietPlanMenu } from './dietMenu';
 
 export type { BiologicalSex };
 export type PatientStatus = 'activo' | 'seguimiento' | 'inactivo' | 'pausado';
@@ -94,6 +95,40 @@ export interface PatientMeasurement extends ClinicalRecord {
   createdAt: any;
 }
 
+export interface PatientPlanCalculationSnapshot {
+  pesoUtilizado?: number;
+  tallaUtilizada?: number;
+  edadUtilizada?: number;
+  sexoUtilizado?: BiologicalSex;
+  grasaPorcentajeUtilizada?: number | null;
+  masaMagraKgUtilizada?: number | null;
+  nivelActividadUtilizado?: ActivityLevel;
+  actividadFisicaDetalle?: string;
+  factorActividad?: number;
+  tmbCalculada?: number;
+  metodoTmb?: string;
+  getCalculado?: number;
+  ajusteCaloricoObjetivo?: number; // +/- kcal
+  caloriasObjetivo?: number;
+  metodoProteina?: string;
+  gKgProteina?: number;
+  proteinaGramos?: number;
+  metodoGrasas?: string;
+  porcentajeGrasas?: number;
+  grasasGramos?: number;
+  carbosGramos?: number;
+  alertasClinicasDetectadas?: string[];
+  fechaCalculo?: string;
+  formulaExplicacion?: {
+    tmb?: string;
+    get?: string;
+    calorias?: string;
+    proteina?: string;
+    grasas?: string;
+    carbos?: string;
+  };
+}
+
 /**
  * Subcollection: `pacientes/{patientId}/planes_nutricionales/{planId}`
  */
@@ -108,6 +143,31 @@ export interface PatientDietPlan {
     carbs: number;
     fat: number;
   };
+  objetivo?: string;
+  fuenteCalculo?: 'automatico' | 'manual' | 'ajustado';
+  metodoCalculo?: string;
+  calculoOriginal?: {
+    calorias: number;
+    macros: {
+      protein: number;
+      carbs: number;
+      fat: number;
+    };
+  };
+  ajustesNutriologo?: {
+    calorias?: number;
+    macros?: {
+      protein?: number;
+      carbs?: number;
+      fat?: number;
+    };
+    motivoAjuste?: string;
+  };
+  parametrosCalculo?: PatientPlanCalculationSnapshot;
+  advertenciasClinicas?: string[];
+  comidasSugeridas?: number;
+  menu?: DietPlanMenu;
+  menuGenerado?: boolean;
   enlaceShoppingListId?: string;
   pdfUrl?: string;
   notas?: string;

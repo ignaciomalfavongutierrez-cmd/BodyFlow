@@ -660,8 +660,14 @@ const selectedCircumferences = ref<Record<CircumferenceKey, boolean>>({
   cintura: true,
   pecho: false,
   brazo: false,
+  brazo_relajado: false,
+  brazo_contraido: false,
+  antebrazo: false,
   muslo: false,
+  muslo_medio: false,
   pantorrilla: false,
+  hombros: false,
+  cuello: false,
 });
 
 const currentDate = computed(() =>

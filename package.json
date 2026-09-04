@@ -7,6 +7,7 @@
     "dev": "vite",
     "server": "npm run dev --prefix server",
     "build": "vue-tsc -b && vite build",
+    "test": "npx tsx src/services/nutrition/__tests__/nutritionEngine.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {

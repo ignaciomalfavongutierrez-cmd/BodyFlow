@@ -722,16 +722,27 @@ export class PatientsService {
     const fullPlan: PatientDietPlan = {
       ...plan,
       id: planId,
-      createdAt: new Date().toISOString()
+      createdAt: (plan as any).createdAt || new Date().toISOString()
     };
 
     const currentPlans = this.localDietPlansCache[patientId] || [];
-    this.localDietPlansCache[patientId] = [fullPlan, ...currentPlans];
+    const existingIndex = currentPlans.findIndex(p => p.id === planId);
+    if (existingIndex !== -1) {
+      currentPlans[existingIndex] = { ...currentPlans[existingIndex], ...fullPlan };
+      this.localDietPlansCache[patientId] = [...currentPlans];
+    } else {
+      this.localDietPlansCache[patientId] = [fullPlan, ...currentPlans];
+    }
     this.saveToStorage(this.getStorageKey('planes', patientId), this.localDietPlansCache[patientId]);
 
     const seed = SEED_PATIENTS.find(s => s.patient.id === patientId);
     if (seed) {
-      seed.dietPlans = [fullPlan, ...seed.dietPlans];
+      const sIdx = seed.dietPlans.findIndex(p => p.id === planId);
+      if (sIdx !== -1) {
+        seed.dietPlans[sIdx] = { ...seed.dietPlans[sIdx], ...fullPlan };
+      } else {
+        seed.dietPlans = [fullPlan, ...seed.dietPlans];
+      }
     }
 
     try {
@@ -745,6 +756,22 @@ export class PatientsService {
     }
 
     return fullPlan;
+  }
+
+  /**
+   * Actualiza únicamente el estatus de un plan nutricional existente (activo, completado, archivado)
+   */
+  static async updateDietPlanStatus(
+    patientId: string,
+    planId: string,
+    status: 'activo' | 'completado' | 'archivado'
+  ): Promise<void> {
+    const plans = this.localDietPlansCache[patientId] || [];
+    const target = plans.find(p => p.id === planId);
+    if (target) {
+      target.status = status;
+      await this.savePatientDietPlan(patientId, target);
+    }
   }
 
   static async getPatientDeliverables(patientId: string): Promise<PatientDeliverable[]> {
