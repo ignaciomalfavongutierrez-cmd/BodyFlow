@@ -1,6 +1,6 @@
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
-    <div class="max-w-2xl w-full p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-white/20 shadow-2xl relative my-8 bg-white dark:bg-[#18181b] transition-all text-slate-900 dark:text-white max-h-[92vh] flex flex-col">
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/80 backdrop-blur-sm overflow-y-auto">
+    <div class="max-w-3xl w-full p-6 sm:p-7 rounded-3xl border border-slate-200 dark:border-white/20 shadow-2xl relative my-8 bg-white dark:bg-[#18181b] transition-all text-slate-900 dark:text-white max-h-[92vh] flex flex-col">
       
       <!-- Close Button -->
       <button
@@ -804,7 +804,7 @@ function handleSubmit() {
     ...(props.editingPlan ? {
       id: props.editingPlan.id,
       createdAt: props.editingPlan.createdAt,
-      menu: props.editingPlan.menu
+      ...(props.editingPlan.menu ? { menu: props.editingPlan.menu } : {})
     } : {}),
     nombre: form.nombre.trim(),
     fechaAsignacion: props.editingPlan?.fechaAsignacion || new Date().toISOString().split('T')[0],
@@ -818,22 +818,26 @@ function handleSubmit() {
     objetivo: form.objetivoId,
     fuenteCalculo,
     metodoCalculo: form.metodoTmb,
-    calculoOriginal: engineResult.value.isComplete ? {
-      calorias: engineResult.value.caloriasObjetivo,
-      macros: {
-        protein: engineResult.value.macros.protein,
-        carbs: engineResult.value.macros.carbs,
-        fat: engineResult.value.macros.fat
+    ...(engineResult.value.isComplete ? {
+      calculoOriginal: {
+        calorias: engineResult.value.caloriasObjetivo,
+        macros: {
+          protein: engineResult.value.macros.protein,
+          carbs: engineResult.value.macros.carbs,
+          fat: engineResult.value.macros.fat
+        }
       }
-    } : (props.editingPlan?.calculoOriginal || undefined),
-    ajustesNutriologo: hasManualModifications.value ? {
-      calorias: form.calorias,
-      macros: {
-        protein: form.macros.protein,
-        carbs: form.macros.carbs,
-        fat: form.macros.fat
+    } : (props.editingPlan?.calculoOriginal ? { calculoOriginal: props.editingPlan.calculoOriginal } : {})),
+    ...(hasManualModifications.value ? {
+      ajustesNutriologo: {
+        calorias: form.calorias,
+        macros: {
+          protein: form.macros.protein,
+          carbs: form.macros.carbs,
+          fat: form.macros.fat
+        }
       }
-    } : undefined,
+    } : {}),
     parametrosCalculo: {
       ...engineResult.value.snapshot,
       caloriasObjetivo: form.calorias,
@@ -841,7 +845,7 @@ function handleSubmit() {
       carbosGramos: form.macros.carbs,
       grasasGramos: form.macros.fat
     },
-    advertenciasClinicas: engineResult.value.advertenciasClinicas,
+    advertenciasClinicas: engineResult.value.advertenciasClinicas || [],
     comidasSugeridas: form.comidasSugeridas,
     notas: form.notas.trim()
   };

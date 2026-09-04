@@ -1608,8 +1608,15 @@ function handleExportWord() {
   MenuExportService.exportMenuToWord(props.patient, props.plan, menuData);
 }
 
-function handleExportPDF() {
-  MenuExportService.exportMenuToPdf(props.patient, props.plan, menuData);
+const isExportingPdf = ref(false);
+
+async function handleExportPDF() {
+  try {
+    isExportingPdf.value = true;
+    await MenuExportService.exportMenuToPdf(props.patient, props.plan, menuData);
+  } finally {
+    isExportingPdf.value = false;
+  }
 }
 
 onMounted(() => {

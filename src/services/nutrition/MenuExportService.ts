@@ -1,13 +1,77 @@
 import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import { toJpeg } from 'html-to-image';
 import type { Patient, PatientDietPlan } from '../../types/patient';
-import type { DietPlanMenu } from '../../types/dietMenu';
+import type { DietPlanMenu, DishItem } from '../../types/dietMenu';
 import { MEAL_TIMES_CATALOG } from '../../types/dietMenu';
+import {
+  TALIA_WATERMARK_BASE64,
+  TALIA_LOGO_BASE64,
+  TALIA_CLINICAL_CONTACT
+} from './menuExportAssets';
 
 export interface ShoppingCategoryItem {
   nombre: string;
   categoria: string;
   cantidadSugerida?: string;
 }
+
+interface DisplayDay {
+  label: string;
+  comidas: Record<string, DishItem[]>;
+}
+
+interface MealSectionDef {
+  key: string;
+  aliasKeys?: string[];
+  label: string;
+  dotColor: string;
+  bg: string;
+  textColor: string;
+}
+
+const CLINICAL_MEAL_SECTIONS: MealSectionDef[] = [
+  {
+    key: 'desayuno',
+    aliasKeys: ['desayuno', 'breakfast'],
+    label: 'DESAYUNO',
+    dotColor: '#0284c7', // Sky blue / dark teal
+    bg: '#f0f9ff',
+    textColor: '#0369a1'
+  },
+  {
+    key: 'almuerzo',
+    aliasKeys: ['almuerzo', 'colacion_1', 'snack_1', 'snack_matutino', 'media_manana'],
+    label: 'ALMUERZO',
+    dotColor: '#16a34a', // Fresh green
+    bg: '#f0fdf4',
+    textColor: '#15803d'
+  },
+  {
+    key: 'comida',
+    aliasKeys: ['comida', 'lunch'],
+    label: 'COMIDA',
+    dotColor: '#ea580c', // Orange
+    bg: '#fff7ed',
+    textColor: '#c2410c'
+  },
+  {
+    key: 'colacion',
+    aliasKeys: ['colacion', 'colacion_2', 'snack_2', 'snack_vespertino', 'merienda'],
+    label: 'COLACION',
+    dotColor: '#d97706', // Amber
+    bg: '#fffbeb',
+    textColor: '#b45309'
+  },
+  {
+    key: 'cena',
+    aliasKeys: ['cena', 'dinner'],
+    label: 'CENA',
+    dotColor: '#ca8a04', // Golden
+    bg: '#fefce8',
+    textColor: '#a16207'
+  }
+];
 
 export class MenuExportService {
   /**
@@ -58,7 +122,6 @@ export class MenuExportService {
       }
     });
 
-    // Filtrar categorías vacías
     const result: Record<string, string[]> = {};
     Object.entries(categories).forEach(([cat, list]) => {
       if (list.length > 0) {
@@ -156,129 +219,450 @@ export class MenuExportService {
     if (!cleanPhone) {
       return `https://wa.me/?text=${encoded}`;
     }
-    // Si no tiene código de país (10 dígitos México), anteponer 52
     const finalPhone = cleanPhone.length === 10 ? `52${cleanPhone}` : cleanPhone;
     return `https://wa.me/${finalPhone}?text=${encoded}`;
   }
 
   /**
-   * Exporta el menú a un documento Word (.doc compatible con MS Word) con formato estructurado
+   * Normaliza los días del menú para desplegar en el formato horizontal (Landscape) de 7 columnas
+   */
+  private static getNormalizedDisplayDays(menu: DietPlanMenu): DisplayDay[] {
+    if (menu && menu.dias && menu.dias.length === 7) {
+      return menu.dias.map((d, i) => ({
+        label: d.diaNombre?.trim() ? d.diaNombre.trim().toUpperCase() : `DÍA ${i + 1}`,
+        comidas: d.comidas || {}
+      }));
+    }
+
+    if (menu && menu.dias && menu.dias.length === 1) {
+      // 1 día habitual -> Replicar a DÍA 1..DÍA 7 para completar la plantilla semanal completa
+      const singleDay = menu.dias[0];
+      return [1, 2, 3, 4, 5, 6, 7].map(num => ({
+        label: `DÍA ${num}`,
+        comidas: singleDay.comidas || {}
+      }));
+    }
+
+    if (menu && menu.dias && menu.dias.length > 1) {
+      return menu.dias.map((d, i) => ({
+        label: d.diaNombre?.trim() ? d.diaNombre.trim().toUpperCase() : `DÍA ${i + 1}`,
+        comidas: d.comidas || {}
+      }));
+    }
+
+    return [1, 2, 3, 4, 5, 6, 7].map(num => ({
+      label: `DÍA ${num}`,
+      comidas: {}
+    }));
+  }
+
+  /**
+   * Obtiene los platillos de una categoría de comida comprobando claves y alias
+   */
+  private static getDishesForSection(comidas: Record<string, DishItem[]>, section: MealSectionDef): DishItem[] {
+    if (comidas[section.key] && comidas[section.key].length > 0) {
+      return comidas[section.key];
+    }
+    if (section.aliasKeys) {
+      for (const k of section.aliasKeys) {
+        if (comidas[k] && comidas[k].length > 0) {
+          return comidas[k];
+        }
+      }
+    }
+    return [];
+  }
+
+  /**
+   * Renderiza el contenido celular de los platillos e ingredientes con viñetas limpias
+   */
+  private static renderDishesCellHtml(dishes: DishItem[]): string {
+    if (!dishes || dishes.length === 0) {
+      return `<div style="text-align: center; color: #94a3b8; font-size: 9px; padding: 2px 0;">—</div>`;
+    }
+
+    return dishes.map(dish => {
+      const hasIngs = dish.ingredientes && Array.isArray(dish.ingredientes) && dish.ingredientes.length > 0;
+      let html = '<div style="margin-bottom: 3.5px;">';
+
+      if (hasIngs) {
+        // Si el nombre es un título de receta estructurado (ej. "Sándwich integral de")
+        const isRecipe = dish.nombre && !dish.ingredientes.some(i => i.toLowerCase() === dish.nombre.toLowerCase());
+        if (isRecipe) {
+          const formattedTitle = dish.nombre.endsWith(':') ? dish.nombre : `${dish.nombre}:`;
+          html += `<div style="font-weight: 700; color: #1e293b; font-size: 8.5px; margin-bottom: 1.5px;">${formattedTitle}</div>`;
+        }
+        html += '<ul style="margin: 0; padding-left: 11px; list-style-type: disc; font-size: 8px; color: #334155; line-height: 1.3;">';
+        dish.ingredientes.forEach(ing => {
+          html += `<li style="margin-bottom: 1px;">${ing}</li>`;
+        });
+        html += '</ul>';
+      } else {
+        const porcionStr = dish.porcion ? ` <span style="color: #64748b;">(${dish.porcion})</span>` : '';
+        html += `<div style="font-size: 8px; color: #1e293b; line-height: 1.3;">• ${dish.nombre}${porcionStr}</div>`;
+        if (dish.descripcion) {
+          html += `<div style="font-size: 7.5px; color: #64748b; font-style: italic; margin-left: 6px;">${dish.descripcion}</div>`;
+        }
+      }
+
+      html += '</div>';
+      return html;
+    }).join('');
+  }
+
+  /**
+   * Genera el documento HTML completo del Menú Clínico en formato horizontal (Landscape)
+   * con la marca de agua de la manzana, logotipo de Talia Tinoco, tabla semanal de 7 columnas
+   * y recuadros clínicos de macronutrientes y contacto.
+   */
+  public static generateClinicalMenuHtml(
+    patient: Patient,
+    plan: PatientDietPlan,
+    menu: DietPlanMenu,
+    _options: { isForPdf?: boolean; isForWord?: boolean } = {}
+  ): string {
+    const displayDays = this.getNormalizedDisplayDays(menu);
+    const numCols = displayDays.length;
+    const colWidthPct = (100 / numCols).toFixed(2);
+
+    // Detección de secciones activas o catálogo predeterminado
+    const sectionsToRender = CLINICAL_MEAL_SECTIONS;
+
+    // Construcción de filas de la tabla
+    let tableBodyHtml = '';
+
+    // Encabezado de columnas: DÍA 1..DÍA 7
+    tableBodyHtml += `
+      <thead>
+        <tr>
+          ${displayDays.map(d => `
+            <th style="border: 1px solid #cbd5e1; border-bottom: 2px solid #a8b792; padding: 5px 2px; text-align: center; font-size: 10.5px; font-weight: 800; color: #1e293b; background-color: #f8fafc; text-transform: uppercase; width: ${colWidthPct}%;">
+              ${d.label}
+            </th>
+          `).join('')}
+        </tr>
+      </thead>
+      <tbody>
+    `;
+
+    // Para cada tiempo de comida: barra de categoría + celdas por día
+    sectionsToRender.forEach(sec => {
+      // 1. Barra de sección de comida (spans all columns)
+      tableBodyHtml += `
+        <tr style="background-color: ${sec.bg};">
+          <td colspan="${numCols}" style="padding: 2.5px 8px; border: 1px solid #cbd5e1; border-top: 1.5px solid #94a3b8; text-align: left;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background-color: ${sec.dotColor};"></span>
+              <span style="font-size: 9.5px; font-weight: 900; color: ${sec.textColor}; letter-spacing: 1px; text-transform: uppercase;">
+                ${sec.label}
+              </span>
+            </div>
+          </td>
+        </tr>
+      `;
+
+      // 2. Fila con las celdas de cada día
+      tableBodyHtml += `
+        <tr>
+          ${displayDays.map(day => {
+            const dishes = this.getDishesForSection(day.comidas, sec);
+            return `
+              <td style="border: 1px solid #cbd5e1; padding: 5px 6px; vertical-align: top; background-color: transparent; font-size: 8.5px; line-height: 1.35; color: #1e293b;">
+                ${this.renderDishesCellHtml(dishes)}
+              </td>
+            `;
+          }).join('')}
+        </tr>
+      `;
+    });
+
+    tableBodyHtml += `</tbody>`;
+
+    return `
+      <div class="clinical-sheet-container" style="
+        width: 1200px;
+        min-height: 840px;
+        box-sizing: border-box;
+        padding: 18px 24px;
+        background-color: #ffffff;
+        position: relative;
+        font-family: 'Calibri', 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        color: #0f172a;
+        overflow: hidden;
+      ">
+        <!-- MARCA DE AGUA CENTRAL (Manzana Talia Tinoco - Perfectamente centrada sobre la tabla con superposición transparente z-index 10) -->
+        <div style="
+          position: absolute;
+          top: 130px;
+          left: 365px;
+          width: 470px;
+          height: 520px;
+          pointer-events: none;
+          z-index: 10;
+          text-align: center;
+        ">
+          <img src="${TALIA_WATERMARK_BASE64}" style="width: 100%; height: 100%; object-fit: contain; display: block;" alt="Marca de Agua" />
+        </div>
+
+        <!-- ENCABEZADO INSTITUCIONAL TALIA TINOCO FABIÁN (Tabla para perfecta alineación en Word y PDF) -->
+        <table style="
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 6px;
+          border: none;
+          position: relative;
+          z-index: 2;
+        ">
+          <tr>
+            <!-- Izquierda: Logotipo + Marca -->
+            <td style="width: 30%; vertical-align: middle; border: none; text-align: left;">
+              <table style="border-collapse: collapse; border: none;">
+                <tr>
+                  <td style="vertical-align: middle; padding-right: 8px; border: none;">
+                    <img src="${TALIA_LOGO_BASE64}" style="width: 50px; height: 50px; object-fit: contain; display: block;" alt="Talia Logo" />
+                  </td>
+                  <td style="vertical-align: middle; border: none;">
+                    <div style="font-size: 13px; font-weight: 800; color: #556637; letter-spacing: 1.2px; line-height: 1.15; white-space: nowrap;">TALIA TINOCO FABIÁN</div>
+                    <div style="font-size: 9px; font-weight: 700; color: #6e8248; letter-spacing: 4px; margin-top: 1px;">NUTRICIÓN</div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+
+            <!-- Centro: Banner Verde Salvia "MENU" -->
+            <td style="width: 40%; vertical-align: middle; border: none; text-align: center;">
+              <div style="
+                display: inline-block;
+                background-color: #a8b792;
+                color: #1a2512;
+                font-size: 18px;
+                font-weight: 900;
+                letter-spacing: 4px;
+                padding: 6px 64px;
+                border-radius: 8px;
+                text-transform: uppercase;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+              ">
+                MENU
+              </div>
+            </td>
+
+            <!-- Derecha: Recuadro Cédula Profesional -->
+            <td style="width: 30%; vertical-align: middle; border: none; text-align: right;">
+              <div style="
+                display: inline-block;
+                border: 1.5px solid #cbd5e1;
+                border-radius: 6px;
+                padding: 5px 14px;
+                background-color: #ffffff;
+                text-align: center;
+              ">
+                <div style="font-size: 12.5px; font-weight: 800; color: #0f172a; letter-spacing: 0.5px; white-space: nowrap;">
+                  Cedula: ${TALIA_CLINICAL_CONTACT.cedula}
+                </div>
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- SUB-BARRA METADATOS DEL PACIENTE (Caja clínica estilizada y perfectamente alineada) -->
+        <div style="
+          border: 1px solid #cbd5e1;
+          border-radius: 6px;
+          background-color: #f8fafc;
+          margin-bottom: 8px;
+          padding: 5px 12px;
+          position: relative;
+          z-index: 2;
+        ">
+          <table style="width: 100%; border-collapse: collapse; border: none;">
+            <tr>
+              <td style="width: 26%; text-align: left; vertical-align: middle; border: none; font-size: 10px; color: #334155;">
+                <strong style="color: #475569;">Paciente:</strong> <span style="font-weight: 700; color: #0f172a;">${patient.nombre}</span>
+              </td>
+              <td style="width: 36%; text-align: left; vertical-align: middle; border: none; font-size: 10px; color: #334155;">
+                <strong style="color: #475569;">Plan:</strong> <span style="font-weight: 700; color: #0f172a;">${plan.nombre}</span>
+              </td>
+              <td style="width: 23%; text-align: left; vertical-align: middle; border: none; font-size: 10px; color: #334155;">
+                <strong style="color: #475569;">Objetivo:</strong> <span style="font-weight: 700; color: #0f172a;">${plan.objetivo || 'Personalizado'}</span>
+              </td>
+              <td style="width: 15%; text-align: right; vertical-align: middle; border: none; font-size: 10px; color: #334155;">
+                <strong style="color: #475569;">Fecha:</strong> <span style="font-weight: 600; color: #0f172a;">${plan.fechaAsignacion}</span>
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- CUADRÍCULA DE COMIDAS (TABLA MULTIDÍA) -->
+        <table style="
+          width: 100%;
+          border-collapse: collapse;
+          table-layout: fixed;
+          position: relative;
+          z-index: 2;
+          margin-bottom: 8px;
+        ">
+          ${tableBodyHtml}
+        </table>
+
+        <!-- SECCIÓN INFERIOR: RESUMEN DE METAS Y CONTACTO CLÍNICO (TaliaClinicalBanner) -->
+        <table style="
+          width: 100%;
+          border-collapse: collapse;
+          border: none;
+          position: relative;
+          z-index: 2;
+          margin-top: 6px;
+        ">
+          <tr>
+            <!-- Caja Izquierda: Calorías, Macronutrientes e Indicaciones -->
+            <td style="
+              width: 50%;
+              vertical-align: top;
+              padding-right: 6px;
+              border: none;
+            ">
+              <div style="
+                border: 2px solid #0f172a;
+                border-radius: 8px;
+                padding: 6px 12px;
+                background-color: #ffffff;
+                box-sizing: border-box;
+                min-height: 74px;
+              ">
+                <div style="font-size: 10.5px; font-weight: 900; color: #0f172a; margin-bottom: 3px;">
+                  ${plan.calorias} Kcal: ${plan.macros.protein}g proteína, ${plan.macros.carbs}g carbohidratos, ${plan.macros.fat}g grasa
+                </div>
+                <ul style="
+                  margin: 0;
+                  padding-left: 14px;
+                  font-size: 8px;
+                  color: #334155;
+                  line-height: 1.35;
+                  list-style-type: circle;
+                ">
+                  <li>Alta energía para entrenar, Proteína suficiente para hipertrofia, Grasas controladas, Carbohidratos altos para rendimiento.</li>
+                  <li>Entrena fuerza 4–6 días/semana, Prioriza carbos alrededor del entrenamiento, Progresión en cargas (clave para recomposición).</li>
+                  ${plan.notas ? `<li style="margin-top: 1.5px; color: #047857;"><strong>Indicaciones clínicas:</strong> ${plan.notas}</li>` : ''}
+                </ul>
+              </div>
+            </td>
+
+            <!-- Caja Derecha: Información de Contacto Profesional (TaliaClinicalBanner Completo) -->
+            <td style="
+              width: 50%;
+              vertical-align: top;
+              padding-left: 6px;
+              border: none;
+            ">
+              <div style="
+                background-color: #ffffff;
+                border: 1px solid #d4dfc7;
+                border-radius: 12px;
+                padding: 5px 8px;
+                box-sizing: border-box;
+                min-height: 74px;
+              ">
+                <table style="width: 100%; border-collapse: collapse; border: none;">
+                  <tr>
+                    <!-- Tarjeta de Contacto Verde Salvia (#f4f7ee) -->
+                    <td style="vertical-align: middle; border: none;">
+                      <div style="
+                        background-color: #f4f7ee;
+                        border: 1px solid #d4dfc7;
+                        border-radius: 8px;
+                        padding: 5px 8px;
+                      ">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 8.5px; color: #43512b; line-height: 1.4; border: none;">
+                          <tr>
+                            <td style="padding: 1px 3px; border: none; width: 50%;">
+                              <span>👤 <strong>Nutrióloga:</strong> ${TALIA_CLINICAL_CONTACT.nutriologa}</span>
+                            </td>
+                            <td style="padding: 1px 3px; border: none; width: 50%;">
+                              <span>🪪 <strong>Cédula Profesional:</strong> ${TALIA_CLINICAL_CONTACT.cedula}</span>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 1px 3px; border: none;">
+                              <span>📍 <strong>Dirección:</strong> ${TALIA_CLINICAL_CONTACT.direccion}</span>
+                            </td>
+                            <td style="padding: 1px 3px; border: none;">
+                              <span>📞 <strong>Teléfono / Citas:</strong> ${TALIA_CLINICAL_CONTACT.telefono}</span>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td colspan="2" style="padding: 1px 3px; border: none;">
+                              <span>✉️ <strong>Correo Electrónico:</strong> ${TALIA_CLINICAL_CONTACT.correo}</span>
+                            </td>
+                          </tr>
+                        </table>
+                      </div>
+                    </td>
+
+                    <!-- Logotipo Oficial Talia Tinoco -->
+                    <td style="width: 65px; text-align: center; vertical-align: middle; padding-left: 6px; border: none;">
+                      <img src="${TALIA_LOGO_BASE64}" style="width: 52px; height: 52px; object-fit: contain; display: inline-block;" alt="Talia Logo" />
+                    </td>
+                  </tr>
+                </table>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+    `;
+  }
+
+  /**
+   * Exporta el menú a un documento Word (.doc compatible con MS Word) en orientación horizontal (Landscape)
    */
   public static exportMenuToWord(
     patient: Patient,
     plan: PatientDietPlan,
     menu: DietPlanMenu
   ): void {
-    const shopping = this.extractShoppingListFromMenu(menu);
+    const htmlContent = this.generateClinicalMenuHtml(patient, plan, menu, { isForWord: true });
 
-    let html = `
+    const wordDocument = `
       <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
       <head>
         <meta charset='utf-8'>
         <title>${plan.nombre} - ${patient.nombre}</title>
+        <!--[if gte mso 9]>
+        <xml>
+          <w:WordDocument>
+            <w:View>Print</w:View>
+            <w:Zoom>100</w:Zoom>
+            <w:DoNotOptimizeForBrowser/>
+          </w:WordDocument>
+        </xml>
+        <![endif]-->
         <style>
-          body { font-family: 'Calibri', 'Arial', sans-serif; font-size: 11pt; color: #1e293b; line-height: 1.4; margin: 30px; }
-          .header { text-align: center; border-bottom: 2px solid #10b981; padding-bottom: 12px; margin-bottom: 20px; }
-          .title { font-size: 18pt; font-weight: bold; color: #047857; margin: 0; }
-          .subtitle { font-size: 11pt; color: #64748b; margin-top: 4px; }
-          .patient-box { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 20px; }
-          .kpi-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-          .kpi-table td { text-align: center; padding: 8px; border: 1px solid #cbd5e1; background-color: #ffffff; font-weight: bold; }
-          .kpi-label { font-size: 9pt; color: #64748b; text-transform: uppercase; font-weight: normal; }
-          .day-title { font-size: 14pt; font-weight: bold; color: #0f172a; margin-top: 25px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; }
-          .meal-card { background-color: #ffffff; border: 1px solid #e2e8f0; border-left: 4px solid #10b981; padding: 10px; margin-bottom: 12px; border-radius: 4px; }
-          .meal-name { font-size: 12pt; font-weight: bold; color: #047857; }
-          .meal-desc { font-size: 10pt; color: #334155; margin-top: 2px; }
-          .meal-ing { font-size: 9.5pt; color: #475569; margin-top: 4px; font-style: italic; }
-          .shopping-section { margin-top: 30px; page-break-before: always; }
-          .shopping-grid { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          .shopping-grid th { background-color: #ecfdf5; color: #065f46; padding: 8px; border: 1px solid #cbd5e1; text-align: left; }
-          .shopping-grid td { padding: 6px 8px; border: 1px solid #cbd5e1; font-size: 10pt; }
+          @page Section1 {
+            size: 11.0in 8.5in;
+            mso-page-orientation: landscape;
+            margin: 0.4in 0.4in 0.4in 0.4in;
+            mso-header-margin: 0.2in;
+            mso-footer-margin: 0.2in;
+          }
+          div.Section1 { page: Section1; }
+          body {
+            font-family: 'Calibri', 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #ffffff;
+          }
         </style>
       </head>
       <body>
-        <div class='header'>
-          <h1 class='title'>BODYFLOW • PLAN DE ALIMENTACIÓN CLÍNICO</h1>
-          <p class='subtitle'>Lic. Talia Tinoco • Nutrición Clínica Integral</p>
-        </div>
-
-        <div class='patient-box'>
-          <p style='margin: 0;'><strong>Paciente:</strong> ${patient.nombre} &nbsp;|&nbsp; <strong>Edad:</strong> ${patient.edad || '--'} años &nbsp;|&nbsp; <strong>Fecha:</strong> ${plan.fechaAsignacion}</p>
-          <p style='margin: 4px 0 0 0;'><strong>Plan:</strong> ${plan.nombre} &nbsp;|&nbsp; <strong>Objetivo:</strong> ${plan.objetivo || 'Personalizado'}</p>
-          
-          <table class='kpi-table'>
-            <tr>
-              <td><span class='kpi-label'>Calorías Diarias</span><br/><span style='font-size: 13pt; color: #0f172a;'>${plan.calorias} kcal</span></td>
-              <td><span class='kpi-label'>Proteína</span><br/><span style='font-size: 13pt; color: #2563eb;'>${plan.macros.protein} g</span></td>
-              <td><span class='kpi-label'>Carbohidratos</span><br/><span style='font-size: 13pt; color: #d97706;'>${plan.macros.carbs} g</span></td>
-              <td><span class='kpi-label'>Grasas</span><br/><span style='font-size: 13pt; color: #e11d48;'>${plan.macros.fat} g</span></td>
-            </tr>
-          </table>
-        </div>
-
-        <div>
-    `;
-
-    menu.dias.forEach((dia) => {
-      html += `<div class='day-title'>${dia.diaNombre}</div>`;
-      const catalogToUse = menu.tiemposComidaConfig && menu.tiemposComidaConfig.length > 0
-        ? menu.tiemposComidaConfig
-        : MEAL_TIMES_CATALOG;
-
-      catalogToUse.forEach((tc) => {
-        const dishes = dia.comidas[tc.key] || [];
-        if (dishes.length > 0) {
-          dishes.forEach((d) => {
-            html += `
-              <div class='meal-card'>
-                <div class='meal-name'>${tc.icon} ${tc.label}: ${d.nombre}</div>
-                <div class='meal-desc'><strong>Porción:</strong> ${d.porcion}</div>
-                ${d.descripcion ? `<div class='meal-desc'>${d.descripcion}</div>` : ''}
-                ${d.ingredientes && d.ingredientes.length > 0 ? `<div class='meal-ing'><strong>Ingredientes:</strong> ${d.ingredientes.join(', ')}</div>` : ''}
-                <div style='font-size: 9pt; color: #64748b; margin-top: 4px;'>Aporte aproximado: ${d.macros.calories} kcal | ${d.macros.protein}g P | ${d.macros.carbs}g C | ${d.macros.fat}g G</div>
-              </div>
-            `;
-          });
-        }
-      });
-    });
-
-    if (plan.notas) {
-      html += `
-        <div style='margin-top: 20px; background-color: #fefce8; border: 1px solid #fef08a; padding: 12px; border-radius: 6px;'>
-          <strong>Indicaciones Clínicas:</strong><br/>
-          ${plan.notas}
-        </div>
-      `;
-    }
-
-    if (Object.keys(shopping).length > 0) {
-      html += `
-        <div class='shopping-section'>
-          <h2 style='font-size: 15pt; color: #047857;'>🛒 Lista de Compras Básica del Menú</h2>
-          <table class='shopping-grid'>
-      `;
-      Object.entries(shopping).forEach(([cat, items]) => {
-        html += `
-          <tr>
-            <th style='width: 30%;'>${cat}</th>
-            <td>${items.join(' &nbsp;•&nbsp; ')}</td>
-          </tr>
-        `;
-      });
-      html += `
-          </table>
-        </div>
-      `;
-    }
-
-    html += `
+        <div class="Section1">
+          ${htmlContent}
         </div>
       </body>
       </html>
     `;
 
-    const blob = new Blob(['\ufeff', html], {
+    const blob = new Blob(['\ufeff', wordDocument], {
       type: 'application/msword;charset=utf-8'
     });
 
@@ -294,216 +678,109 @@ export class MenuExportService {
   }
 
   /**
-   * Genera y descarga el PDF oficial membretado con formato clínico profesional
+   * Genera y descarga el PDF oficial membretado en orientación horizontal (Landscape)
+   * con alta fidelidad gráfica (2x Retina DPI) y marca de agua institucional.
    */
-  public static exportMenuToPdf(
+  public static async exportMenuToPdf(
     patient: Patient,
     plan: PatientDietPlan,
     menu: DietPlanMenu
-  ): void {
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'letter'
-    });
+  ): Promise<void> {
+    // 1. Contenedor temporal fuera de pantalla en coordenadas (0, 0) detrás de la aplicación
+    const container = document.createElement('div');
+    container.id = 'clinical-menu-pdf-export-container';
+    container.style.position = 'fixed';
+    container.style.top = '0px';
+    container.style.left = '0px';
+    container.style.width = '1200px';
+    container.style.backgroundColor = '#ffffff';
+    container.style.zIndex = '-9999';
+    container.style.pointerEvents = 'none';
 
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin = 14;
-    const contentWidth = pageWidth - margin * 2;
-    let y = margin;
+    container.innerHTML = this.generateClinicalMenuHtml(patient, plan, menu, { isForPdf: true });
+    document.body.appendChild(container);
 
-    const checkPageBreak = (neededHeight: number) => {
-      if (y + neededHeight > pageHeight - 16) {
-        pdf.addPage('letter', 'portrait');
-        y = margin;
-      }
-    };
+    const sheetEl = (container.firstElementChild as HTMLElement) || container;
 
-    // --- 1. HEADER INSTITUCIONAL ---
-    pdf.setFillColor(4, 120, 87); // #047857
-    pdf.rect(margin, y, contentWidth, 3, 'F');
-    y += 7;
+    try {
+      // 2. Esperar carga y decodificación completa de recursos de imagen dentro del contenedor
+      const images = Array.from(container.querySelectorAll('img'));
+      await Promise.all(
+        images.map(async img => {
+          if ('decode' in img) {
+            try {
+              await img.decode();
+              return true;
+            } catch {
+              // fallback a onload
+            }
+          }
+          if (img.complete && img.naturalWidth > 0) return true;
+          return new Promise(resolve => {
+            img.onload = () => resolve(true);
+            img.onerror = () => resolve(false);
+          });
+        })
+      );
 
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(16);
-    pdf.setTextColor(4, 120, 87);
-    pdf.text('BODYFLOW • PLAN NUTRICIONAL CLÍNICO', margin, y);
-    y += 5;
+      // Retardo para asegurar pintura de fuentes tipográficas y maquetación
+      await new Promise(resolve => setTimeout(resolve, 120));
 
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(9.5);
-    pdf.setTextColor(100, 116, 139);
-    pdf.text('Lic. Talia Tinoco • Nutrición Clínica Integral • Cédula Profesional y Especialidad', margin, y);
-    y += 6;
-
-    pdf.setDrawColor(226, 232, 240);
-    pdf.setLineWidth(0.5);
-    pdf.line(margin, y, margin + contentWidth, y);
-    y += 5;
-
-    // --- 2. TARJETA DATOS DEL PACIENTE ---
-    pdf.setFillColor(248, 250, 252);
-    pdf.setDrawColor(203, 213, 225);
-    pdf.roundedRect(margin, y, contentWidth, 18, 2, 2, 'FD');
-
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(10);
-    pdf.setTextColor(15, 23, 42);
-    pdf.text(`Paciente: ${patient.nombre}`, margin + 4, y + 6);
-
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(8.5);
-    pdf.setTextColor(71, 85, 105);
-    const edadStr = patient.edad ? `${patient.edad} años` : 'No registrada';
-    const pesoStr = plan.parametrosCalculo?.pesoUtilizado ? `${plan.parametrosCalculo.pesoUtilizado} kg` : '';
-    pdf.text(`Edad: ${edadStr} ${pesoStr ? '| Peso: ' + pesoStr : ''} | Fecha de asignación: ${plan.fechaAsignacion}`, margin + 4, y + 11);
-    pdf.text(`Plan: ${plan.nombre} | Objetivo: ${plan.objetivo || 'Personalizado'}`, margin + 4, y + 15);
-    y += 22;
-
-    // --- 3. METAS CALÓRICAS Y MACROS (4 COLUMNAS) ---
-    const colW = (contentWidth - 6) / 4;
-    const macroBoxes = [
-      { label: 'Calorías Diarias', val: `${plan.calorias} kcal`, color: [15, 23, 42] },
-      { label: 'Proteína', val: `${plan.macros.protein}g`, color: [37, 99, 235] },
-      { label: 'Carbohidratos', val: `${plan.macros.carbs}g`, color: [217, 119, 6] },
-      { label: 'Grasas', val: `${plan.macros.fat}g`, color: [225, 29, 72] }
-    ];
-
-    macroBoxes.forEach((mb, idx) => {
-      const bx = margin + idx * (colW + 2);
-      pdf.setFillColor(255, 255, 255);
-      pdf.setDrawColor(226, 232, 240);
-      pdf.roundedRect(bx, y, colW, 14, 2, 2, 'FD');
-
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(7);
-      pdf.setTextColor(100, 116, 139);
-      pdf.text(mb.label.toUpperCase(), bx + colW / 2, y + 4.5, { align: 'center' });
-
-      pdf.setFontSize(11);
-      pdf.setTextColor(mb.color[0], mb.color[1], mb.color[2]);
-      pdf.text(mb.val, bx + colW / 2, y + 11, { align: 'center' });
-    });
-    y += 18;
-
-    // --- 4. COMIDAS Y MENÚ ---
-    menu.dias.forEach((dia) => {
-      checkPageBreak(25);
-
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(11);
-      pdf.setTextColor(4, 120, 87);
-      pdf.text(`🗓️ ${dia.diaNombre.toUpperCase()}`, margin, y);
-      y += 2;
-      pdf.setDrawColor(16, 185, 129);
-      pdf.setLineWidth(0.4);
-      pdf.line(margin, y, margin + contentWidth, y);
-      y += 4;
-
-      const catalogToUse = menu.tiemposComidaConfig && menu.tiemposComidaConfig.length > 0
-        ? menu.tiemposComidaConfig
-        : MEAL_TIMES_CATALOG;
-
-      catalogToUse.forEach((timeCat) => {
-        const dishes = dia.comidas[timeCat.key] || [];
-        if (dishes.length === 0) return;
-
-        checkPageBreak(18);
-        dishes.forEach((dish) => {
-          checkPageBreak(22);
-          pdf.setFillColor(255, 255, 255);
-          pdf.setDrawColor(226, 232, 240);
-          pdf.roundedRect(margin, y, contentWidth, 16, 1.5, 1.5, 'FD');
-
-          // Left border accent
-          pdf.setFillColor(16, 185, 129);
-          pdf.rect(margin, y, 2.5, 16, 'F');
-
-          pdf.setFont('helvetica', 'bold');
-          pdf.setFontSize(9);
-          pdf.setTextColor(4, 120, 87);
-          pdf.text(`${timeCat.icon} ${timeCat.label}: ${dish.nombre} (${dish.porcion})`, margin + 5, y + 5);
-
-          pdf.setFont('helvetica', 'normal');
-          pdf.setFontSize(8);
-          pdf.setTextColor(71, 85, 105);
-          const ingText = dish.ingredientes && dish.ingredientes.length > 0 
-            ? `Ingredientes: ${dish.ingredientes.join(', ')}` 
-            : (dish.descripcion || 'Preparación balanceada según porciones indicadas');
-          
-          const splitIng = pdf.splitTextToSize(ingText, contentWidth - 12);
-          pdf.text(splitIng[0] || '', margin + 5, y + 9.5);
-
-          pdf.setFontSize(7.5);
-          pdf.setTextColor(100, 116, 139);
-          pdf.text(`Aporte: ${dish.macros.calories} kcal | ${dish.macros.protein}g P | ${dish.macros.carbs}g C | ${dish.macros.fat}g G`, margin + 5, y + 13.5);
-
-          y += 18;
+      // 3. Renderizar DOM a imagen JPEG de alta definición (2x DPI)
+      let imgData = '';
+      try {
+        const canvas = await html2canvas(sheetEl, {
+          scale: 2,
+          backgroundColor: '#ffffff',
+          useCORS: true,
+          logging: false,
+          width: 1200,
+          windowWidth: 1200
         });
+        imgData = canvas.toDataURL('image/jpeg', 0.96);
+      } catch (canvasErr) {
+        console.warn('[MENU:EXPORT] html2canvas error, using toJpeg fallback:', canvasErr);
+      }
+
+      if (!imgData || imgData.length < 5000) {
+        imgData = await toJpeg(sheetEl, {
+          quality: 0.96,
+          pixelRatio: 2,
+          backgroundColor: '#ffffff',
+          skipFonts: true,
+          width: 1200
+        });
+      }
+
+      if (!imgData || imgData.length < 5000) {
+        throw new Error('No se pudo generar la imagen del menú.');
+      }
+
+      // 4. Crear documento PDF en formato Letter Landscape (279.4 x 215.9 mm)
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'letter'
       });
 
-      y += 2;
-    });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 5;
+      const contentWidth = pageWidth - margin * 2;
+      const contentHeight = pageHeight - margin * 2;
 
-    // --- 5. INDICACIONES CLÍNICAS ---
-    if (plan.notas) {
-      checkPageBreak(25);
-      pdf.setFillColor(254, 252, 232); // #fefce8
-      pdf.setDrawColor(254, 240, 138); // #fef08a
-      pdf.roundedRect(margin, y, contentWidth, 18, 2, 2, 'FD');
+      pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, contentHeight);
 
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(8.5);
-      pdf.setTextColor(161, 98, 7);
-      pdf.text('💡 INDICACIONES CLÍNICAS & RECOMENDACIONES:', margin + 4, y + 5.5);
-
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(8);
-      pdf.setTextColor(113, 63, 18);
-      const splitNotas = pdf.splitTextToSize(plan.notas, contentWidth - 8);
-      pdf.text(splitNotas.slice(0, 2), margin + 4, y + 10.5);
-      y += 22;
+      const safeName = patient.nombre.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ ]/g, '').replace(/ +/g, '_');
+      pdf.save(`Menu_${safeName}_${plan.calorias}kcal.pdf`);
+    } catch (err: any) {
+      console.error('[MENU:EXPORT] Error generando PDF horizontal:', err);
+      alert('Ocurrió un error al generar el PDF del menú: ' + (err.message || err));
+    } finally {
+      if (container.parentNode) {
+        container.parentNode.removeChild(container);
+      }
     }
-
-    // --- 6. LISTA DE COMPRAS BÁSICA ---
-    const shopping = this.extractShoppingListFromMenu(menu);
-    if (Object.keys(shopping).length > 0) {
-      checkPageBreak(30);
-
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(11);
-      pdf.setTextColor(4, 120, 87);
-      pdf.text('🛒 LISTA DE COMPRAS SUGERIDA DEL MENÚ', margin, y);
-      y += 2;
-      pdf.setDrawColor(16, 185, 129);
-      pdf.line(margin, y, margin + contentWidth, y);
-      y += 5;
-
-      Object.entries(shopping).forEach(([category, items]) => {
-        checkPageBreak(12);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(8.5);
-        pdf.setTextColor(15, 23, 42);
-        pdf.text(`• ${category}:`, margin + 2, y);
-
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(8);
-        pdf.setTextColor(71, 85, 105);
-        const itemsStr = items.join(', ');
-        const splitItems = pdf.splitTextToSize(itemsStr, contentWidth - 10);
-        pdf.text(splitItems, margin + 6, y + 4);
-        y += 5 + (splitItems.length * 3.5);
-      });
-    }
-
-    // Pie de página institucional
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(7.5);
-    pdf.setTextColor(148, 163, 184);
-    pdf.text('Expediente Clínico BodyFlow • Documento confidencial para uso exclusivo del paciente y su seguimiento nutricional.', margin, pageHeight - 8);
-
-    const safeName = patient.nombre.replace(/[^a-zA-Z0-9]/g, '_');
-    pdf.save(`Menu_${safeName}_${plan.calorias}kcal.pdf`);
   }
 }
+

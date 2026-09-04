@@ -493,9 +493,16 @@ function openWhatsAppModal(plan: PatientDietPlan) {
   selectedPlanForWhatsApp.value = planWithMenu;
 }
 
-function exportPdf(plan: PatientDietPlan) {
-  const menu = ensureFallbackMenu(plan);
-  MenuExportService.exportMenuToPdf(props.patient, plan, menu);
+const isExportingPdf = ref(false);
+
+async function exportPdf(plan: PatientDietPlan) {
+  try {
+    isExportingPdf.value = true;
+    const menu = ensureFallbackMenu(plan);
+    await MenuExportService.exportMenuToPdf(props.patient, plan, menu);
+  } finally {
+    isExportingPdf.value = false;
+  }
 }
 
 function exportWord(plan: PatientDietPlan) {

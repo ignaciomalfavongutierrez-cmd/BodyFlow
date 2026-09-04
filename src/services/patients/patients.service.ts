@@ -29,6 +29,36 @@ import { SEED_PATIENTS } from './samplePatientsSeed';
 const PATIENTS_COLLECTION = 'pacientes';
 
 /**
+ * Recursively removes all keys with `undefined` values from an object or array.
+ * Firestore setDoc/updateDoc throws when an object contains `undefined`:
+ * "FirebaseError: Function setDoc() called with invalid data. Unsupported field value: undefined"
+ */
+export function cleanFirestoreData<T>(obj: T): T {
+  if (obj === null || obj === undefined) {
+    return null as unknown as T;
+  }
+  if (Array.isArray(obj)) {
+    return obj
+      .filter(item => item !== undefined)
+      .map(item => cleanFirestoreData(item)) as unknown as T;
+  }
+  if (typeof obj === 'object' && !(obj instanceof Date)) {
+    const constructorName = (obj as any)?.constructor?.name;
+    if (constructorName === 'FieldValue' || constructorName === 'Timestamp' || '_methodName' in (obj as any)) {
+      return obj;
+    }
+    const cleaned: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        cleaned[key] = cleanFirestoreData(value);
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+}
+
+/**
  * Service to manage all patient data, subcollections, and clinical records
  */
 export class PatientsService {
@@ -255,11 +285,11 @@ export class PatientsService {
 
     try {
       const docRef = doc(db, PATIENTS_COLLECTION, newId);
-      await setDoc(docRef, {
+      await setDoc(docRef, cleanFirestoreData({
         ...patientData,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
-      });
+      }));
     } catch (err) {
       console.warn('[PATIENTS:SERVICE] createPatient Firestore write failed, stored in local cache:', err);
     }
@@ -278,10 +308,10 @@ export class PatientsService {
     try {
       const docRef = doc(db, PATIENTS_COLLECTION, patientId);
       // setDoc with merge: true creates or updates safely even for initial seed records
-      await setDoc(docRef, {
+      await setDoc(docRef, cleanFirestoreData({
         ...cleanData,
         updatedAt: serverTimestamp()
-      }, { merge: true });
+      }), { merge: true });
     } catch (err) {
       console.warn(`[PATIENTS:SERVICE] updatePatient(${patientId}) Firestore write failed, patching local cache:`, err);
     }
@@ -392,10 +422,10 @@ export class PatientsService {
 
     try {
       const docRef = doc(db, PATIENTS_COLLECTION, patientId, 'historial_clinico', 'main');
-      await setDoc(docRef, {
+      await setDoc(docRef, cleanFirestoreData({
         ...fullHist,
         updatedAt: serverTimestamp()
-      }, { merge: true });
+      }), { merge: true });
     } catch (err) {
       console.warn(`[PATIENTS:SERVICE] upsertClinicalHistory(${patientId}) Firestore write failed (stored in local cache):`, err);
     }
@@ -747,10 +777,12 @@ export class PatientsService {
 
     try {
       const docRef = doc(db, PATIENTS_COLLECTION, patientId, 'planes_nutricionales', planId);
-      await setDoc(docRef, {
+      const dataToSave = cleanFirestoreData({
         ...fullPlan,
-        createdAt: serverTimestamp()
-      }, { merge: true });
+        createdAt: (fullPlan as any).createdAt || serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      await setDoc(docRef, dataToSave, { merge: true });
     } catch (err) {
       console.warn(`[PATIENTS:SERVICE] savePatientDietPlan(${patientId}) failed (saved to local cache):`, err);
     }

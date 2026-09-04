@@ -240,8 +240,8 @@ async function copyToClipboard() {
   } catch {}
 }
 
-function downloadPdf() {
-  MenuExportService.exportMenuToPdf(props.patient, props.plan, props.menu);
+async function downloadPdf() {
+  await MenuExportService.exportMenuToPdf(props.patient, props.plan, props.menu);
 }
 
 function downloadWord() {
