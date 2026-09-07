@@ -21,57 +21,109 @@ interface DisplayDay {
   comidas: Record<string, DishItem[]>;
 }
 
-interface MealSectionDef {
+export interface MealSectionDef {
   key: string;
   aliasKeys?: string[];
   label: string;
   dotColor: string;
   bg: string;
   textColor: string;
+  icon: string;
+  defaultTime?: string;
 }
 
-const CLINICAL_MEAL_SECTIONS: MealSectionDef[] = [
-  {
-    key: 'desayuno',
-    aliasKeys: ['desayuno', 'breakfast'],
+export const CLINICAL_MEAL_STYLE_PRESETS: Record<string, { dotColor: string; bg: string; textColor: string; icon: string; label: string; defaultTime?: string; aliasKeys?: string[] }> = {
+  desayuno: {
     label: 'DESAYUNO',
-    dotColor: '#0284c7', // Sky blue / dark teal
+    icon: '🍳',
+    defaultTime: '08:30 AM',
+    dotColor: '#0284c7',
     bg: '#f0f9ff',
-    textColor: '#0369a1'
+    textColor: '#0369a1',
+    aliasKeys: ['desayuno', 'breakfast']
   },
-  {
-    key: 'almuerzo',
-    aliasKeys: ['almuerzo', 'colacion_1', 'snack_1', 'snack_matutino', 'media_manana'],
-    label: 'ALMUERZO',
-    dotColor: '#16a34a', // Fresh green
+  almuerzo: {
+    label: 'COLACIÓN MATUTINA',
+    icon: '🍏',
+    defaultTime: '11:30 AM',
+    dotColor: '#16a34a',
     bg: '#f0fdf4',
-    textColor: '#15803d'
+    textColor: '#15803d',
+    aliasKeys: ['almuerzo', 'colacion_1', 'snack_1', 'snack_matutino', 'media_manana']
   },
-  {
-    key: 'comida',
-    aliasKeys: ['comida', 'lunch'],
+  colacion_1: {
+    label: 'COLACIÓN MATUTINA',
+    icon: '🍏',
+    defaultTime: '11:30 AM',
+    dotColor: '#16a34a',
+    bg: '#f0fdf4',
+    textColor: '#15803d',
+    aliasKeys: ['colacion_1', 'almuerzo', 'snack_1', 'snack_matutino', 'media_manana']
+  },
+  comida: {
     label: 'COMIDA',
-    dotColor: '#ea580c', // Orange
+    icon: '🍲',
+    defaultTime: '02:30 PM',
+    dotColor: '#ea580c',
     bg: '#fff7ed',
-    textColor: '#c2410c'
+    textColor: '#c2410c',
+    aliasKeys: ['comida', 'lunch']
   },
-  {
-    key: 'colacion',
-    aliasKeys: ['colacion', 'colacion_2', 'snack_2', 'snack_vespertino', 'merienda'],
-    label: 'COLACION',
-    dotColor: '#d97706', // Amber
+  colacion_2: {
+    label: 'COLACIÓN VESPERTINA',
+    icon: '🥜',
+    defaultTime: '05:30 PM',
+    dotColor: '#d97706',
     bg: '#fffbeb',
-    textColor: '#b45309'
+    textColor: '#b45309',
+    aliasKeys: ['colacion_2', 'colacion', 'snack_2', 'snack_vespertino', 'merienda']
   },
-  {
-    key: 'cena',
-    aliasKeys: ['cena', 'dinner'],
+  colacion: {
+    label: 'COLACIÓN VESPERTINA',
+    icon: '🥜',
+    defaultTime: '05:30 PM',
+    dotColor: '#d97706',
+    bg: '#fffbeb',
+    textColor: '#b45309',
+    aliasKeys: ['colacion', 'colacion_2', 'snack_2', 'snack_vespertino', 'merienda']
+  },
+  cena: {
     label: 'CENA',
-    dotColor: '#ca8a04', // Golden
+    icon: '🥗',
+    defaultTime: '08:30 PM',
+    dotColor: '#ca8a04',
     bg: '#fefce8',
-    textColor: '#a16207'
+    textColor: '#a16207',
+    aliasKeys: ['cena', 'dinner']
+  },
+  snack: {
+    label: 'SNACK',
+    icon: '🍵',
+    defaultTime: '10:00 PM',
+    dotColor: '#7c3aed',
+    bg: '#f5f3ff',
+    textColor: '#6d28d9',
+    aliasKeys: ['snack', 'colacion_nocturna', 'snack_opcional']
+  },
+  pre_entreno: {
+    label: 'PRE-ENTRENO',
+    icon: '⚡',
+    defaultTime: '06:30 AM',
+    dotColor: '#dc2626',
+    bg: '#fef2f2',
+    textColor: '#b91c1c',
+    aliasKeys: ['pre_entreno', 'pre_workout']
+  },
+  post_entreno: {
+    label: 'POST-ENTRENO',
+    icon: '🥤',
+    defaultTime: '10:00 AM',
+    dotColor: '#0891b2',
+    bg: '#ecfeff',
+    textColor: '#0e7490',
+    aliasKeys: ['post_entreno', 'post_workout']
   }
-];
+};
 
 export class MenuExportService {
   /**
@@ -315,18 +367,197 @@ export class MenuExportService {
    * con la marca de agua de la manzana, logotipo de Talia Tinoco, tabla semanal de 7 columnas
    * y recuadros clínicos de macronutrientes y contacto.
    */
+  /**
+   * Resuelve dinámicamente los tiempos de comida a renderizar según la configuración del menú,
+   * las comidas sugeridas del plan o los platillos existentes en los días.
+   */
+  public static getActiveMealSections(plan: PatientDietPlan, menu: DietPlanMenu): MealSectionDef[] {
+    const sections: MealSectionDef[] = [];
+    const addedKeys = new Set<string>();
+
+    // 1. Si el menú tiene tiempos configurados explícitamente (ej. diseñador de menús)
+    if (menu && menu.tiemposComidaConfig && menu.tiemposComidaConfig.length > 0) {
+      menu.tiemposComidaConfig.forEach(cfg => {
+        const preset = CLINICAL_MEAL_STYLE_PRESETS[cfg.key] || {
+          label: (cfg.label || cfg.key).toUpperCase(),
+          icon: cfg.icon || '🍽️',
+          defaultTime: cfg.defaultTime,
+          dotColor: '#0d9488',
+          bg: '#f0fdfa',
+          textColor: '#0f766e',
+          aliasKeys: [cfg.key]
+        };
+        sections.push({
+          key: cfg.key,
+          aliasKeys: preset.aliasKeys || [cfg.key],
+          label: (cfg.label || preset.label || cfg.key).toUpperCase(),
+          dotColor: preset.dotColor,
+          bg: preset.bg,
+          textColor: preset.textColor,
+          icon: cfg.icon || preset.icon || '🍽️',
+          defaultTime: cfg.defaultTime || preset.defaultTime
+        });
+        addedKeys.add(cfg.key);
+        if (preset.aliasKeys) {
+          preset.aliasKeys.forEach(k => addedKeys.add(k));
+        }
+      });
+      return sections;
+    }
+
+    // 2. Si hay lista de claves específicas en menu.tiemposComida
+    if (menu && menu.tiemposComida && menu.tiemposComida.length > 0) {
+      menu.tiemposComida.forEach(key => {
+        const preset = CLINICAL_MEAL_STYLE_PRESETS[key];
+        if (preset && !addedKeys.has(key)) {
+          sections.push({
+            key,
+            aliasKeys: preset.aliasKeys || [key],
+            label: preset.label,
+            dotColor: preset.dotColor,
+            bg: preset.bg,
+            textColor: preset.textColor,
+            icon: preset.icon,
+            defaultTime: preset.defaultTime
+          });
+          addedKeys.add(key);
+          if (preset.aliasKeys) {
+            preset.aliasKeys.forEach(k => addedKeys.add(k));
+          }
+        }
+      });
+      if (sections.length > 0) return sections;
+    }
+
+    // 3. Si no hay configuración previa, utilizar plan.comidasSugeridas (ej. 3, 4, 5, 6)
+    const targetMealsCount = plan.comidasSugeridas || 5;
+
+    let targetKeys: string[] = [];
+    if (targetMealsCount === 3) {
+      targetKeys = ['desayuno', 'comida', 'cena'];
+    } else if (targetMealsCount === 4) {
+      targetKeys = ['desayuno', 'colacion_1', 'comida', 'cena'];
+    } else if (targetMealsCount === 6) {
+      targetKeys = ['desayuno', 'colacion_1', 'comida', 'colacion_2', 'cena', 'snack'];
+    } else {
+      // 5 comidas estándar
+      targetKeys = ['desayuno', 'colacion_1', 'comida', 'colacion_2', 'cena'];
+    }
+
+    targetKeys.forEach(key => {
+      const preset = CLINICAL_MEAL_STYLE_PRESETS[key];
+      if (preset && !addedKeys.has(key)) {
+        sections.push({
+          key,
+          aliasKeys: preset.aliasKeys || [key],
+          label: preset.label,
+          dotColor: preset.dotColor,
+          bg: preset.bg,
+          textColor: preset.textColor,
+          icon: preset.icon,
+          defaultTime: preset.defaultTime
+        });
+        addedKeys.add(key);
+        if (preset.aliasKeys) {
+          preset.aliasKeys.forEach(k => addedKeys.add(k));
+        }
+      }
+    });
+
+    // 4. Verificación de seguridad: si algún día tiene platillos registrados en otra categoría, incluirla
+    if (menu && menu.dias) {
+      menu.dias.forEach(dia => {
+        if (dia.comidas) {
+          Object.entries(dia.comidas).forEach(([catKey, dishes]) => {
+            if (dishes && dishes.length > 0 && !addedKeys.has(catKey)) {
+              const preset = CLINICAL_MEAL_STYLE_PRESETS[catKey] || {
+                label: catKey.toUpperCase(),
+                icon: '🍽️',
+                dotColor: '#6366f1',
+                bg: '#eef2ff',
+                textColor: '#4338ca',
+                aliasKeys: [catKey]
+              };
+              sections.push({
+                key: catKey,
+                aliasKeys: preset.aliasKeys || [catKey],
+                label: preset.label || catKey.toUpperCase(),
+                dotColor: preset.dotColor,
+                bg: preset.bg,
+                textColor: preset.textColor,
+                icon: preset.icon || '🍽️',
+                defaultTime: preset.defaultTime
+              });
+              addedKeys.add(catKey);
+            }
+          });
+        }
+      });
+    }
+
+    return sections;
+  }
+
+  /**
+   * Genera recomendaciones clínicas automáticas coherentes con el objetivo del plan
+   */
+  private static getClinicalGuidelines(plan: PatientDietPlan): string[] {
+    const obj = (plan.objetivo || '').toLowerCase();
+    if (obj.includes('grasa') || obj.includes('déficit') || obj.includes('deficit') || obj.includes('peso')) {
+      return [
+        'Déficit energético moderado para oxidación de tejido graso preservando masa muscular magra.',
+        'Priorizar fuentes abundantes de vegetales, fibra dietética saciante e hidratación constante (mín. 2.5L/día).'
+      ];
+    }
+    if (obj.includes('hipertrofia') || obj.includes('músculo') || obj.includes('musculo') || obj.includes('masa')) {
+      return [
+        'Aporte proteico óptimo y superávit energético para favorecer la síntesis de masa muscular magra.',
+        'Distribuir carbohidratos complejos antes y después del entrenamiento de fuerza; cuidar descanso reparador (7–8h).'
+      ];
+    }
+    if (obj.includes('recomposic')) {
+      return [
+        'Distribución armónica de macronutrientes para apoyar la recomposición corporal activa y rendimiento físico.',
+        'Entrenamiento de fuerza regular con progresión en cargas y apego constante a las porciones indicadas.'
+      ];
+    }
+    if (obj.includes('digestiv') || obj.includes('gastrit') || obj.includes('refluj') || obj.includes('clínic') || obj.includes('clinic')) {
+      return [
+        'Selección de alimentos de fácil digestión, preparaciones a la plancha o vapor y bajo contenido de grasas irritantes.',
+        'Masticar pausadamente cada alimento y respetar horarios regulares para desinflamación y confort digestivo.'
+      ];
+    }
+    if (obj.includes('rendimiento') || obj.includes('deport') || obj.includes('atleta')) {
+      return [
+        'Disponibilidad óptima de glucógeno y electrolitos para sostener sesiones de alta exigencia física.',
+        'Estrategia de timing nutricional peri-entrenamiento y recuperación muscular acelerada.'
+      ];
+    }
+    return [
+      'Distribución balanceada de macronutrientes para sostener niveles estables de energía, saciedad y bienestar.',
+      'Mantener hidratación constante, seleccionar ingredientes naturales y evitar ultraprocesados añadidos.'
+    ];
+  }
+
+  /**
+   * Genera el documento HTML completo del Menú Clínico en formato horizontal (Landscape)
+   * con la marca de agua de la manzana, logotipo de Talia Tinoco, tabla semanal de 7 columnas
+   * y recuadros clínicos de macronutrientes y contacto.
+   */
   public static generateClinicalMenuHtml(
     patient: Patient,
     plan: PatientDietPlan,
     menu: DietPlanMenu,
-    _options: { isForPdf?: boolean; isForWord?: boolean } = {}
+    options: { isForPdf?: boolean; isForWord?: boolean; isForPreview?: boolean } = {}
   ): string {
     const displayDays = this.getNormalizedDisplayDays(menu);
     const numCols = displayDays.length;
     const colWidthPct = (100 / numCols).toFixed(2);
 
-    // Detección de secciones activas o catálogo predeterminado
-    const sectionsToRender = CLINICAL_MEAL_SECTIONS;
+    // Detección dinámica de secciones activas según el plan y menú
+    const sectionsToRender = this.getActiveMealSections(plan, menu);
+    const isFewMeals = sectionsToRender.length <= 3;
+    const cellPadding = isFewMeals ? '7px 6px' : '4px 6px';
 
     // Construcción de filas de la tabla
     let tableBodyHtml = '';
@@ -345,18 +576,30 @@ export class MenuExportService {
       <tbody>
     `;
 
-    // Para cada tiempo de comida: barra de categoría + celdas por día
+    // Para cada tiempo de comida activo: barra de categoría con icono y horario + celdas por día
     sectionsToRender.forEach(sec => {
-      // 1. Barra de sección de comida (spans all columns)
+      // 1. Barra de sección de comida con icono nítido y horario
       tableBodyHtml += `
         <tr style="background-color: ${sec.bg};">
-          <td colspan="${numCols}" style="padding: 2.5px 8px; border: 1px solid #cbd5e1; border-top: 1.5px solid #94a3b8; text-align: left;">
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background-color: ${sec.dotColor};"></span>
-              <span style="font-size: 9.5px; font-weight: 900; color: ${sec.textColor}; letter-spacing: 1px; text-transform: uppercase;">
-                ${sec.label}
-              </span>
-            </div>
+          <td colspan="${numCols}" style="padding: 3px 10px; border: 1px solid #cbd5e1; border-top: 1.5px solid #94a3b8; text-align: left;">
+            <table style="width: 100%; border-collapse: collapse; border: none;">
+              <tr>
+                <td style="text-align: left; vertical-align: middle; border: none; padding: 0;">
+                  <span style="font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Symbol', sans-serif; font-size: 13px; line-height: 1; vertical-align: middle; margin-right: 5px; display: inline-block;">${sec.icon || '🍽️'}</span>
+                  <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background-color: ${sec.dotColor}; vertical-align: middle; margin-right: 5px;"></span>
+                  <span style="font-size: 9.5px; font-weight: 900; color: ${sec.textColor}; letter-spacing: 0.8px; text-transform: uppercase; vertical-align: middle;">
+                    ${sec.label}
+                  </span>
+                </td>
+                ${sec.defaultTime ? `
+                  <td style="text-align: right; vertical-align: middle; border: none; padding: 0;">
+                    <span style="font-size: 8.5px; font-weight: 800; color: ${sec.textColor}; opacity: 0.85; letter-spacing: 0.4px;">
+                      ⏰ ${sec.defaultTime}
+                    </span>
+                  </td>
+                ` : ''}
+              </tr>
+            </table>
           </td>
         </tr>
       `;
@@ -367,7 +610,7 @@ export class MenuExportService {
           ${displayDays.map(day => {
             const dishes = this.getDishesForSection(day.comidas, sec);
             return `
-              <td style="border: 1px solid #cbd5e1; padding: 5px 6px; vertical-align: top; background-color: transparent; font-size: 8.5px; line-height: 1.35; color: #1e293b;">
+              <td style="border: 1px solid #cbd5e1; padding: ${cellPadding}; vertical-align: top; background-color: transparent; font-size: 8.5px; line-height: 1.35; color: #1e293b;">
                 ${this.renderDishesCellHtml(dishes)}
               </td>
             `;
@@ -378,31 +621,34 @@ export class MenuExportService {
 
     tableBodyHtml += `</tbody>`;
 
-    return `
-      <div class="clinical-sheet-container" style="
-        width: 1200px;
-        min-height: 840px;
-        box-sizing: border-box;
-        padding: 18px 24px;
-        background-color: #ffffff;
-        position: relative;
-        font-family: 'Calibri', 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        color: #0f172a;
-        overflow: hidden;
+    const guidelines = this.getClinicalGuidelines(plan);
+
+    const containerStyle = options.isForWord
+      ? `width: 100%; box-sizing: border-box; padding: 6px 10px; background-color: #ffffff; font-family: 'Calibri', 'Arial', sans-serif; color: #0f172a;`
+      : options.isForPdf
+        ? `width: 1200px; min-width: 1200px; min-height: 840px; box-sizing: border-box; padding: 18px 24px; background-color: #ffffff; position: relative; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Outfit', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #0f172a; overflow: hidden;`
+        : `width: 100%; max-width: 1200px; min-height: 760px; box-sizing: border-box; padding: 18px 24px; background-color: #ffffff; position: relative; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Outfit', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #0f172a; overflow: hidden; margin: 0 auto;`;
+
+    const watermarkHtml = options.isForWord ? '' : `
+      <!-- MARCA DE AGUA CENTRAL (Manzana Talia Tinoco - Perfectamente centrada sobre la tabla) -->
+      <div style="
+        position: absolute;
+        top: 52%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 440px;
+        max-width: 48%;
+        pointer-events: none;
+        z-index: 10;
+        text-align: center;
       ">
-        <!-- MARCA DE AGUA CENTRAL (Manzana Talia Tinoco - Perfectamente centrada sobre la tabla con superposición transparente z-index 10) -->
-        <div style="
-          position: absolute;
-          top: 130px;
-          left: 365px;
-          width: 470px;
-          height: 520px;
-          pointer-events: none;
-          z-index: 10;
-          text-align: center;
-        ">
-          <img src="${TALIA_WATERMARK_BASE64}" style="width: 100%; height: 100%; object-fit: contain; display: block;" alt="Marca de Agua" />
-        </div>
+        <img src="${TALIA_WATERMARK_BASE64}" style="width: 100%; height: auto; object-fit: contain; display: block;" alt="Marca de Agua" />
+      </div>
+    `;
+
+    return `
+      <div class="clinical-sheet-container" style="${containerStyle}">
+        ${watermarkHtml}
 
         <!-- ENCABEZADO INSTITUCIONAL TALIA TINOCO FABIÁN (Tabla para perfecta alineación en Word y PDF) -->
         <table style="
@@ -415,50 +661,46 @@ export class MenuExportService {
         ">
           <tr>
             <!-- Izquierda: Logotipo + Marca -->
-            <td style="width: 30%; vertical-align: middle; border: none; text-align: left;">
+            <td style="width: 32%; vertical-align: middle; border: none; text-align: left;">
               <table style="border-collapse: collapse; border: none;">
                 <tr>
                   <td style="vertical-align: middle; padding-right: 8px; border: none;">
-                    <img src="${TALIA_LOGO_BASE64}" style="width: 50px; height: 50px; object-fit: contain; display: block;" alt="Talia Logo" />
+                    <img src="${TALIA_LOGO_BASE64}" style="width: 48px; height: 48px; object-fit: contain; display: block;" alt="Talia Logo" />
                   </td>
                   <td style="vertical-align: middle; border: none;">
-                    <div style="font-size: 13px; font-weight: 800; color: #556637; letter-spacing: 1.2px; line-height: 1.15; white-space: nowrap;">TALIA TINOCO FABIÁN</div>
-                    <div style="font-size: 9px; font-weight: 700; color: #6e8248; letter-spacing: 4px; margin-top: 1px;">NUTRICIÓN</div>
+                    <div style="font-size: 13.5px; font-weight: 900; color: #43512b; letter-spacing: 0.8px; line-height: 1.15; white-space: nowrap;">TALIA TINOCO FABIÁN</div>
+                    <div style="font-size: 8px; font-weight: 800; color: #687e43; letter-spacing: 2.8px; text-transform: uppercase; margin-top: 2px;">NUTRICIÓN CLÍNICA & DEPORTIVA</div>
                   </td>
                 </tr>
               </table>
             </td>
 
-            <!-- Centro: Banner Verde Salvia "MENU" -->
-            <td style="width: 40%; vertical-align: middle; border: none; text-align: center;">
-              <div style="
-                display: inline-block;
-                background-color: #a8b792;
-                color: #1a2512;
-                font-size: 18px;
-                font-weight: 900;
-                letter-spacing: 4px;
-                padding: 6px 64px;
-                border-radius: 8px;
-                text-transform: uppercase;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-              ">
-                MENU
-              </div>
+            <!-- Centro: Banner Verde Salvia "MENÚ" (Geométricamente centrado en todo entorno) -->
+            <td style="width: 36%; vertical-align: middle; border: none; text-align: center;">
+              <table style="display: inline-table; margin: 0 auto; border-collapse: collapse; border: none; background-color: #a8b792; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+                <tr>
+                  <td style="height: 32px; vertical-align: middle; text-align: center; padding: 0 40px; border: none; font-size: 16px; font-weight: 900; color: #1a2512; text-transform: uppercase; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; line-height: 1;">
+                    M&nbsp;&nbsp;E&nbsp;&nbsp;N&nbsp;&nbsp;Ú
+                  </td>
+                </tr>
+              </table>
             </td>
 
             <!-- Derecha: Recuadro Cédula Profesional -->
-            <td style="width: 30%; vertical-align: middle; border: none; text-align: right;">
+            <td style="width: 32%; vertical-align: middle; border: none; text-align: right;">
               <div style="
                 display: inline-block;
                 border: 1.5px solid #cbd5e1;
-                border-radius: 6px;
-                padding: 5px 14px;
+                border-radius: 8px;
+                padding: 4px 14px;
                 background-color: #ffffff;
                 text-align: center;
               ">
-                <div style="font-size: 12.5px; font-weight: 800; color: #0f172a; letter-spacing: 0.5px; white-space: nowrap;">
-                  Cedula: ${TALIA_CLINICAL_CONTACT.cedula}
+                <div style="font-size: 7.5px; font-weight: 800; color: #64748b; letter-spacing: 0.8px; text-transform: uppercase;">
+                  CÉDULA PROFESIONAL
+                </div>
+                <div style="font-size: 11.5px; font-weight: 800; color: #0f172a; margin-top: 1px;">
+                  ${TALIA_CLINICAL_CONTACT.cedula}
                 </div>
               </div>
             </td>
@@ -467,27 +709,31 @@ export class MenuExportService {
 
         <!-- SUB-BARRA METADATOS DEL PACIENTE (Caja clínica estilizada y perfectamente alineada) -->
         <div style="
-          border: 1px solid #cbd5e1;
-          border-radius: 6px;
+          border: 1.5px solid #cbd5e1;
+          border-radius: 8px;
           background-color: #f8fafc;
           margin-bottom: 8px;
-          padding: 5px 12px;
+          padding: 6px 14px;
           position: relative;
           z-index: 2;
         ">
           <table style="width: 100%; border-collapse: collapse; border: none;">
             <tr>
-              <td style="width: 26%; text-align: left; vertical-align: middle; border: none; font-size: 10px; color: #334155;">
-                <strong style="color: #475569;">Paciente:</strong> <span style="font-weight: 700; color: #0f172a;">${patient.nombre}</span>
+              <td style="width: 28%; text-align: left; vertical-align: middle; border: none;">
+                <div style="font-size: 7.5px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px;">PACIENTE</div>
+                <div style="font-size: 11.5px; font-weight: 800; color: #0f172a; margin-top: 1px;">${patient.nombre}</div>
               </td>
-              <td style="width: 36%; text-align: left; vertical-align: middle; border: none; font-size: 10px; color: #334155;">
-                <strong style="color: #475569;">Plan:</strong> <span style="font-weight: 700; color: #0f172a;">${plan.nombre}</span>
+              <td style="width: 32%; text-align: left; vertical-align: middle; border: none;">
+                <div style="font-size: 7.5px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px;">PLAN ASIGNADO</div>
+                <div style="font-size: 11.5px; font-weight: 800; color: #0f172a; margin-top: 1px;">${plan.nombre}</div>
               </td>
-              <td style="width: 23%; text-align: left; vertical-align: middle; border: none; font-size: 10px; color: #334155;">
-                <strong style="color: #475569;">Objetivo:</strong> <span style="font-weight: 700; color: #0f172a;">${plan.objetivo || 'Personalizado'}</span>
+              <td style="width: 24%; text-align: left; vertical-align: middle; border: none;">
+                <div style="font-size: 7.5px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px;">OBJETIVO CLÍNICO</div>
+                <div style="font-size: 11px; font-weight: 800; color: #15803d; margin-top: 1px;">🎯 ${plan.objetivo || 'Personalizado'}</div>
               </td>
-              <td style="width: 15%; text-align: right; vertical-align: middle; border: none; font-size: 10px; color: #334155;">
-                <strong style="color: #475569;">Fecha:</strong> <span style="font-weight: 600; color: #0f172a;">${plan.fechaAsignacion}</span>
+              <td style="width: 16%; text-align: right; vertical-align: middle; border: none;">
+                <div style="font-size: 7.5px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px;">FECHA</div>
+                <div style="font-size: 11px; font-weight: 700; color: #334155; margin-top: 1px;">📅 ${plan.fechaAsignacion}</div>
               </td>
             </tr>
           </table>
@@ -515,7 +761,7 @@ export class MenuExportService {
           margin-top: 6px;
         ">
           <tr>
-            <!-- Caja Izquierda: Calorías, Macronutrientes e Indicaciones -->
+            <!-- Caja Izquierda: Calorías, Macronutrientes e Indicaciones Clínicas Dinámicas -->
             <td style="
               width: 50%;
               vertical-align: top;
@@ -530,8 +776,8 @@ export class MenuExportService {
                 box-sizing: border-box;
                 min-height: 74px;
               ">
-                <div style="font-size: 10.5px; font-weight: 900; color: #0f172a; margin-bottom: 3px;">
-                  ${plan.calorias} Kcal: ${plan.macros.protein}g proteína, ${plan.macros.carbs}g carbohidratos, ${plan.macros.fat}g grasa
+                <div style="font-size: 11px; font-weight: 900; color: #0f172a; margin-bottom: 4px; letter-spacing: -0.2px;">
+                  ⚡ ${plan.calorias.toLocaleString()} kcal: ${plan.macros.protein}g proteína • ${plan.macros.carbs}g carbohidratos • ${plan.macros.fat}g grasas
                 </div>
                 <ul style="
                   margin: 0;
@@ -541,9 +787,11 @@ export class MenuExportService {
                   line-height: 1.35;
                   list-style-type: circle;
                 ">
-                  <li>Alta energía para entrenar, Proteína suficiente para hipertrofia, Grasas controladas, Carbohidratos altos para rendimiento.</li>
-                  <li>Entrena fuerza 4–6 días/semana, Prioriza carbos alrededor del entrenamiento, Progresión en cargas (clave para recomposición).</li>
-                  ${plan.notas ? `<li style="margin-top: 1.5px; color: #047857;"><strong>Indicaciones clínicas:</strong> ${plan.notas}</li>` : ''}
+                  ${guidelines.map(g => `<li style="margin-bottom: 2px;">${g}</li>`).join('')}
+                  <li style="color: #0369a1; font-weight: 700; margin-bottom: 2px;">
+                    🍽️ Estructura: ${sectionsToRender.length} tiempos de comida al día (${sectionsToRender.map(s => `${s.icon} ${s.label}`).join(' • ')}).
+                  </li>
+                  ${plan.notas ? `<li style="margin-top: 2.5px; color: #047857; font-weight: 700;"><strong>💡 Indicaciones clínicas del profesional:</strong> ${plan.notas}</li>` : ''}
                 </ul>
               </div>
             </td>
@@ -641,24 +889,29 @@ export class MenuExportService {
           @page Section1 {
             size: 11.0in 8.5in;
             mso-page-orientation: landscape;
-            margin: 0.4in 0.4in 0.4in 0.4in;
-            mso-header-margin: 0.2in;
-            mso-footer-margin: 0.2in;
+            margin: 0.3in 0.3in 0.3in 0.3in;
+            mso-header-margin: 0.1in;
+            mso-footer-margin: 0.1in;
           }
-          div.Section1 { page: Section1; }
+          div.Section1 { 
+            page: Section1; 
+            margin: 0;
+            padding: 0;
+          }
           body {
             font-family: 'Calibri', 'Arial', sans-serif;
             margin: 0;
             padding: 0;
             background-color: #ffffff;
           }
+          table {
+            border-collapse: collapse;
+            mso-table-lspace: 0pt;
+            mso-table-rspace: 0pt;
+          }
         </style>
       </head>
-      <body>
-        <div class="Section1">
-          ${htmlContent}
-        </div>
-      </body>
+      <body><div class="Section1">${htmlContent}</div></body>
       </html>
     `;
 
@@ -679,22 +932,22 @@ export class MenuExportService {
 
   /**
    * Genera y descarga el PDF oficial membretado en orientación horizontal (Landscape)
-   * con alta fidelidad gráfica (2x Retina DPI) y marca de agua institucional.
+   * con alta fidelidad gráfica (2x Retina DPI) idéntica a la vista previa.
    */
   public static async exportMenuToPdf(
     patient: Patient,
     plan: PatientDietPlan,
     menu: DietPlanMenu
   ): Promise<void> {
-    // 1. Contenedor temporal fuera de pantalla en coordenadas (0, 0) detrás de la aplicación
+    // 1. Contenedor temporal fuera de pantalla montado en plano visible para la GPU
     const container = document.createElement('div');
     container.id = 'clinical-menu-pdf-export-container';
     container.style.position = 'fixed';
     container.style.top = '0px';
-    container.style.left = '0px';
+    container.style.left = '-99999px';
     container.style.width = '1200px';
     container.style.backgroundColor = '#ffffff';
-    container.style.zIndex = '-9999';
+    container.style.zIndex = '9999';
     container.style.pointerEvents = 'none';
 
     container.innerHTML = this.generateClinicalMenuHtml(patient, plan, menu, { isForPdf: true });
@@ -724,11 +977,20 @@ export class MenuExportService {
       );
 
       // Retardo para asegurar pintura de fuentes tipográficas y maquetación
-      await new Promise(resolve => setTimeout(resolve, 120));
+      await new Promise(resolve => setTimeout(resolve, 150));
 
-      // 3. Renderizar DOM a imagen JPEG de alta definición (2x DPI)
+      // 3. Renderizar DOM nativo a imagen JPEG de alta definición (2x DPI) usando motor nativo del navegador
       let imgData = '';
       try {
+        imgData = await toJpeg(sheetEl, {
+          quality: 0.98,
+          pixelRatio: 2,
+          backgroundColor: '#ffffff',
+          skipFonts: true,
+          width: 1200
+        });
+      } catch (toJpegErr) {
+        console.warn('[MENU:EXPORT] toJpeg error, using html2canvas fallback:', toJpegErr);
         const canvas = await html2canvas(sheetEl, {
           scale: 2,
           backgroundColor: '#ffffff',
@@ -738,18 +1000,6 @@ export class MenuExportService {
           windowWidth: 1200
         });
         imgData = canvas.toDataURL('image/jpeg', 0.96);
-      } catch (canvasErr) {
-        console.warn('[MENU:EXPORT] html2canvas error, using toJpeg fallback:', canvasErr);
-      }
-
-      if (!imgData || imgData.length < 5000) {
-        imgData = await toJpeg(sheetEl, {
-          quality: 0.96,
-          pixelRatio: 2,
-          backgroundColor: '#ffffff',
-          skipFonts: true,
-          width: 1200
-        });
       }
 
       if (!imgData || imgData.length < 5000) {

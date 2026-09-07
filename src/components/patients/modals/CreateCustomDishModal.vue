@@ -100,12 +100,22 @@
                   @input="handleQuantityChange(ing)"
                   class="w-16 px-2 py-1 bg-slate-50 dark:bg-black/20 border-2 border-emerald-500 rounded-xl text-center font-black text-xs text-slate-900 dark:text-white outline-none"
                 />
-                <input
-                  type="text"
-                  v-model="ing.unidad"
-                  placeholder="unidad"
-                  class="w-20 px-2 py-1 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/15 rounded-xl text-[11px] text-slate-700 dark:text-slate-300 outline-none"
-                />
+                <select
+                  :value="ing.unidad"
+                  @change="onUnitSelectChange(ing, $event)"
+                  class="px-2 py-1 bg-slate-50 dark:bg-black/20 border border-slate-200 dark:border-white/15 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                >
+                  <option value="g" class="bg-white dark:bg-[#1e1e24] text-slate-900 dark:text-white">g</option>
+                  <option value="pieza" class="bg-white dark:bg-[#1e1e24] text-slate-900 dark:text-white">pieza</option>
+                  <option value="taza" class="bg-white dark:bg-[#1e1e24] text-slate-900 dark:text-white">taza</option>
+                  <option value="cda" class="bg-white dark:bg-[#1e1e24] text-slate-900 dark:text-white">cda</option>
+                  <option value="cdta" class="bg-white dark:bg-[#1e1e24] text-slate-900 dark:text-white">cdta</option>
+                  <option value="rebanada" class="bg-white dark:bg-[#1e1e24] text-slate-900 dark:text-white">rebanada</option>
+                  <option value="scoop" class="bg-white dark:bg-[#1e1e24] text-slate-900 dark:text-white">scoop</option>
+                  <option value="lata" class="bg-white dark:bg-[#1e1e24] text-slate-900 dark:text-white">lata</option>
+                  <option value="ml" class="bg-white dark:bg-[#1e1e24] text-slate-900 dark:text-white">ml</option>
+                  <option value="porción" class="bg-white dark:bg-[#1e1e24] text-slate-900 dark:text-white">porción</option>
+                </select>
               </div>
 
               <!-- Remove button -->
@@ -313,11 +323,16 @@ async function selectAndAddIngredient(item: IngredientSearchResult) {
     await IngredientSearchService.autoCacheFatSecretFood(item);
   }
 
+  const staple = IngredientSearchService.findStapleMatch(item.nombre);
+  const baseUnit = item.unidadBase || (staple ? staple.unidadBase : IngredientSearchService.normalizeUnitKey(item.porcion));
+  const baseGrams = item.gramosReferencia || (staple ? staple.gramosReferencia : IngredientSearchService.calculateIngredientGrams(1, baseUnit, item.nombre));
+
   const newIng: DishIngredient = {
     id: `ing_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
     nombre: item.nombre,
     cantidad: 1,
-    unidad: item.porcion || 'porción',
+    unidad: baseUnit,
+    gramosEquivalentes: baseGrams,
     macros: { ...item.macros },
     baseMacros: { ...item.macros }
   };
@@ -328,13 +343,41 @@ async function selectAndAddIngredient(item: IngredientSearchResult) {
   recalculateDishTotals();
 }
 
+function onUnitSelectChange(ing: DishIngredient, event: Event) {
+  const select = event.target as HTMLSelectElement;
+  const newUnit = select.value;
+  const oldUnit = ing.unidad;
+
+  if (oldUnit === newUnit) return;
+
+  const converted = IngredientSearchService.convertIngredientUnit(
+    ing.cantidad,
+    oldUnit,
+    newUnit,
+    ing.nombre
+  );
+
+  ing.cantidad = converted.newCantidad;
+  ing.unidad = newUnit;
+  ing.gramosEquivalentes = converted.totalGrams;
+
+  ing.baseMacros = {
+    calories: ing.macros.calories / (ing.cantidad || 1),
+    protein: +(ing.macros.protein / (ing.cantidad || 1)).toFixed(1),
+    carbs: +(ing.macros.carbs / (ing.cantidad || 1)).toFixed(1),
+    fat: +(ing.macros.fat / (ing.cantidad || 1)).toFixed(1)
+  };
+
+  recalculateDishTotals();
+}
+
 function handleQuantityChange(ing: DishIngredient) {
   if (!ing.baseMacros) {
     ing.baseMacros = {
       calories: ing.macros.calories / (ing.cantidad || 1),
-      protein: ing.macros.protein / (ing.cantidad || 1),
-      carbs: ing.macros.carbs / (ing.cantidad || 1),
-      fat: ing.macros.fat / (ing.cantidad || 1)
+      protein: +(ing.macros.protein / (ing.cantidad || 1)).toFixed(1),
+      carbs: +(ing.macros.carbs / (ing.cantidad || 1)).toFixed(1),
+      fat: +(ing.macros.fat / (ing.cantidad || 1)).toFixed(1)
     };
   }
 
@@ -343,6 +386,7 @@ function handleQuantityChange(ing: DishIngredient) {
   ing.macros.protein = +(ing.baseMacros.protein * qty).toFixed(1);
   ing.macros.carbs = +(ing.baseMacros.carbs * qty).toFixed(1);
   ing.macros.fat = +(ing.baseMacros.fat * qty).toFixed(1);
+  ing.gramosEquivalentes = IngredientSearchService.calculateIngredientGrams(qty, ing.unidad, ing.nombre);
 
   recalculateDishTotals();
 }
@@ -375,7 +419,7 @@ async function handleSubmit() {
   if (!dish.nombre.trim()) return;
 
   const stringIngredients = ingredientsList.value.map(ing => 
-    `${ing.cantidad} ${ing.unidad} ${ing.nombre}`.replace(/\s+/g, ' ').trim()
+    IngredientSearchService.formatIngredientDisplay(ing)
   );
 
   const newId = `custom_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;

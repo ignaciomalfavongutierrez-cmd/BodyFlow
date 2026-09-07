@@ -725,23 +725,40 @@ export class PatientsService {
       const snap = await getDocs(colRef);
       if (!snap.empty) {
         const plans = snap.docs.map(d => ({ id: d.id, ...d.data() })) as PatientDietPlan[];
-        this.localDietPlansCache[patientId] = plans;
-        this.saveToStorage(this.getStorageKey('planes', patientId), plans);
-        return plans;
+        const sorted = this.sortDietPlans(plans);
+        this.localDietPlansCache[patientId] = sorted;
+        this.saveToStorage(this.getStorageKey('planes', patientId), sorted);
+        return sorted;
       }
     } catch (err) {
       console.warn(`[PATIENTS:SERVICE] getPatientDietPlans(${patientId}) Firestore read failed, using cache fallback:`, err);
     }
 
-    if (this.localDietPlansCache[patientId]) return [...this.localDietPlansCache[patientId]];
+    if (this.localDietPlansCache[patientId]) return this.sortDietPlans(this.localDietPlansCache[patientId]);
     const stored = this.loadFromStorage<PatientDietPlan[]>(this.getStorageKey('planes', patientId));
     if (stored && stored.length > 0) {
-      this.localDietPlansCache[patientId] = stored;
-      return [...stored];
+      const sorted = this.sortDietPlans(stored);
+      this.localDietPlansCache[patientId] = sorted;
+      return sorted;
     }
 
     const seed = SEED_PATIENTS.find(s => s.patient.id === patientId);
-    return seed ? [...seed.dietPlans] : [];
+    return seed ? this.sortDietPlans(seed.dietPlans) : [];
+  }
+
+  /**
+   * Ordena los planes nutricionales: primero el activo, luego por fecha más reciente
+   */
+  public static sortDietPlans(plans: PatientDietPlan[]): PatientDietPlan[] {
+    return [...plans].sort((a, b) => {
+      // 1. Plan activo siempre primero
+      if (a.status === 'activo' && b.status !== 'activo') return -1;
+      if (a.status !== 'activo' && b.status === 'activo') return 1;
+      // 2. Orden descendente por fecha de asignación o creación
+      const dateA = new Date(a.fechaAsignacion || a.createdAt || 0).getTime();
+      const dateB = new Date(b.fechaAsignacion || b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
   }
 
   static async savePatientDietPlan(
@@ -759,9 +776,9 @@ export class PatientsService {
     const existingIndex = currentPlans.findIndex(p => p.id === planId);
     if (existingIndex !== -1) {
       currentPlans[existingIndex] = { ...currentPlans[existingIndex], ...fullPlan };
-      this.localDietPlansCache[patientId] = [...currentPlans];
+      this.localDietPlansCache[patientId] = this.sortDietPlans([...currentPlans]);
     } else {
-      this.localDietPlansCache[patientId] = [fullPlan, ...currentPlans];
+      this.localDietPlansCache[patientId] = this.sortDietPlans([fullPlan, ...currentPlans]);
     }
     this.saveToStorage(this.getStorageKey('planes', patientId), this.localDietPlansCache[patientId]);
 

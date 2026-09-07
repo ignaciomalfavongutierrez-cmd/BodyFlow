@@ -3,10 +3,16 @@
  * Handles FatSecret OAuth 2.0 and Gemini AI Requests.
  */
 
-import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import { GoogleGenAI } from '@google/genai'
+import dotenv from 'dotenv'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+dotenv.config({ path: path.join(__dirname, '.env') })
+dotenv.config() // also load root .env if present
 
 // ---------------------------------------------------------------------------
 // Config
@@ -135,11 +141,32 @@ function parseMacros(description = '') {
   }
 }
 
+function translateServingDescription(desc = '') {
+  let clean = (desc.split(' - ')[0] ?? '')
+    .replace(/^Per\s+/i, '')
+    .replace(/^Por\s+/i, '')
+    .trim();
+
+  return clean
+    .replace(/\b1\s*cup\b/gi, '1 taza (240ml)')
+    .replace(/\b1\/2\s*cup\b/gi, '1/2 taza (120ml)')
+    .replace(/\b1\/4\s*cup\b/gi, '1/4 taza (60ml)')
+    .replace(/\b1\s*tbsp\b|\b1\s*tablespoon\b/gi, '1 cucharada (15ml)')
+    .replace(/\b1\s*tsp\b|\b1\s*teaspoon\b/gi, '1 cucharadita (5ml)')
+    .replace(/\b1\s*slice\b/gi, '1 rebanada')
+    .replace(/\b1\s*item\b|\b1\s*piece\b/gi, '1 pieza')
+    .replace(/\b1\s*oz\b/gi, '28 g (1 oz)')
+    .replace(/\b1\s*fl\s*oz\b/gi, '30 ml')
+    .replace(/\b1\s*can\b/gi, '1 lata')
+    .replace(/\b1\s*scoop\b/gi, '1 scoop (30g)')
+    .replace(/\b1\s*serving\b/gi, '1 porción');
+}
+
 function normaliseItem(item) {
   return {
     id: item.food_id,
     name: item.food_name,
-    description: item.food_description?.split(' - ')[0] ?? '',
+    description: translateServingDescription(item.food_description),
     macros: parseMacros(item.food_description),
   }
 }

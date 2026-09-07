@@ -2,24 +2,26 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, browserLocalPersistence, setPersistence } from 'firebase/auth';
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 
+const env = (typeof import.meta !== 'undefined' && (import.meta as any).env) || {};
+
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+  apiKey: env.VITE_FIREBASE_API_KEY || 'mock_api_key',
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || 'mock_domain',
+  projectId: env.VITE_FIREBASE_PROJECT_ID || 'mock_project',
+  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || 'mock_bucket',
+  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || 'mock_sender',
+  appId: env.VITE_FIREBASE_APP_ID || 'mock_app',
+  measurementId: env.VITE_FIREBASE_MEASUREMENT_ID || 'mock_measurement'
 };
 
-if (import.meta.env.DEV) {
+if (env.DEV) {
   console.log('[AUTH:FLOW] FIREBASE_INIT_START');
 }
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
-if (import.meta.env.DEV) {
+if (env.DEV) {
   console.log('[AUTH:FLOW] FIREBASE_INITIALIZED');
 }
 
@@ -27,7 +29,7 @@ if (import.meta.env.DEV) {
 // Export the promise so auth store can await it before reading auth state.
 export const persistenceReady = setPersistence(auth, browserLocalPersistence)
   .then(() => {
-    if (import.meta.env.DEV) {
+    if (env.DEV) {
       console.log('[AUTH:FLOW] PERSISTENCE_CONFIGURED');
     }
   })

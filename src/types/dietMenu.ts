@@ -21,6 +21,7 @@ export interface DishIngredient {
   nombre: string;
   cantidad: number;
   unidad: string; // 'pieza', 'g', 'ml', 'taza', 'cucharada', etc.
+  gramosEquivalentes?: number;
   macros: {
     calories: number;
     protein: number;

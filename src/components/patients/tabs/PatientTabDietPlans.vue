@@ -60,9 +60,10 @@
     <!-- Diet Plans Grid -->
     <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div
-        v-for="plan in dietPlans"
+        v-for="plan in sortedDietPlans"
         :key="plan.id"
-        class="bg-white dark:bg-[#18181b] p-6 rounded-3xl border border-slate-200 dark:border-white/10 shadow-sm flex flex-col justify-between space-y-5 hover:border-emerald-500/40 transition-all group"
+        class="bg-white dark:bg-[#18181b] p-6 rounded-3xl border shadow-sm flex flex-col justify-between space-y-5 transition-all group"
+        :class="plan.status === 'activo' ? 'border-emerald-500/50 shadow-md ring-1 ring-emerald-500/20' : 'border-slate-200 dark:border-white/10 hover:border-emerald-500/40'"
       >
         <div class="space-y-3.5">
           
@@ -70,6 +71,13 @@
           <div class="flex items-start justify-between gap-3">
             <div>
               <div class="flex items-center gap-2 flex-wrap">
+                <span 
+                  v-if="plan.status === 'activo'" 
+                  class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-600 text-white shadow-2xs tracking-wider flex items-center gap-1"
+                >
+                  <span>✓</span>
+                  <span>Plan Activo</span>
+                </span>
                 <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500">Asignado: {{ plan.fechaAsignacion }}</span>
                 <span 
                   v-if="plan.objetivo" 
@@ -270,9 +278,9 @@
             </button>
           </div>
 
-          <!-- Row 2: Secondary Exports (Edit, PDF, Word, Shopping) -->
-          <div class="flex items-center justify-between gap-2 pt-1">
-            <div class="flex items-center gap-1.5">
+          <!-- Row 2: Secondary Exports (Edit, Previsualizar, PDF, Word, Shopping) -->
+          <div class="flex items-center justify-between gap-2 pt-1 flex-wrap">
+            <div class="flex items-center gap-1.5 flex-wrap">
               <button
                 @click="openEditPlan(plan)"
                 class="p-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-700 dark:text-slate-300 hover:text-emerald-600 text-xs font-bold border border-slate-200 dark:border-white/10 transition-all cursor-pointer flex items-center gap-1"
@@ -283,8 +291,18 @@
               </button>
 
               <button
+                @click="openPreviewModal(plan)"
+                class="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                title="Previsualizar cómo se verá el documento membretado oficial"
+              >
+                <Eye class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span class="text-[11px]">Previsualizar</span>
+              </button>
+
+              <button
                 @click="exportPdf(plan)"
-                class="p-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-700 dark:text-slate-300 hover:text-emerald-600 text-xs font-bold border border-slate-200 dark:border-white/10 transition-all cursor-pointer flex items-center gap-1"
+                :disabled="isExportingPdf"
+                class="p-2 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-700 dark:text-slate-300 hover:text-emerald-600 text-xs font-bold border border-slate-200 dark:border-white/10 transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50"
                 title="Descargar PDF Oficial"
               >
                 <FileText class="w-3.5 h-3.5 text-emerald-600" />
@@ -315,6 +333,108 @@
       </div>
     </div>
 
+    <!-- Live Clinical Sheet Preview Modal -->
+    <div
+      v-if="showPreviewModal && previewPlan"
+      class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md overflow-hidden"
+      @click.self="closePreviewModal"
+    >
+      <div class="bg-white dark:bg-[#18181b] border border-slate-200 dark:border-white/20 rounded-3xl shadow-2xl flex flex-col w-full max-w-[1340px] h-[94vh] overflow-hidden text-slate-900 dark:text-white transition-all">
+        
+        <!-- Header Bar -->
+        <div class="p-4 sm:px-6 border-b border-slate-100 dark:border-white/10 flex items-center justify-between gap-3 shrink-0 bg-slate-50/70 dark:bg-white/5">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
+              <Eye class="w-5 h-5" />
+            </div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <h3 class="text-base font-black text-slate-900 dark:text-white truncate" style="font-family: var(--font-display);">
+                  Previsualización de Menú Membretado Oficial
+                </h3>
+                <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 shrink-0">
+                  {{ previewPlan.calorias }} kcal • {{ previewPlan.comidasSugeridas || 5 }} comidas/día
+                </span>
+              </div>
+              <p class="text-xs text-slate-500 dark:text-slate-400 truncate">
+                Documento clínico para <strong>{{ patient.nombre }}</strong> • {{ previewPlan.nombre }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Controls: Zoom & Direct Exports & Close -->
+          <div class="flex items-center gap-2 shrink-0">
+            <!-- Zoom Controls Group -->
+            <div class="hidden sm:flex items-center gap-1 bg-white dark:bg-[#201f22] border border-slate-200 dark:border-white/10 rounded-xl p-1 shadow-2xs">
+              <button
+                @click="zoomOut"
+                class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+                title="Alejar (-)"
+              >
+                <ZoomOut class="w-3.5 h-3.5" />
+              </button>
+              <button
+                @click="resetZoom(previewZoom === 1.0 ? 0.75 : 1.0)"
+                class="px-2 py-1 text-[11px] font-bold rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                title="Alternar escala"
+              >
+                {{ Math.round(previewZoom * 100) }}%
+              </button>
+              <button
+                @click="zoomIn"
+                class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+                title="Acercar (+)"
+              >
+                <ZoomIn class="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <!-- Export Buttons -->
+            <button
+              @click="exportPdfFromPreview"
+              :disabled="isExportingPdf"
+              class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md cursor-pointer transition-all disabled:opacity-50"
+              title="Descargar PDF Oficial"
+            >
+              <FileText class="w-3.5 h-3.5" />
+              <span class="hidden sm:inline">{{ isExportingPdf ? 'Generando...' : 'Descargar PDF' }}</span>
+              <span class="sm:hidden">PDF</span>
+            </button>
+
+            <button
+              @click="exportWordFromPreview"
+              class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md cursor-pointer transition-all"
+              title="Descargar Word (.doc)"
+            >
+              <Download class="w-3.5 h-3.5" />
+              <span class="hidden sm:inline">Word</span>
+            </button>
+
+            <!-- Close Button -->
+            <button
+              @click="closePreviewModal"
+              class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors cursor-pointer ml-1"
+              title="Cerrar vista previa"
+            >
+              <X class="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Scrollable Document Viewport with live scaling -->
+        <div class="flex-1 overflow-auto p-2 sm:p-6 bg-slate-200/80 dark:bg-[#0c0c0e] flex justify-center items-start scrollbar-thin">
+          <div 
+            class="w-full max-w-[1200px] shadow-2xl rounded-2xl overflow-hidden bg-white transition-all"
+            :style="previewZoom !== 1.0 ? { transform: `scale(${previewZoom})`, transformOrigin: 'top center' } : {}"
+          >
+            <!-- Injected HTML representation of the clinical sheet -->
+            <div v-html="previewHtml" />
+          </div>
+        </div>
+
+      </div>
+    </div>
+
     <!-- Modern Intelligent Modal for assigning/editing a diet plan -->
     <AssignDietPlanModal
       v-if="showCreatePlanModal"
@@ -340,7 +460,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { 
   Utensils, 
   Plus, 
@@ -351,7 +471,11 @@ import {
   FileText, 
   Download, 
   Sparkles,
-  Edit2
+  Edit2,
+  Eye,
+  ZoomIn,
+  ZoomOut,
+  X
 } from 'lucide-vue-next';
 import type { 
   Patient, 
@@ -359,7 +483,7 @@ import type {
   PatientMeasurement, 
   PatientDietPlan 
 } from '../../../types/patient';
-import type { DietPlanMenu } from '../../../types/dietMenu';
+import type { DietPlanMenu, DishItem } from '../../../types/dietMenu';
 import { PatientsService } from '../../../services/patients/patients.service';
 import { MenuExportService } from '../../../services/nutrition/MenuExportService';
 import AssignDietPlanModal from '../modals/AssignDietPlanModal.vue';
@@ -379,10 +503,30 @@ const emit = defineEmits<{
   (e: 'goToHistory'): void;
 }>();
 
+// Ordenamiento inteligente: plan ACTIVO siempre al principio, luego más recientes
+const sortedDietPlans = computed(() => {
+  if (!props.dietPlans || props.dietPlans.length === 0) return [];
+  return [...props.dietPlans].sort((a, b) => {
+    // 1. Activo primero
+    if (a.status === 'activo' && b.status !== 'activo') return -1;
+    if (a.status !== 'activo' && b.status === 'activo') return 1;
+    // 2. Más reciente primero
+    const dateA = new Date(a.fechaAsignacion || a.createdAt || 0).getTime();
+    const dateB = new Date(b.fechaAsignacion || b.createdAt || 0).getTime();
+    return dateB - dateA;
+  });
+});
+
 const showCreatePlanModal = ref(false);
 const editingPlan = ref<PatientDietPlan | null>(null);
 const expandedTraceability = reactive<Record<string, boolean>>({});
 const selectedPlanForWhatsApp = ref<PatientDietPlan | null>(null);
+
+// Estado de Previsualización en Vivo
+const showPreviewModal = ref(false);
+const previewPlan = ref<PatientDietPlan | null>(null);
+const previewHtml = ref('');
+const previewZoom = ref(0.85); // 85% para visualización cómoda en pantallas estándar
 
 function openCreatePlan() {
   editingPlan.value = null;
@@ -434,55 +578,128 @@ function handleGoToHistory() {
   emit('goToHistory');
 }
 
+/**
+ * Genera un menú dinámico respetando el número de comidas sugeridas asignadas (3, 4 o 5 comidas)
+ */
 function ensureFallbackMenu(plan: PatientDietPlan): DietPlanMenu {
   if (plan.menu) return plan.menu;
+
+  const targetMealsCount = plan.comidasSugeridas || 5;
+
+  const mealDishes: Record<string, DishItem[]> = {
+    desayuno: [
+      {
+        id: 'f_des',
+        nombre: 'Huevos con Espinacas y Tortillas de Maíz',
+        categoria: 'desayuno',
+        porcion: '2 huevos + 1 taza espinaca + 2 tortillas',
+        macros: { calories: 340, protein: 18, carbs: 28, fat: 16 },
+        ingredientes: ['2 pzas Huevo entero', '1 taza Espinaca fresca', '2 pzas Tortilla de maíz', '1 cdita Aceite de oliva']
+      }
+    ],
+    comida: [
+      {
+        id: 'f_com',
+        nombre: 'Pechuga Asada con Arroz Jazmín y Ensalada Fresca',
+        categoria: 'comida',
+        porcion: '140g pechuga + 1/2 taza arroz + ensalada abundante',
+        macros: { calories: 430, protein: 40, carbs: 42, fat: 10 },
+        ingredientes: ['140g Pechuga de pollo', '1/2 taza Arroz cocido', '1.5 tazas Lechuga mixta', '1/2 pza Pepino', '1/2 pza Jitomate']
+      }
+    ],
+    cena: [
+      {
+        id: 'f_cen',
+        nombre: 'Filete de Pescado o Atún con Aguacate y Tostadas',
+        categoria: 'cena',
+        porcion: '1 lata atún / 130g pescado + 1/3 aguacate + 2 tostadas',
+        macros: { calories: 310, protein: 30, carbs: 24, fat: 9 },
+        ingredientes: ['1 lata Atún en agua o pescado blanco', '1/3 pza Aguacate', '2 pzas Tostadas horneadas', 'Verduras al gusto']
+      }
+    ]
+  };
+
+  const activeKeys = ['desayuno', 'comida', 'cena'];
+
+  if (targetMealsCount >= 4) {
+    activeKeys.splice(1, 0, 'colacion_1');
+    mealDishes.colacion_1 = [
+      {
+        id: 'f_col1',
+        nombre: 'Yogur Griego con Manzana y Canela',
+        categoria: 'colacion_1',
+        porcion: '3/4 taza yogur + 1 manzana',
+        macros: { calories: 170, protein: 14, carbs: 22, fat: 2 },
+        ingredientes: ['3/4 taza Yogur griego natural sin azúcar', '1 pza Manzana verde picada', 'Pizca de Canela']
+      }
+    ];
+  }
+
+  if (targetMealsCount >= 5) {
+    const cenaIndex = activeKeys.indexOf('cena');
+    activeKeys.splice(cenaIndex, 0, 'colacion_2');
+    mealDishes.colacion_2 = [
+      {
+        id: 'f_col2',
+        nombre: 'Puñado de Almendras y Frutos Rojos',
+        categoria: 'colacion_2',
+        porcion: '12 almendras + 1/2 taza frutos rojos',
+        macros: { calories: 150, protein: 5, carbs: 14, fat: 9 },
+        ingredientes: ['12 pzas Almendras naturales', '1/2 taza Frutos rojos frescos']
+      }
+    ];
+  }
+
   return {
     planId: plan.id,
     tipoEstructura: 'dia_tipo',
-    tiemposComida: ['desayuno', 'comida', 'cena'],
+    tiemposComida: activeKeys,
     updatedAt: new Date().toISOString(),
     dias: [
       {
         diaId: 'dia_tipo',
         diaNombre: 'Día Tipo Habitual',
-        comidas: {
-          desayuno: [
-            {
-              id: 'f_des',
-              nombre: 'Huevos con Espinacas y Tortillas',
-              categoria: 'desayuno',
-              porcion: '2 huevos + 1 taza espinaca + 2 tortillas',
-              macros: { calories: 340, protein: 18, carbs: 28, fat: 16 },
-              ingredientes: ['2 pzas Huevo', '1 taza Espinaca fresca', '2 pzas Tortilla de maíz', '1 cdita Aceite de oliva']
-            }
-          ],
-          colacion_1: [],
-          comida: [
-            {
-              id: 'f_com',
-              nombre: 'Pechuga Asada con Arroz y Ensalada Mixta',
-              categoria: 'comida',
-              porcion: '120g pechuga + 1/2 taza arroz + ensalada abundante',
-              macros: { calories: 420, protein: 38, carbs: 42, fat: 10 },
-              ingredientes: ['120g Pechuga de pollo', '1/2 taza Arroz cocido', '1 taza Lechuga', '1/2 pza Pepino', '1/2 pza Jitomate']
-            }
-          ],
-          colacion_2: [],
-          cena: [
-            {
-              id: 'f_cen',
-              nombre: 'Ensalada Ligera de Atún en Agua',
-              categoria: 'cena',
-              porcion: '1 lata atún + verdura picada + 2 tostadas horneadas',
-              macros: { calories: 290, protein: 28, carbs: 26, fat: 8 },
-              ingredientes: ['1 lata Atún en agua', '1/3 pza Aguacate', '2 pzas Tostadas horneadas']
-            }
-          ],
-          snack: []
-        }
+        comidas: mealDishes
       }
     ]
   };
+}
+
+// Previsualización interactiva
+function openPreviewModal(plan: PatientDietPlan) {
+  previewPlan.value = plan;
+  const menu = ensureFallbackMenu(plan);
+  previewHtml.value = MenuExportService.generateClinicalMenuHtml(props.patient, plan, menu, { isForPreview: true });
+  previewZoom.value = 1.0;
+  showPreviewModal.value = true;
+}
+
+function closePreviewModal() {
+  showPreviewModal.value = false;
+  previewPlan.value = null;
+  previewHtml.value = '';
+}
+
+function zoomIn() {
+  previewZoom.value = Math.min(1.4, Math.round((previewZoom.value + 0.1) * 10) / 10);
+}
+
+function zoomOut() {
+  previewZoom.value = Math.max(0.45, Math.round((previewZoom.value - 0.1) * 10) / 10);
+}
+
+function resetZoom(level = 1.0) {
+  previewZoom.value = level;
+}
+
+async function exportPdfFromPreview() {
+  if (!previewPlan.value) return;
+  await exportPdf(previewPlan.value);
+}
+
+function exportWordFromPreview() {
+  if (!previewPlan.value) return;
+  exportWord(previewPlan.value);
 }
 
 function openWhatsAppModal(plan: PatientDietPlan) {

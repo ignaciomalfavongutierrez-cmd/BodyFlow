@@ -29,9 +29,7 @@ export interface FoodSearchResult {
   }
 }
 
-// Base URL — empty string means "same origin" (works via Vite proxy in dev
-// and via the real backend origin in production if you set VITE_API_URL).
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
+const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || ''
 
 async function apiFetch<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`)
@@ -78,7 +76,7 @@ export async function searchFoods(
     language: 'es'
   })
 
-  return apiFetch<FoodSearchResult[]>(`api/foods/search?${qs}`)
+  return apiFetch<FoodSearchResult[]>(`/api/foods/search?${qs}`)
 }
 
 /**
@@ -89,5 +87,5 @@ export async function searchFoods(
  * console.log(food.macros.sugar)
  */
 export async function getFoodById(id: string): Promise<FoodSearchResult> {
-  return apiFetch<FoodSearchResult>(`api/foods/${encodeURIComponent(id)}`)
+  return apiFetch<FoodSearchResult>(`/api/foods/${encodeURIComponent(id)}`)
 }

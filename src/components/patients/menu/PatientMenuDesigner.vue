@@ -30,6 +30,17 @@
       <!-- Right: Action Buttons -->
       <div class="flex items-center gap-2 flex-wrap">
         
+        <!-- Preview Button -->
+        <button
+          type="button"
+          @click="handleOpenPreview"
+          class="px-3 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-bold transition-all border border-emerald-500/30 flex items-center gap-1.5 cursor-pointer shadow-2xs"
+          title="Previsualizar formato membretado oficial antes de descargar"
+        >
+          <Eye class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+          <span class="hidden sm:inline">Previsualizar</span>
+        </button>
+
         <!-- Export Word Button -->
         <button
           type="button"
@@ -257,7 +268,7 @@
             ></div>
           </div>
           <div class="flex items-center justify-between text-[10px] font-bold text-blue-600 dark:text-blue-400">
-            <span>{{ remainingProtein >= 0 ? `Faltan: ${remainingProtein}g` : `+${Math.abs(remainingProtein)}g extra` }}</span>
+            <span>{{ remainingProtein >= 0 ? `Faltan: ${remainingProtein}g` : `+${Math.abs(remainingProtein).toFixed(2)}g extra` }}</span>
             <span>{{ Math.round((dayTotals.protein / (plan.macros.protein || 1)) * 100) }}%</span>
           </div>
         </div>
@@ -275,7 +286,7 @@
             ></div>
           </div>
           <div class="flex items-center justify-between text-[10px] font-bold text-amber-600 dark:text-amber-400">
-            <span>{{ remainingCarbs >= 0 ? `Faltan: ${remainingCarbs}g` : `+${Math.abs(remainingCarbs)}g extra` }}</span>
+            <span>{{ remainingCarbs >= 0 ? `Faltan: ${remainingCarbs}g` : `+${Math.abs(remainingCarbs).toFixed(2)}g extra` }}</span>
             <span>{{ Math.round((dayTotals.carbs / (plan.macros.carbs || 1)) * 100) }}%</span>
           </div>
         </div>
@@ -293,7 +304,7 @@
             ></div>
           </div>
           <div class="flex items-center justify-between text-[10px] font-bold text-rose-600 dark:text-rose-400">
-            <span>{{ remainingFat >= 0 ? `Faltan: ${remainingFat}g` : `+${Math.abs(remainingFat)}g extra` }}</span>
+            <span>{{ remainingFat >= 0 ? `Faltan: ${remainingFat}g` : `+${Math.abs(remainingFat).toFixed(2)}g extra` }}</span>
             <span>{{ Math.round((dayTotals.fat / (plan.macros.fat || 1)) * 100) }}%</span>
           </div>
         </div>
@@ -334,6 +345,13 @@
               
               <!-- If in edit mode -->
               <div v-if="editingMealKey === cat.key" class="flex items-center gap-2 flex-wrap flex-1" @click.stop>
+                <select
+                  v-model="editingMealIcon"
+                  class="px-2 py-1 bg-white dark:bg-[#201f22] border-2 border-emerald-500 rounded-xl text-sm outline-none cursor-pointer"
+                  title="Cambiar icono de comida"
+                >
+                  <option v-for="ico in ICON_PRESETS" :key="ico" :value="ico">{{ ico }}</option>
+                </select>
                 <input
                   v-model="editingMealName"
                   type="text"
@@ -976,6 +994,109 @@
       @save="handleSaveEditedDishPortions"
     />
 
+    <!-- MODAL 7: LIVE CLINICAL SHEET PREVIEW MODAL -->
+    <div
+      v-if="showPreviewModal"
+      class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md overflow-hidden"
+      @click.self="showPreviewModal = false"
+    >
+      <div class="bg-white dark:bg-[#18181b] border border-slate-200 dark:border-white/20 rounded-3xl shadow-2xl flex flex-col w-full max-w-[1340px] h-[94vh] overflow-hidden text-slate-900 dark:text-white transition-all">
+        
+        <!-- Header Bar -->
+        <div class="p-4 sm:px-6 border-b border-slate-100 dark:border-white/10 flex items-center justify-between gap-3 shrink-0 bg-slate-50/70 dark:bg-white/5">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
+              <Eye class="w-5 h-5" />
+            </div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <h3 class="text-base font-black text-slate-900 dark:text-white truncate" style="font-family: var(--font-display);">
+                  Previsualización de Menú Membretado
+                </h3>
+                <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 shrink-0">
+                  {{ plan.calorias }} kcal • {{ activeMealTimes.length }} tiempos de comida
+                </span>
+              </div>
+              <p class="text-xs text-slate-500 dark:text-slate-400 truncate">
+                {{ patient.nombre }} • {{ plan.nombre }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Controls: Zoom & Direct Exports & Close -->
+          <div class="flex items-center gap-2 shrink-0">
+            <!-- Zoom Controls Group -->
+            <div class="hidden sm:flex items-center gap-1 bg-white dark:bg-[#201f22] border border-slate-200 dark:border-white/10 rounded-xl p-1 shadow-2xs">
+              <button
+                @click="zoomOutPreview"
+                class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+                title="Alejar (-)"
+              >
+                <ZoomOut class="w-3.5 h-3.5" />
+              </button>
+              <button
+                @click="resetZoomPreview(previewZoom === 1.0 ? 0.75 : 1.0)"
+                class="px-2 py-1 text-[11px] font-bold rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                title="Alternar escala"
+              >
+                {{ Math.round(previewZoom * 100) }}%
+              </button>
+              <button
+                @click="zoomInPreview"
+                class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+                title="Acercar (+)"
+              >
+                <ZoomIn class="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <!-- Export PDF -->
+            <button
+              @click="handleExportPDF"
+              :disabled="isExportingPdf"
+              class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md cursor-pointer transition-all disabled:opacity-50"
+              title="Descargar PDF Oficial"
+            >
+              <Printer class="w-3.5 h-3.5" />
+              <span class="hidden sm:inline">{{ isExportingPdf ? 'Generando...' : 'Descargar PDF' }}</span>
+              <span class="sm:hidden">PDF</span>
+            </button>
+
+            <!-- Export Word -->
+            <button
+              @click="handleExportWord"
+              class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md cursor-pointer transition-all"
+              title="Descargar Word (.doc)"
+            >
+              <Download class="w-3.5 h-3.5" />
+              <span class="hidden sm:inline">Word</span>
+            </button>
+
+            <!-- Close Button -->
+            <button
+              @click="showPreviewModal = false"
+              class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/10 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors cursor-pointer ml-1"
+              title="Cerrar vista previa"
+            >
+              <X class="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Scrollable Document Viewport with live scaling -->
+        <div class="flex-1 overflow-auto p-2 sm:p-6 bg-slate-200/80 dark:bg-[#0c0c0e] flex justify-center items-start scrollbar-thin">
+          <div 
+            class="w-full max-w-[1200px] shadow-2xl rounded-2xl overflow-hidden bg-white transition-all"
+            :style="previewZoom !== 1.0 ? { transform: `scale(${previewZoom})`, transformOrigin: 'top center' } : {}"
+          >
+            <!-- Injected HTML representation of the clinical sheet -->
+            <div v-html="previewHtml" />
+          </div>
+        </div>
+
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -1000,6 +1121,10 @@ import {
   Check,
   Edit2,
   SlidersHorizontal,
+  Eye,
+  ZoomIn,
+  ZoomOut,
+  Download,
   X
 } from 'lucide-vue-next';
 import type { Patient, PatientDietPlan } from '../../../types/patient';
@@ -1058,6 +1183,7 @@ const libraryFilter = ref<string>('todos');
 const editingMealKey = ref<string | null>(null);
 const editingMealName = ref('');
 const editingMealTime = ref('');
+const editingMealIcon = ref('');
 
 const newMealForm = reactive({
   label: '',
@@ -1180,7 +1306,8 @@ function selectMealTime(catKey: string) {
 function startEditingMeal(cat: MealTimeCatalogItem) {
   editingMealKey.value = cat.key;
   editingMealName.value = cat.label;
-  editingMealTime.value = cat.defaultTime;
+  editingMealTime.value = cat.defaultTime || '';
+  editingMealIcon.value = cat.icon || '🍽️';
 }
 
 function saveEditingMeal(cat: MealTimeCatalogItem) {
@@ -1190,8 +1317,11 @@ function saveEditingMeal(cat: MealTimeCatalogItem) {
   if (editingMealTime.value.trim()) {
     cat.defaultTime = editingMealTime.value.trim();
   }
+  if (editingMealIcon.value) {
+    cat.icon = editingMealIcon.value;
+  }
   editingMealKey.value = null;
-  toastMessage.value = `Tiempo renombrado a "${cat.label}".`;
+  toastMessage.value = `Tiempo actualizado: "${cat.icon} ${cat.label}".`;
   showToast.value = true;
   setTimeout(() => { showToast.value = false; }, 2500);
 }
@@ -1617,6 +1747,33 @@ async function handleExportPDF() {
   } finally {
     isExportingPdf.value = false;
   }
+}
+
+// Modal de previsualización clínica membretada
+const showPreviewModal = ref(false);
+const previewHtml = ref('');
+const previewZoom = ref(0.85);
+
+function handleOpenPreview() {
+  previewHtml.value = MenuExportService.generateClinicalMenuHtml(props.patient, props.plan, menuData, { isForPreview: true });
+  previewZoom.value = 1.0;
+  showPreviewModal.value = true;
+}
+
+function zoomInPreview() {
+  if (previewZoom.value < 1.4) {
+    previewZoom.value = +(previewZoom.value + 0.1).toFixed(2);
+  }
+}
+
+function zoomOutPreview() {
+  if (previewZoom.value > 0.4) {
+    previewZoom.value = +(previewZoom.value - 0.1).toFixed(2);
+  }
+}
+
+function resetZoomPreview(scale = 0.85) {
+  previewZoom.value = scale;
 }
 
 onMounted(() => {
