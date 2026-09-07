@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
-import { Home, Utensils, User } from 'lucide-vue-next'
+import { Home, Utensils, TrendingUp, Calculator, User } from 'lucide-vue-next'
 import { useAuthStore } from '../stores/auth'
 import InstallPrompt from '../components/InstallPrompt.vue'
 
@@ -27,23 +27,35 @@ const showBottomNav = computed(() => {
     <!-- Floating PWA Install Prompt Banner -->
     <InstallPrompt />
 
-    <!-- Bottom Navigation - Only for patient views -->
+    <!-- Bottom Navigation - 5 tabs for patient views -->
     <nav
       v-if="showBottomNav"
-      class="fixed bottom-0 w-full flex justify-around p-3 pb-safe z-50 backdrop-blur-md no-print shadow-lg transition-colors"
+      class="fixed bottom-0 w-full flex justify-around items-center px-1 py-2 pb-safe z-50 backdrop-blur-md no-print shadow-lg transition-colors"
       style="background: var(--glass-bg); border-top: 1px solid var(--glass-border);"
     >
-      <router-link to="/" class="nav-item flex flex-col items-center transition-colors">
-        <Home class="h-6 w-6" />
-        <span class="text-xs mt-1 font-medium">Inicio</span>
+      <router-link to="/" class="nav-item flex flex-col items-center justify-center transition-colors px-2 py-1">
+        <Home class="h-5 w-5" />
+        <span class="text-[10px] mt-0.5 font-medium tracking-tight">Inicio</span>
       </router-link>
-      <router-link to="/planner" class="nav-item flex flex-col items-center transition-colors">
-        <Utensils class="h-6 w-6" />
-        <span class="text-xs mt-1 font-medium">Planner</span>
+
+      <router-link to="/planner" class="nav-item flex flex-col items-center justify-center transition-colors px-2 py-1">
+        <Utensils class="h-5 w-5" />
+        <span class="text-[10px] mt-0.5 font-medium tracking-tight">Planner</span>
       </router-link>
-      <router-link to="/settings" class="nav-item flex flex-col items-center transition-colors">
-        <User class="h-6 w-6" />
-        <span class="text-xs mt-1 font-medium">Cuenta</span>
+
+      <router-link to="/progress" class="nav-item flex flex-col items-center justify-center transition-colors px-2 py-1">
+        <TrendingUp class="h-5 w-5" />
+        <span class="text-[10px] mt-0.5 font-medium tracking-tight">Consultas</span>
+      </router-link>
+
+      <router-link to="/tools" class="nav-item flex flex-col items-center justify-center transition-colors px-2 py-1">
+        <Calculator class="h-5 w-5" />
+        <span class="text-[10px] mt-0.5 font-medium tracking-tight">Herramientas</span>
+      </router-link>
+
+      <router-link to="/settings" class="nav-item flex flex-col items-center justify-center transition-colors px-2 py-1">
+        <User class="h-5 w-5" />
+        <span class="text-[10px] mt-0.5 font-medium tracking-tight">Cuenta</span>
       </router-link>
     </nav>
   </div>

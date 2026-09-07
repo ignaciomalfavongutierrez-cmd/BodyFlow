@@ -108,11 +108,27 @@
             </span>
           </div>
 
-          <!-- Goal / Objective Tag -->
-          <div v-if="patient.objetivoPrincipal" class="pt-1 flex items-center gap-2">
-            <span class="text-xs font-bold text-slate-500 dark:text-slate-400">Objetivo:</span>
-            <span class="text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 px-2.5 py-0.5 rounded-lg border border-indigo-200 dark:border-indigo-800/30">
+          <!-- Goal / Objective Tag & App Linking Status -->
+          <div class="pt-1 flex items-center flex-wrap gap-2">
+            <span v-if="patient.objetivoPrincipal" class="text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 px-2.5 py-0.5 rounded-lg border border-indigo-200 dark:border-indigo-800/30">
               🎯 {{ patient.objetivoPrincipal }}
+            </span>
+
+            <span 
+              v-if="patient.userId"
+              class="text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-800/30 flex items-center gap-1.5 shadow-2xs"
+              title="El paciente ha iniciado sesión en la App y recibe sus menús sincronizados"
+            >
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>App Conectada</span>
+            </span>
+
+            <span 
+              v-else-if="patient.email"
+              class="text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-white/5 px-2.5 py-0.5 rounded-lg border border-slate-200 dark:border-white/10 flex items-center gap-1"
+              title="Al iniciar sesión en la App con este correo, se vinculará de forma automática"
+            >
+              <span>⏳ App Pendiente ({{ patient.email }})</span>
             </span>
           </div>
         </div>

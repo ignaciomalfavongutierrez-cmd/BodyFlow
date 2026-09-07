@@ -2,49 +2,98 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import type { DayPlan } from '../stores/diet'
 
 export function generatePrompt(text: string): string {
-  return `Eres un nutriólogo experto y analista de planes de alimentación. Extrae el plan de dieta semanal del siguiente documento/texto y estructura la información en un formato JSON preciso.
+  return `Eres un nutriólogo experto y analista de planes de alimentación clínica. Extrae el plan de dieta semanal del siguiente documento/texto y estructura la información en un formato JSON estricto y preciso.
 
 Devuelve ÚNICAMENTE un JSON válido, sin explicaciones adicionales ni bloques de código markdown.
 
-INSTRUCCIONES CRÍTICAS PARA EXTRAER DÍAS, COMIDAS Y ALIMENTOS:
+INSTRUCCIONES CRÍTICAS PARA EXTRAER DÍAS, COMIDAS Y PLATILLOS:
 
 1. DÍAS Y SECCIONES:
-   - Extrae los días tal como aparezcan: numerados ("DIA 1", "DIA 2"...), por nombre de día ("LUNES", "MARTES"...), o combinados.
-   - Propiedad "date": identificador normalizado (ej: "dia_1", "lunes").
-   - Propiedad "dayName": nombre exacto tal cual está impreso (ej: "DIA 1", "LUNES").
+   - Extrae los días tal como aparezcan: por nombre de día ("LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO", "DOMINGO") o numerados ("DIA 1", "DIA 2"...).
+   - Propiedad "date": identificador normalizado en minúsculas (ej: "lunes", "martes", "dia_1").
+   - Propiedad "dayName": nombre formal tal cual está impreso (ej: "Lunes", "Martes", "Día 1").
 
-2. COMIDAS Y ALIMENTOS ESPECÍFICOS:
-   - Extrae TODAS las comidas presentadas para cada día (ej: DESAYUNO, ALMUERZO / MEDIA MAÑANA, COMIDA, COLACIÓN, CENA).
-   - En el array "items", incluye los alimentos con sus CANTIDADES EXACTAS y ESPECÍFICAS impresas en el documento (ej: ["150 g de pechuga de pollo", "180 g de arroz cocido", "Ensalada grande", "1 cucharada de aceite de oliva"]).
+2. DISTINCIÓN FUNDAMENTAL: TAG/TIEMPO DE COMIDA ("mealType") VS NOMBRE DEL PLATILLO ("name"):
+   En formatos profesionales de nutrición (como tablas semanales de nutrióloga):
+   - "mealType" (TAG O TIEMPO DE COMIDA):
+     Es la categoría general u horario de la fila/sección.
+     Valores comunes: "Desayuno", "Colación", "Comida", "Colación Vespertina", "Cena", "Snack", "Pre-entreno", "Post-entreno".
+     ⚠️ NUNCA USES ESTE TAG COMO EL VALOR DE "name" si el platillo tiene su propio título.
 
-3. MANEJO DE MACRONUTRIENTES Y CALORÍAS (REGLA FUNDAMENTAL):
+   - "name" (NOMBRE REAL DEL PLATILLO O RECETA):
+     Es el título principal, descriptivo y en negrita del platillo específico asignado en esa celda.
+     Ejemplos reales impresos en las celdas:
+     • "Huevos a la Mexicana con Claras, Tortillas y Aguacate"
+     • "Licuado Proteico de Fresas con Leche de Almendras"
+     • "Pechuga a la Plancha con Arroz Jazmín, Aguacate y Ensalada Verde"
+     • "Manzana en Rebanadas con Crema de Cacahuate Natural"
+     • "Quesadillas en Comal de Queso Panela y Nopales Asados"
+     (Elimina dos puntos ":" finales si aparecen al final del título).
+     *Únicamente si la celda no tiene ningún nombre de receta o platillo y solo lista alimentos sueltos sin título, usa el tiempo de comida como fallback para "name".*
+
+   - "items" (LISTA DE INGREDIENTES Y PORCIONES ESPECÍFICAS):
+     Es el array con cada uno de los ingredientes o alimentos con su porción y gramaje exacto (las viñetas con viñeta "•" que vienen debajo del nombre del platillo).
+     Ejemplo para los Huevos a la Mexicana:
+     [
+       "1 pieza (50g) Huevo entero",
+       "3 piezas (99g) Clara de huevo",
+       "3 piezas (90g) Tortilla de maíz",
+       "1/4 pieza (30g) Aguacate Hass",
+       "1/2 taza (90g) Jitomate picado",
+       "1/4 pieza (13g) Cebolla blanca picada"
+     ]
+     ⚠️ NO repitas el título del platillo dentro del array "items". El título del platillo va en "name", y los ingredientes individuales van en "items".
+
+3. MANEJO DE MACRONUTRIENTES Y CALORÍAS:
    - REGLA A (Si el PDF/imagen ya incluye recuadro o información explícita de macros):
-     Si el plan contiene un recuadro o tabla con los totales diarios (ej: "1,900 kcal", "155 g de proteína", "180 g de carbohidratos", "55 g de grasa") o especifica macros explícitos por comida, USA ESOS VALORES IMPRESOS. Distribuye o asigna esos valores entre las comidas del día de modo que la suma de plannedMacros de las comidas coincida exactamente con los totales dados en el recuadro de la dieta.
+     Usa los valores impresos y distribúyelos entre las comidas para que la suma diaria coincida.
    - REGLA B (Si el PDF/imagen NO incluye macros explícitos):
-     Si la dieta solo enumera los alimentos y porciones sin indicar los gramos de macros ni calorías totales, actúa como nutriólogo experto y ESTIMA/CALCULA nutricionalmente las calorías (calories), proteína (protein), carbohidratos (carbs), grasa (fat) y azúcar (sugar) de cada comida sumando sus ingredientes.
+     Estima nutricionalmente las calorías (calories), proteína (protein), carbohidratos (carbs), grasa (fat) y azúcar (sugar) de cada platillo sumando el aporte de sus ingredientes (estándar SMAE).
 
-4. FORMATO DEL JSON:
+4. FORMATO DEL JSON REQUERIDO:
 {
   "week": [
     {
-      "dayName": "DIA 1",
-      "date": "dia_1",
+      "dayName": "Lunes",
+      "date": "lunes",
       "meals": [
         {
-          "id": "meal-dia1-desayuno",
-          "name": "DESAYUNO",
+          "id": "meal-lunes-desayuno",
+          "mealType": "Desayuno",
+          "name": "Huevos a la Mexicana con Claras, Tortillas y Aguacate",
           "items": [
-            "150 g de pechuga de pollo",
-            "180 g de arroz cocido",
-            "Ensalada grande",
-            "1 cucharada de aceite de oliva"
+            "1 pieza (50g) Huevo entero",
+            "3 piezas (99g) Clara de huevo",
+            "3 piezas (90g) Tortilla de maíz",
+            "1/4 pieza (30g) Aguacate Hass",
+            "1/2 taza (90g) Jitomate picado",
+            "1/4 pieza (13g) Cebolla blanca picada"
           ],
           "plannedMacros": {
-            "calories": 450,
-            "protein": 42,
-            "carbs": 45,
-            "fat": 12,
-            "sugar": 2
+            "calories": 480,
+            "protein": 34,
+            "carbs": 48,
+            "fat": 16,
+            "sugar": 3
+          }
+        },
+        {
+          "id": "meal-lunes-colacion-1",
+          "mealType": "Colación",
+          "name": "Licuado Proteico de Fresas con Leche de Almendras",
+          "items": [
+            "1 scoop (30g) proteína (25g)",
+            "1 taza (240g) Leche deslactosada light",
+            "1 taza (150g) Fresas frescas",
+            "5 g Almendras enteras naturales",
+            "2 cucharadas (20g) Avena en hojuelas"
+          ],
+          "plannedMacros": {
+            "calories": 385,
+            "protein": 39,
+            "carbs": 44,
+            "fat": 8,
+            "sugar": 12
           }
         }
       ]
@@ -53,10 +102,10 @@ INSTRUCCIONES CRÍTICAS PARA EXTRAER DÍAS, COMIDAS Y ALIMENTOS:
 }
 
 Reglas estrictas:
-- NO incluyas explicaciones ni texto fuera del JSON.
+- NO incluyas texto antes o después del JSON.
 - NO uses bloques markdown como \`\`\`json.
 - SOLO devuelve el objeto JSON crudo.
-- Genera IDs únicos para cada comida (ej: "meal-dia1-desayuno", "meal-dia1-comida").
+- Asegura que "name" contenga el nombre del platillo y "mealType" el tiempo de comida (tag).
 
 Contenido del plan de dieta:
 ${text}`
@@ -66,9 +115,9 @@ export function parseManualJson(jsonStr: string): DayPlan[] {
   try {
     let cleanJsonStr = jsonStr.trim()
     if (cleanJsonStr.startsWith('```json')) {
-      cleanJsonStr = cleanJsonStr.replace(/^```json\n/, '').replace(/\n```$/, '')
+      cleanJsonStr = cleanJsonStr.replace(/^```json\n?/, '').replace(/\n?```$/, '')
     } else if (cleanJsonStr.startsWith('```')) {
-      cleanJsonStr = cleanJsonStr.replace(/^```\n/, '').replace(/\n```$/, '')
+      cleanJsonStr = cleanJsonStr.replace(/^```\n?/, '').replace(/\n?```$/, '')
     }
 
     const parsed = JSON.parse(cleanJsonStr)
@@ -76,6 +125,73 @@ export function parseManualJson(jsonStr: string): DayPlan[] {
     if (!parsed || !parsed.week || !Array.isArray(parsed.week)) {
       throw new Error('Invalid JSON structure returned')
     }
+
+    // Normalización inteligente: separar mealType (tag) del nombre real del platillo (name)
+    const GENERIC_MEAL_TYPES = [
+      'desayuno', 'almuerzo', 'comida', 'cena', 'colacion', 'colación',
+      'colacion matutina', 'colación matutina', 'colacion vespertina', 'colación vespertina',
+      'snack', 'merienda', 'pre-entreno', 'post-entreno'
+    ]
+
+    parsed.week.forEach((day: DayPlan, dayIdx: number) => {
+      if (Array.isArray(day.meals)) {
+        day.meals.forEach((meal: any, mealIdx: number) => {
+          if (!meal.id) {
+            meal.id = `meal-${day.date || dayIdx}-${mealIdx}`
+          }
+
+          let rawName = (meal.name || '').trim()
+          let rawMealType = (meal.mealType || '').trim()
+
+          // Limpiar dos puntos finales de títulos (ej: "Huevos a la Mexicana...:")
+          if (rawName.endsWith(':')) {
+            rawName = rawName.slice(0, -1).trim()
+          }
+
+          const nameLower = rawName.toLowerCase()
+          const isGeneric = GENERIC_MEAL_TYPES.some(t => nameLower === t || nameLower.startsWith(t + ' ') || nameLower.endsWith(' ' + t))
+
+          // Si el nombre asignado era genérico (ej: "DESAYUNO") y no tenía mealType
+          if (isGeneric && !rawMealType) {
+            rawMealType = rawName
+          }
+
+          // Si el nombre era genérico y el primer item del array parece ser el nombre del platillo
+          if (isGeneric && Array.isArray(meal.items) && meal.items.length > 0) {
+            const firstItem = meal.items[0].trim()
+            const endsWithColon = firstItem.endsWith(':')
+            const hasDishKeywords = firstItem.includes(' con ') || firstItem.includes(' a la ') || firstItem.includes(' en ') || firstItem.includes(' de ')
+            const startsWithQty = /^(\d+|un|una|media|1\/2|1\/4|1\/3|\d+\/\d+)\s*(pieza|pz|taza|tz|g|gr|gramo|scoop|cda|cdita|cucharad)/i.test(firstItem)
+
+            if (endsWithColon || (hasDishKeywords && !startsWithQty)) {
+              rawName = firstItem.replace(/:$/, '').trim()
+              meal.items.shift() // Quitar de los ingredientes para no duplicarlo
+            }
+          }
+
+          // Si aún no hay mealType, deducirlo del nombre o del id
+          if (!rawMealType) {
+            if (nameLower.includes('desayun')) rawMealType = 'Desayuno'
+            else if (nameLower.includes('comida') || nameLower.includes('almuerz')) rawMealType = 'Comida'
+            else if (nameLower.includes('cena')) rawMealType = 'Cena'
+            else if (nameLower.includes('colaci') || nameLower.includes('snack') || nameLower.includes('merienda')) rawMealType = 'Colación'
+          }
+
+          // Normalizar mayúsculas de mealType (ej: "DESAYUNO" -> "Desayuno", "COLACIÓN VESPERTINA" -> "Colación Vespertina")
+          if (rawMealType) {
+            rawMealType = rawMealType
+              .split(' ')
+              .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+              .join(' ')
+          }
+
+          meal.name = rawName || rawMealType || 'Comida'
+          if (rawMealType) {
+            meal.mealType = rawMealType
+          }
+        })
+      }
+    })
 
     return parsed.week as DayPlan[]
   } catch (error) {

@@ -88,6 +88,18 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/progress',
+      name: 'patient-progress',
+      component: () => import('../views/PatientProgressView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/tools',
+      name: 'tools',
+      component: () => import('../views/ToolsView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/settings',
       name: 'settings',
       component: () => import('../views/SettingsView.vue'),

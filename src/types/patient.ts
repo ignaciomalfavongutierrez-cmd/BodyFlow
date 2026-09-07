@@ -12,6 +12,7 @@ export type ActivityLevel = 'sedentario' | 'ligero' | 'moderado' | 'intenso' | '
  */
 export interface Patient {
   id: string;
+  userId?: string; // ID de usuario Firebase Auth (users/{uid}) vinculado al paciente
   nombre: string;
   email?: string;
   telefono?: string;
@@ -172,6 +173,7 @@ export interface PatientDietPlan {
   pdfUrl?: string;
   notas?: string;
   createdAt: any;
+  updatedAt?: any;
 }
 
 /**

@@ -96,6 +96,10 @@
               placeholder="ej. paciente@gmail.com"
               class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
             />
+            <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-1 leading-tight">
+              <span v-if="form.userId" class="text-emerald-600 dark:text-emerald-400 font-bold">✓ Vinculado a cuenta en la App (UID: {{ form.userId.slice(0, 6) }}...)</span>
+              <span v-else>Sincroniza automáticamente la App de Seguimiento del paciente al iniciar sesión con este correo.</span>
+            </p>
           </div>
         </div>
 
@@ -272,6 +276,7 @@ const form = reactive({
   edad: '' as string | number,
   telefono: '',
   email: '',
+  userId: '' as string | undefined,
   ocupacion: '',
   objetivoPrincipal: 'Pérdida de grasa',
   status: 'activo' as PatientStatus,
@@ -293,6 +298,7 @@ function initFormFromData(data?: Patient | null) {
     form.edad = data.edad !== undefined && data.edad !== null ? data.edad : '';
     form.telefono = data.telefono || '';
     form.email = data.email || '';
+    form.userId = data.userId || undefined;
     form.ocupacion = data.ocupacion || '';
     form.objetivoPrincipal = data.objetivoPrincipal || 'Pérdida de grasa';
     form.status = (data.status || 'activo') as PatientStatus;
@@ -311,6 +317,7 @@ function initFormFromData(data?: Patient | null) {
     form.edad = '';
     form.telefono = '';
     form.email = '';
+    form.userId = undefined;
     form.ocupacion = '';
     form.objetivoPrincipal = 'Pérdida de grasa';
     form.status = 'activo';

@@ -7,6 +7,7 @@ import { useUserStore } from './user';
 import { useDietStore } from './diet';
 import { useFoodsStore } from './foods';
 import { useLogStore } from './log';
+import { PatientSyncService } from '../services/patients/PatientSyncService';
 
 /**
  * Explicit auth states — eliminates ambiguity between
@@ -256,6 +257,39 @@ export const useAuthStore = defineStore('auth', () => {
         foodsStore.fetchMyFoods()
       ]);
       authLog('STORES_LOAD_COMPLETE');
+
+      // Auto-sincronización con expediente de la nutrióloga si el correo coincide
+      const currentUser = auth.currentUser;
+      if (currentUser?.uid && currentUser?.email) {
+        PatientSyncService.checkAndSyncPatientAccount(currentUser.uid, currentUser.email)
+          .then(async (syncRes) => {
+            if (syncRes.linked) {
+              authLog('PATIENT_SYNC_LINKED', syncRes.patient?.id);
+
+              // Si el usuario no ha forzado un menú subido manualmente (PDF externo)
+              if (userStore.profile.activeDietSource !== 'custom_upload' && syncRes.activePlan) {
+                // Si la nutrióloga tiene un menú estructurado y activo
+                if (syncRes.dayPlans && syncRes.dayPlans.length > 0) {
+                  // Cargar a la semana si estaba vacía o si su fuente activa es nutrióloga
+                  if (dietStore.week.length === 0 || userStore.profile.activeDietSource === 'nutritionist') {
+                    await dietStore.setDiet(syncRes.dayPlans);
+                    await userStore.applyNutritionistPlan({
+                      id: syncRes.activePlan.id,
+                      nombre: syncRes.activePlan.nombre || 'Plan de Nutrición',
+                      calorias: syncRes.activePlan.calorias || 0,
+                      macros: syncRes.activePlan.macros,
+                      objetivo: syncRes.activePlan.objetivo,
+                      updatedAt: syncRes.activePlan.updatedAt
+                    });
+                  }
+                }
+              }
+            }
+          })
+          .catch((err) => {
+            console.warn('[AUTH:SYNC] Patient check error:', err);
+          });
+      }
     } catch (error: any) {
       authLog('STORES_LOAD_ERROR', error?.message || 'unknown');
     }

@@ -30,4 +30,20 @@ export interface UserProfile extends PhysicalData, NutritionGoals {
   useMealPlanOverride?: boolean
   /** Daily water intake target in milliliters (default: 2000 ml) */
   waterTarget?: number
+  /** ID of the clinical patient record in 'pacientes' collection if linked with nutritionist */
+  linkedPatientId?: string
+  /** Active diet source: 'nutritionist' (Talia Tinoco plan) or 'custom_upload' (PDF/custom upload) */
+  activeDietSource?: 'nutritionist' | 'custom_upload'
+  /** Metadata of the active clinical diet plan */
+  nutritionistPlanMeta?: {
+    id: string
+    nombre: string
+    calorias: number
+    macros: { protein: number; carbs: number; fat: number }
+    objetivo?: string
+    updatedAt?: string
+  }
+  /** Backup of the custom uploaded week from PDF/manual so user can toggle back anytime */
+  customUploadedWeek?: any[]
+  customUploadedTargets?: MacroTargets
 }

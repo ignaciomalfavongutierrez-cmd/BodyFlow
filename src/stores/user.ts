@@ -110,6 +110,33 @@ export const useUserStore = defineStore('user', () => {
     })
   }
 
+  async function setDietSource(source: 'nutritionist' | 'custom_upload') {
+    await updateProfile({ activeDietSource: source })
+  }
+
+  async function backupCustomUploadedPlan(week: any[], targets?: import('../services/nutrition/models').MacroTargets) {
+    await updateProfile({
+      customUploadedWeek: week,
+      customUploadedTargets: targets || undefined,
+      activeDietSource: 'custom_upload'
+    })
+  }
+
+  async function applyNutritionistPlan(meta: { id: string; nombre: string; calorias: number; macros: any; objetivo?: string; updatedAt?: string }) {
+    await updateProfile({
+      nutritionistPlanMeta: meta,
+      activeDietSource: 'nutritionist',
+      useMealPlanOverride: true,
+      macroTargets: {
+        calories: meta.calorias,
+        protein: meta.macros?.protein || 0,
+        carbs: meta.macros?.carbs || 0,
+        fat: meta.macros?.fat || 0,
+        sugar: 0
+      }
+    })
+  }
+
   // Called by authStore.handleLogout() BEFORE signOut() to cleanly detach the
   // Firestore listener. Without this, the listener fires after the UID becomes
   // null and produces "Insufficient Permissions" console errors.
@@ -127,6 +154,9 @@ export const useUserStore = defineStore('user', () => {
     updateProfile,
     applyMealPlanOverride,
     clearMealPlanOverride,
+    setDietSource,
+    backupCustomUploadedPlan,
+    applyNutritionistPlan,
     reset
   }
 })

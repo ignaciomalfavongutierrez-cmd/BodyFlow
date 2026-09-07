@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useUserStore } from '../stores/user'
+import { useDietStore } from '../stores/diet'
 import { auth } from '../firebase'
 import { updateProfile as updateAuthProfile } from 'firebase/auth'
 import BaseInput from '../components/BaseInput.vue'
-import { CheckCircle, AlertTriangle, LogOut, Wrench, Sun, Moon } from 'lucide-vue-next'
+import { CheckCircle, AlertTriangle, LogOut, Wrench, Sun, Moon, RefreshCw, FileUp, ShieldCheck } from 'lucide-vue-next'
 import { usePwaStore } from '../stores/pwa'
 import { useAuthStore } from '../stores/auth'
 import { useTheme } from '../composables/useTheme'
 import { isAdminEmail } from '../router'
 import { generateNutritionPlan } from '../services/nutrition/calculations'
+import { PatientSyncService } from '../services/patients/PatientSyncService'
 import type { PhysicalData, NutritionGoals } from '../services/nutrition/models'
 
 const userStore = useUserStore()
@@ -139,11 +141,85 @@ function markDirty() {
   isDirty.value = true
 }
 
-async function toggleMacroSource() {
-  if (userStore.profile.useMealPlanOverride) {
-    await userStore.clearMealPlanOverride()
-  } else if (userStore.profile.mealPlanTargets) {
-    await userStore.applyMealPlanOverride(userStore.profile.mealPlanTargets)
+const dietStore = useDietStore()
+const isSyncingPatient = ref(false)
+const syncFeedback = ref('')
+const syncSuccess = ref(false)
+
+const isNutritionistLinked = computed(() => !!userStore.profile.linkedPatientId)
+const activeDietSource = computed(() => userStore.profile.activeDietSource || (isNutritionistLinked.value ? 'nutritionist' : 'custom_upload'))
+const hasCustomUpload = computed(() => Array.isArray(userStore.profile.customUploadedWeek) && userStore.profile.customUploadedWeek.length > 0)
+
+async function syncWithNutritionist() {
+  const uid = auth.currentUser?.uid
+  const userEmail = auth.currentUser?.email || userStore.profile.email
+  if (!uid || !userEmail) return
+
+  isSyncingPatient.value = true
+  syncFeedback.value = ''
+  syncSuccess.value = false
+
+  try {
+    const res = await PatientSyncService.checkAndSyncPatientAccount(uid, userEmail)
+    if (res.linked) {
+      syncSuccess.value = true
+      if (res.activePlan && res.dayPlans && res.dayPlans.length > 0) {
+        await dietStore.setDiet(res.dayPlans)
+        await userStore.applyNutritionistPlan({
+          id: res.activePlan.id,
+          nombre: res.activePlan.nombre || 'Plan de Nutrición',
+          calorias: res.activePlan.calorias || 0,
+          macros: res.activePlan.macros,
+          objetivo: res.activePlan.objetivo,
+          updatedAt: res.activePlan.updatedAt
+        })
+        syncFeedback.value = `¡Sincronizado con éxito! Plan "${res.activePlan.nombre}" cargado.`
+      } else {
+        syncFeedback.value = 'Expediente vinculado con Lic. Talia Tinoco. La nutrióloga aún no ha activado un menú.'
+      }
+    } else {
+      syncSuccess.value = false
+      syncFeedback.value = `No se encontró un expediente con "${userEmail}". Solicita a tu nutrióloga registrar tu correo.`
+    }
+  } catch (err: any) {
+    syncSuccess.value = false
+    syncFeedback.value = 'Error al sincronizar: ' + (err?.message || 'Inténtalo de nuevo.')
+  } finally {
+    isSyncingPatient.value = false
+    setTimeout(() => { syncFeedback.value = '' }, 5000)
+  }
+}
+
+async function selectDietSource(source: 'nutritionist' | 'custom_upload') {
+  if (source === 'nutritionist') {
+    if (userStore.profile.linkedPatientId) {
+      const activePlan = await PatientSyncService.getActiveDietPlan(userStore.profile.linkedPatientId)
+      if (activePlan && activePlan.menu) {
+        const dayPlans = PatientSyncService.convertDietPlanMenuToDayPlans(activePlan.menu, activePlan.calorias)
+        await dietStore.setDiet(dayPlans)
+        await userStore.applyNutritionistPlan({
+          id: activePlan.id,
+          nombre: activePlan.nombre || 'Plan de Nutrición',
+          calorias: activePlan.calorias || 0,
+          macros: activePlan.macros,
+          objetivo: activePlan.objetivo,
+          updatedAt: activePlan.updatedAt
+        })
+        return
+      }
+    }
+    await userStore.setDietSource('nutritionist')
+  } else {
+    // Mi Menú Personal
+    if (hasCustomUpload.value) {
+      await dietStore.setDiet(userStore.profile.customUploadedWeek!)
+      await userStore.setDietSource('custom_upload')
+      if (userStore.profile.customUploadedTargets) {
+        await userStore.applyMealPlanOverride(userStore.profile.customUploadedTargets)
+      }
+    } else {
+      await userStore.setDietSource('custom_upload')
+    }
   }
 }
 
@@ -307,34 +383,173 @@ async function confirmLogout() {
         <BaseInput label="Meta de Agua Diaria (ml)" v-model="waterTarget" type="number" placeholder="Ej. 2000" @input="markDirty" />
       </section>
 
-      <!-- Macro Source Toggle (visible when a plan has been imported) -->
-      <section v-if="userStore.profile.mealPlanTargets" class="glass-card p-5">
-        <h2 class="text-[11px] font-bold uppercase tracking-wider mb-3" style="color: var(--on-surface-muted);">Fuente de Metas</h2>
-        
+      <!-- Plan de Alimentación & Sincronización Clínica -->
+      <section class="glass-card p-5 space-y-4">
         <div class="flex items-center justify-between">
-          <div class="flex-1 mr-3">
-            <p class="text-sm font-bold" style="color: var(--on-surface);">
-              {{ userStore.profile.useMealPlanOverride ? 'Plan de Nutrióloga' : 'Calculadas por App' }}
-            </p>
-            <p class="text-[11px] mt-0.5" style="color: var(--on-surface-muted);">
-              {{ userStore.profile.useMealPlanOverride 
-                ? 'Las metas reflejan los macros de tu plan importado.' 
-                : 'Las metas se calculan con Mifflin-St Jeor (TDEE).' }}
+          <div>
+            <h2 class="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+              <ShieldCheck v-if="isNutritionistLinked" class="w-4 h-4 text-emerald-500" />
+              <FileUp v-else class="w-4 h-4 text-slate-400" />
+              <span>Fuente del Plan de Alimentación</span>
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-gray-400">
+              Controla de dónde provienen tus comidas y macros diarios.
             </p>
           </div>
-          
-          <!-- Toggle Switch -->
-          <button 
-            @click="toggleMacroSource"
-            class="relative w-12 h-7 rounded-full transition-colors duration-200 focus:outline-none shrink-0"
-            :style="{ background: userStore.profile.useMealPlanOverride ? 'var(--primary)' : 'var(--surface-container-highest)' }"
+          <button
+            @click="syncWithNutritionist"
+            :disabled="isSyncingPatient"
+            class="p-2 rounded-xl bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 hover:bg-emerald-500/10 hover:text-emerald-500 transition-all border border-slate-200 dark:border-white/10 shrink-0"
+            title="Sincronizar expediente clínico"
           >
-            <span 
-              class="absolute top-0.5 w-6 h-6 rounded-full shadow transition-transform duration-200"
-              :class="userStore.profile.useMealPlanOverride ? 'translate-x-5' : 'translate-x-0.5'"
-              style="background: var(--on-primary);"
-            ></span>
+            <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isSyncingPatient }" />
           </button>
+        </div>
+
+        <!-- Sync Feedback Alert -->
+        <transition name="fade">
+          <div 
+            v-if="syncFeedback" 
+            class="p-3 text-xs rounded-xl flex items-start gap-2"
+            :class="syncSuccess 
+              ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30' 
+              : 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30'"
+          >
+            <span class="text-sm leading-none">{{ syncSuccess ? '✅' : 'ℹ️' }}</span>
+            <span class="font-medium">{{ syncFeedback }}</span>
+          </div>
+        </transition>
+
+        <!-- Clinical Link Status Banner -->
+        <div 
+          class="p-3 rounded-2xl border flex items-center justify-between gap-3 text-xs"
+          :class="isNutritionistLinked 
+            ? 'bg-emerald-500/5 dark:bg-emerald-950/20 border-emerald-500/20' 
+            : 'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/5'"
+        >
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full" :class="isNutritionistLinked ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'"></span>
+            <div>
+              <p class="font-bold text-slate-800 dark:text-white">
+                {{ isNutritionistLinked ? 'Vinculado con Lic. Talia Tinoco' : 'Modo Independiente' }}
+              </p>
+              <p class="text-[11px] text-slate-500 dark:text-gray-400">
+                {{ isNutritionistLinked ? 'Expediente clínico activo' : 'No se detectó un expediente clínico' }}
+              </p>
+            </div>
+          </div>
+          <span 
+            class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full"
+            :class="isNutritionistLinked 
+              ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' 
+              : 'bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-400'"
+          >
+            {{ isNutritionistLinked ? 'Conectado' : 'Sin vincular' }}
+          </span>
+        </div>
+
+        <!-- Dual Selection Options -->
+        <div class="grid grid-cols-1 gap-2.5 pt-1">
+          
+          <!-- Option A: Plan Oficial de Nutrióloga -->
+          <div
+            @click="selectDietSource('nutritionist')"
+            class="p-3.5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden"
+            :class="activeDietSource === 'nutritionist'
+              ? 'bg-emerald-500/10 border-emerald-500 shadow-sm ring-1 ring-emerald-500/30'
+              : 'bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 opacity-75 hover:opacity-100'"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div class="space-y-0.5">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-sm">🥗</span>
+                  <p class="text-xs font-bold text-slate-900 dark:text-white">
+                    Plan Oficial de Nutrióloga (Talia Tinoco)
+                  </p>
+                </div>
+                <p class="text-[11px] text-slate-500 dark:text-gray-400">
+                  <template v-if="userStore.profile.nutritionistPlanMeta">
+                    {{ userStore.profile.nutritionistPlanMeta.nombre }} • {{ userStore.profile.nutritionistPlanMeta.calorias }} kcal
+                  </template>
+                  <template v-else-if="isNutritionistLinked">
+                    Expediente vinculado • Carga el plan activo de la consulta
+                  </template>
+                  <template v-else>
+                    Requiere que tu nutrióloga asigne un menú a tu correo
+                  </template>
+                </p>
+              </div>
+
+              <span
+                v-if="activeDietSource === 'nutritionist'"
+                class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500 text-white shrink-0"
+              >
+                Activo
+              </span>
+              <span
+                v-else
+                class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-400 shrink-0"
+              >
+                Usar este
+              </span>
+            </div>
+          </div>
+
+          <!-- Option B: Mi Menú Personal (PDF / Externo) -->
+          <div
+            @click="selectDietSource('custom_upload')"
+            class="p-3.5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden"
+            :class="activeDietSource === 'custom_upload'
+              ? 'bg-indigo-500/10 border-indigo-500 shadow-sm ring-1 ring-indigo-500/30'
+              : 'bg-slate-50 dark:bg-white/5 border-slate-200 dark:border-white/10 opacity-75 hover:opacity-100'"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div class="space-y-0.5">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-sm">📄</span>
+                  <p class="text-xs font-bold text-slate-900 dark:text-white">
+                    Mi Menú Personal (PDF / Otra Nutrióloga)
+                  </p>
+                </div>
+                <p class="text-[11px] text-slate-500 dark:text-gray-400">
+                  <template v-if="hasCustomUpload">
+                    Menú guardado ({{ userStore.profile.customUploadedWeek?.length }} días)
+                  </template>
+                  <template v-else>
+                    No has subido un menú personalizado aún
+                  </template>
+                </p>
+              </div>
+
+              <span
+                v-if="activeDietSource === 'custom_upload'"
+                class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-500 text-white shrink-0"
+              >
+                Activo
+              </span>
+              <span
+                v-else
+                class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-white/10 text-slate-600 dark:text-slate-400 shrink-0"
+              >
+                Usar este
+              </span>
+            </div>
+
+            <!-- Upload new button if active or needed -->
+            <div v-if="activeDietSource === 'custom_upload' || !hasCustomUpload" class="mt-2.5 pt-2 border-t border-slate-200/40 dark:border-white/5 flex items-center justify-between">
+              <span class="text-[10px] text-slate-500 dark:text-gray-400">
+                {{ hasCustomUpload ? '¿Deseas reemplazarlo con otro PDF?' : 'Sube un menú para comenzar:' }}
+              </span>
+              <router-link
+                to="/upload"
+                class="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+              >
+                <FileUp class="w-3 h-3" />
+                <span>Subir PDF</span>
+              </router-link>
+            </div>
+          </div>
+
         </div>
       </section>
 

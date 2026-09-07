@@ -11,6 +11,7 @@ import {
   type MultiOptionSubstitutionResult 
 } from '../services/aiParser'
 import BaseInput from '../components/BaseInput.vue'
+import EquivalenceLookupModal from '../components/equivalences/EquivalenceLookupModal.vue'
 import { 
   AlertTriangle, CheckCircle, X, Search, ChevronLeft, BookmarkPlus, Plus, BookmarkMinus, 
   Sparkles, Wand2, Scale, AlertCircle, RefreshCw, ChevronDown, ChevronUp 
@@ -21,6 +22,8 @@ const router = useRouter()
 const dietStore = useDietStore()
 const logStore = useLogStore()
 const foodsStore = useFoodsStore()
+
+const showEquivalenceModal = ref(false)
 
 const date = computed(() => route.params.date as string)
 const mealId = computed(() => route.params.mealId as string)
@@ -479,7 +482,10 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
       <div class="glass-card p-5 mb-6">
         <div class="flex justify-between items-start mb-4">
           <div class="flex-1 min-w-0">
-            <h2 class="text-2xl font-bold truncate" style="font-family: var(--font-display); color: var(--on-surface);">{{ plannedMeal.name }}</h2>
+            <span v-if="plannedMeal.mealType" class="inline-block text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-lg mb-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              {{ plannedMeal.mealType }}
+            </span>
+            <h2 class="text-xl sm:text-2xl font-bold leading-tight" style="font-family: var(--font-display); color: var(--on-surface);">{{ plannedMeal.name }}</h2>
             <p class="text-xs font-semibold mt-1" style="color: var(--on-surface-muted);">{{ date }}</p>
             
             <div v-if="plannedMeal.items && plannedMeal.items.length > 0" class="mt-5">
@@ -695,14 +701,25 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
             <h3 class="text-sm font-bold mb-0.5" style="color: var(--on-surface);">Sustituir Alimentos</h3>
             <p class="text-xs" style="color: var(--on-surface-muted);">Reemplaza los alimentos planificados por comida real.</p>
           </div>
-          <button 
-            @click="openWholeMealAiAdjustment" 
-            class="px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border shadow-sm transition-all hover:scale-105 shrink-0 ml-2"
-            style="background: linear-gradient(135deg, rgba(25, 232, 13, 0.2), rgba(16, 185, 129, 0.1)); color: var(--primary); border-color: rgba(25, 232, 13, 0.35);"
-          >
-            <Sparkles class="w-4 h-4" />
-            Asistente IA
-          </button>
+          <div class="flex items-center gap-1.5 shrink-0 ml-2">
+            <button 
+              @click="showEquivalenceModal = true"
+              class="px-2.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border shadow-2xs transition-all hover:scale-105 shrink-0 bg-white/5 border-white/10 text-[#87ff70] hover:text-white"
+              title="Consultar porciones oficiales del Sistema de Equivalencias SMAE"
+            >
+              <Scale class="w-3.5 h-3.5" />
+              <span class="hidden xs:inline">Equivalencias</span>
+            </button>
+
+            <button 
+              @click="openWholeMealAiAdjustment" 
+              class="px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border shadow-sm transition-all hover:scale-105 shrink-0"
+              style="background: linear-gradient(135deg, rgba(25, 232, 13, 0.2), rgba(16, 185, 129, 0.1)); color: var(--primary); border-color: rgba(25, 232, 13, 0.35);"
+            >
+              <Sparkles class="w-4 h-4" />
+              Asistente IA
+            </button>
+          </div>
         </div>
         
         <!-- List of substitutions -->
@@ -1229,6 +1246,12 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
         </div>
       </transition>
     </Teleport>
+
+    <!-- Offline Equivalence Lookup Modal -->
+    <EquivalenceLookupModal
+      :isOpen="showEquivalenceModal"
+      @close="showEquivalenceModal = false"
+    />
   </div>
 </template>
 

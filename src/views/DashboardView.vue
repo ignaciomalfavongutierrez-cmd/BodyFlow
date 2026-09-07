@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useUserStore } from '../stores/user'
 import { useDietStore } from '../stores/diet'
 import { useLogStore } from '../stores/log'
@@ -10,8 +10,8 @@ import { useTheme } from '../composables/useTheme'
 import MealCard from '../components/MealCard.vue'
 
 import DateBubbleSlider from '../components/dashboard/DateBubbleSlider.vue'
-import WaterTracker from '../components/dashboard/WaterTracker.vue'
 import MacroRings from '../components/dashboard/MacroRings.vue'
+import { PatientSyncService } from '../services/patients/PatientSyncService'
 
 const userStore = useUserStore()
 const dietStore = useDietStore()
@@ -21,6 +21,18 @@ const { isDark, toggleTheme } = useTheme()
 
 const isAdmin = computed(() => isAdminEmail(authStore.user?.email))
 
+// Quick water hydration stats for compact dashboard chip
+const currentWaterMl = computed(() => {
+  return logStore.logs[selectedDateStr.value]?.waterIntake || 0
+})
+const waterTargetMl = computed(() => {
+  return userStore.profile.waterTarget || 2000
+})
+const waterPct = computed(() => {
+  if (!waterTargetMl.value || waterTargetMl.value <= 0) return 0
+  return Math.min(Math.round((currentWaterMl.value / waterTargetMl.value) * 100), 100)
+})
+
 // State for navigation
 const selectedDateStr = ref(new Date().toISOString().split('T')[0])
 
@@ -29,12 +41,43 @@ watch(selectedDateStr, (newDate) => {
   logStore.fetchDayLog(newDate)
 }, { immediate: true })
 
+let planUnsubscribe: (() => void) | null = null
+
 onMounted(async () => {
   if (userStore.profile.weight === null) {
     await userStore.fetchProfile()
   }
   if (dietStore.week.length === 0) {
     await dietStore.fetchDiet()
+  }
+
+  // Escuchar cambios en tiempo real del menú asignado por la nutrióloga
+  if (userStore.profile.linkedPatientId) {
+    planUnsubscribe = PatientSyncService.listenToPatientActivePlan(
+      userStore.profile.linkedPatientId,
+      async (activePlan, dayPlans) => {
+        if (activePlan && dayPlans && dayPlans.length > 0) {
+          if (userStore.profile.activeDietSource !== 'custom_upload') {
+            await dietStore.setDiet(dayPlans)
+            await userStore.applyNutritionistPlan({
+              id: activePlan.id,
+              nombre: activePlan.nombre || 'Plan de Nutrición',
+              calorias: activePlan.calorias || 0,
+              macros: activePlan.macros,
+              objetivo: activePlan.objetivo,
+              updatedAt: activePlan.updatedAt
+            })
+          }
+        }
+      }
+    )
+  }
+})
+
+onUnmounted(() => {
+  if (planUnsubscribe) {
+    planUnsubscribe()
+    planUnsubscribe = null
   }
 })
 
@@ -193,6 +236,49 @@ function loadDemoDiet() {
 
       <!-- Logged User Content -->
       <template v-else>
+        <!-- Banner: Plan Oficial Talia Tinoco Activo -->
+        <section 
+          v-if="userStore.profile.activeDietSource === 'nutritionist' && userStore.profile.nutritionistPlanMeta"
+          class="glass-card p-3.5 border border-emerald-500/30 flex items-center justify-between gap-3 bg-gradient-to-r from-emerald-950/40 via-emerald-900/20 to-transparent"
+        >
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-10 h-10 rounded-2xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-bold text-lg shrink-0">
+              🥗
+            </div>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="text-[11px] font-extrabold uppercase tracking-wider text-emerald-400">Plan Talia Tinoco</span>
+                <span class="relative flex h-1.5 w-1.5">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400"></span>
+                </span>
+              </div>
+              <p class="text-xs font-bold text-slate-800 dark:text-white truncate">
+                {{ userStore.profile.nutritionistPlanMeta.nombre }} • {{ userStore.profile.nutritionistPlanMeta.calorias }} kcal
+              </p>
+            </div>
+          </div>
+          <router-link to="/settings" class="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 shrink-0 transition-colors">
+            Ver fuente →
+          </router-link>
+        </section>
+
+        <!-- Banner: Menú Personal (con opción de volver a Talia Tinoco) -->
+        <section 
+          v-else-if="userStore.profile.activeDietSource === 'custom_upload' && userStore.profile.linkedPatientId"
+          class="glass-card p-3 border border-indigo-500/20 flex items-center justify-between gap-2 bg-indigo-950/20"
+        >
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-xs">📄</span>
+            <p class="text-[11px] text-slate-600 dark:text-slate-300 truncate">
+              Usando <strong class="text-indigo-600 dark:text-indigo-400">Menú Personal (PDF)</strong>
+            </p>
+          </div>
+          <router-link to="/settings" class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline shrink-0">
+            Cambiar a Talia Tinoco
+          </router-link>
+        </section>
+
         <!-- Interactive Circular Macro Rings Dial -->
         <MacroRings 
           :current="currentTotals" 
@@ -200,8 +286,30 @@ function loadDemoDiet() {
           :isMealPlanOverride="userStore.profile.useMealPlanOverride" 
         />
 
-        <!-- Daily Water Tracker Widget -->
-        <WaterTracker :date="selectedDateStr" />
+        <!-- Quick Tools & Hydration Micro-Bar (Permite visibilidad inmediata de Comidas) -->
+        <div class="flex items-center gap-2">
+          <router-link 
+            to="/tools" 
+            class="flex-1 glass-card py-2 px-3.5 flex items-center justify-between border border-cyan-500/25 hover:border-cyan-500/40 transition-colors shadow-2xs group"
+          >
+            <div class="flex items-center gap-2 text-xs">
+              <span class="text-cyan-400 group-hover:scale-110 transition-transform">💧</span>
+              <span class="text-slate-300 font-medium">
+                Agua: <strong class="text-white">{{ (currentWaterMl / 1000).toFixed(2) }}L</strong> / {{ (waterTargetMl / 1000).toFixed(1) }}L
+                <span class="text-[10px] text-cyan-400 ml-1 font-bold">({{ waterPct }}%)</span>
+              </span>
+            </div>
+            <span class="text-[10px] text-cyan-400 font-extrabold group-hover:underline">+ Registrar →</span>
+          </router-link>
+
+          <router-link 
+            to="/tools" 
+            class="glass-card py-2 px-3 flex items-center gap-1.5 border border-emerald-500/25 hover:border-emerald-500/40 text-xs text-slate-300 font-medium transition-colors shadow-2xs shrink-0 group"
+          >
+            <span class="group-hover:scale-110 transition-transform">⚖️</span>
+            <span class="text-emerald-400 font-extrabold text-[11px]">SMAE</span>
+          </router-link>
+        </div>
 
         <!-- Meals Section -->
         <div>

@@ -39,11 +39,11 @@ function goToDetail() {
   router.push({ name: 'mealDetail', params: { date: props.date, mealId: props.meal.id } })
 }
 
-// Compute theme styling and icon based on meal name
+// Compute theme styling and icon based on meal name & mealType
 const mealTheme = computed(() => {
-  const name = props.meal.name.toLowerCase()
+  const search = `${(props.meal as any).mealType || ''} ${props.meal.name || ''}`.toLowerCase()
   
-  if (name.includes('desayun') || name.includes('morning') || name.includes('breakfast')) {
+  if (search.includes('desayun') || search.includes('morning') || search.includes('breakfast')) {
     return {
       type: 'desayuno',
       label: 'Desayuno',
@@ -54,7 +54,7 @@ const mealTheme = computed(() => {
       accentGlow: 'rgba(245, 158, 11, 0.08)'
     }
   }
-  if (name.includes('comida') || name.includes('almuerzo') || name.includes('lunch')) {
+  if (search.includes('comida') || search.includes('almuerzo') || search.includes('lunch')) {
     return {
       type: 'comida',
       label: 'Comida',
@@ -65,10 +65,11 @@ const mealTheme = computed(() => {
       accentGlow: 'rgba(16, 185, 129, 0.08)'
     }
   }
-  if (name.includes('colaci') || name.includes('snack') || name.includes('merienda')) {
+  if (search.includes('colaci') || search.includes('snack') || search.includes('merienda')) {
+    const isVespertina = search.includes('vespertin')
     return {
       type: 'colacion',
-      label: 'Colación',
+      label: isVespertina ? 'Colación Vespertina' : 'Colación',
       icon: Sunset,
       badgeBg: 'rgba(249, 115, 22, 0.12)',
       badgeBorder: 'rgba(249, 115, 22, 0.3)',
@@ -76,7 +77,7 @@ const mealTheme = computed(() => {
       accentGlow: 'rgba(249, 115, 22, 0.08)'
     }
   }
-  if (name.includes('cena') || name.includes('dinner') || name.includes('noche')) {
+  if (search.includes('cena') || search.includes('dinner') || search.includes('noche')) {
     return {
       type: 'cena',
       label: 'Cena',
@@ -97,6 +98,46 @@ const mealTheme = computed(() => {
     badgeText: '#14b8a6',
     accentGlow: 'rgba(20, 184, 166, 0.08)'
   }
+})
+
+// Tag / Categoría mostrada en la píldora superior
+const mealTag = computed(() => {
+  return (props.meal as any).mealType || mealTheme.value.label
+})
+
+// Título principal del platillo
+const displayTitle = computed(() => {
+  const raw = (props.meal.name || '').trim()
+  const tag = mealTag.value.toLowerCase().trim()
+
+  // Si el nombre no es igual al tag, es el nombre del platillo real
+  if (raw && raw.toLowerCase() !== tag) {
+    return raw
+  }
+
+  // Si el nombre es genérico (ej: "Desayuno"), checar si en items[0] viene el título del platillo
+  if (props.meal.items && props.meal.items.length > 0) {
+    const first = props.meal.items[0].trim()
+    const endsWithColon = first.endsWith(':')
+    const hasDishKeywords = first.includes(' con ') || first.includes(' a la ') || first.includes(' en ') || first.includes(' de ')
+    const startsWithQty = /^(\d+|un|una|media|1\/2|1\/4|1\/3|\d+\/\d+)\s*(pieza|pz|taza|tz|g|gr|gramo|scoop|cda|cdita|cucharad)/i.test(first)
+
+    if (endsWithColon || (hasDishKeywords && !startsWithQty)) {
+      return first.replace(/:$/, '').trim()
+    }
+  }
+
+  return raw || mealTag.value
+})
+
+// Ingredientes o resumen a mostrar debajo del título
+const displayItems = computed(() => {
+  if (!props.meal.items || props.meal.items.length === 0) return []
+  // Si displayTitle provino del primer elemento de items, no repetirlo en los ingredientes
+  if (displayTitle.value !== props.meal.name && props.meal.items[0]?.startsWith(displayTitle.value)) {
+    return props.meal.items.slice(1)
+  }
+  return props.meal.items
 })
 </script>
 
@@ -125,13 +166,18 @@ const mealTheme = computed(() => {
 
     <!-- Center Information -->
     <div class="flex-1 min-w-0 pr-1">
-      <div class="flex items-center gap-2 flex-wrap">
-        <h3 
-          class="font-bold text-sm sm:text-base truncate transition-colors"
-          :class="isCompleted ? 'line-through text-slate-400 dark:text-zinc-500' : 'text-slate-800 dark:text-zinc-100'"
+      <!-- Tag / Horario row -->
+      <div class="flex items-center gap-2 mb-1 flex-wrap">
+        <span 
+          class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md border"
+          :style="{
+            background: mealTheme.badgeBg,
+            borderColor: mealTheme.badgeBorder,
+            color: mealTheme.badgeText
+          }"
         >
-          {{ meal.name }}
-        </h3>
+          {{ mealTag }}
+        </span>
 
         <!-- Substituted Badge -->
         <span 
@@ -144,18 +190,27 @@ const mealTheme = computed(() => {
         </span>
       </div>
 
-      <!-- Food Items preview -->
+      <!-- Dish Name Title -->
+      <h3 
+        class="font-bold text-sm sm:text-base leading-snug line-clamp-2 transition-colors"
+        :class="isCompleted ? 'line-through text-slate-400 dark:text-zinc-500' : 'text-slate-800 dark:text-zinc-100'"
+        :title="displayTitle"
+      >
+        {{ displayTitle }}
+      </h3>
+
+      <!-- Food Items preview (Ingredients) -->
       <p 
         v-if="customFoods && customFoods.length > 0" 
-        class="text-xs mt-0.5 truncate font-medium text-rose-400 dark:text-rose-300"
+        class="text-xs mt-1 truncate font-medium text-rose-400 dark:text-rose-300"
       >
         {{ customFoods.map(f => f.name).join(', ') }}
       </p>
       <p 
-        v-else-if="meal.items && meal.items.length > 0" 
-        class="text-xs mt-0.5 truncate text-slate-400 dark:text-zinc-400 font-medium"
+        v-else-if="displayItems.length > 0" 
+        class="text-xs mt-1 truncate text-slate-400 dark:text-zinc-400 font-medium"
       >
-        {{ meal.items.join(', ') }}
+        {{ displayItems.join(', ') }}
       </p>
 
       <!-- Macros Row Pills -->

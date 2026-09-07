@@ -199,6 +199,12 @@ async function savePlan() {
     await userStore.applyMealPlanOverride(planMacros)
   }
 
+  // Guardar como respaldo de menú personal para permitir alternar libremente con el plan de la nutrióloga
+  await userStore.backupCustomUploadedPlan(
+    parsedPreview.value,
+    planMacros.calories > 0 ? planMacros : undefined
+  )
+
   router.push('/')
 }
 
@@ -228,6 +234,17 @@ function discardPlan() {
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <span class="text-xs font-semibold">{{ error }}</span>
+      </div>
+
+      <!-- Linked Nutritionist Info Notice -->
+      <div v-if="userStore.profile.linkedPatientId" class="glass-card p-3.5 mb-4 border border-emerald-500/30 rounded-2xl flex items-start gap-3 bg-emerald-950/20">
+        <span class="text-base leading-none mt-0.5">ℹ️</span>
+        <div class="text-xs">
+          <p class="font-bold text-emerald-400">Expediente vinculado con Lic. Talia Tinoco</p>
+          <p class="text-slate-300 mt-0.5">
+            Puedes cargar tu propio menú en PDF o de otra nutrióloga. Tu plan oficial no se perderá y podrás alternar entre ambos cuando quieras desde Configuración.
+          </p>
+        </div>
       </div>
 
       <!-- Upload Section -->
@@ -316,18 +333,33 @@ function discardPlan() {
             <h3 class="font-bold border-b pb-2 mb-3" style="font-family: var(--font-display); color: var(--on-surface); border-color: var(--glass-border);">{{ day.date }}</h3>
             
             <div class="space-y-3">
-              <div v-for="meal in day.meals" :key="meal.id" class="p-3 rounded-xl" style="background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border);">
-                <input 
-                  v-model="meal.name" 
-                  class="font-semibold bg-transparent border-b border-dashed focus:border-emerald-500 outline-none w-full mb-1 transition-colors text-sm"
-                  style="color: var(--on-surface); border-color: var(--outline);"
-                  placeholder="Nombre de la comida"
-                />
-                <div v-if="meal.plannedMacros" class="flex flex-wrap gap-2 text-[10px] mt-2" style="color: var(--on-surface-muted);">
-                  <span class="px-2 py-1 rounded" style="background: rgba(0,0,0,0.25);">{{ meal.plannedMacros.calories }} kcal</span>
-                  <span class="px-2 py-1 rounded" style="background: rgba(0,0,0,0.25);">P: {{ meal.plannedMacros.protein }}g</span>
-                  <span class="px-2 py-1 rounded" style="background: rgba(0,0,0,0.25);">C: {{ meal.plannedMacros.carbs }}g</span>
-                  <span class="px-2 py-1 rounded" style="background: rgba(0,0,0,0.25);">F: {{ meal.plannedMacros.fat }}g</span>
+              <div v-for="meal in day.meals" :key="meal.id" class="p-3.5 rounded-2xl" style="background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border);">
+                <!-- Tag / Horario & Dish Title -->
+                <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+                  <span 
+                    v-if="meal.mealType" 
+                    class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 shrink-0"
+                  >
+                    {{ meal.mealType }}
+                  </span>
+                  <input 
+                    v-model="meal.name" 
+                    class="font-bold bg-transparent border-b border-dashed focus:border-emerald-500 outline-none flex-1 min-w-[200px] transition-colors text-sm"
+                    style="color: var(--on-surface); border-color: var(--outline);"
+                    placeholder="Nombre del platillo (ej: Huevos a la Mexicana...)"
+                  />
+                </div>
+
+                <!-- Ingredients Preview -->
+                <p v-if="meal.items && meal.items.length > 0" class="text-xs text-slate-400 dark:text-zinc-400 mt-1 line-clamp-2">
+                  {{ meal.items.join(', ') }}
+                </p>
+
+                <div v-if="meal.plannedMacros" class="flex flex-wrap gap-2 text-[10px] mt-2.5" style="color: var(--on-surface-muted);">
+                  <span class="px-2 py-1 rounded-md font-bold text-white" style="background: rgba(0,0,0,0.25);">{{ meal.plannedMacros.calories }} kcal</span>
+                  <span class="px-2 py-1 rounded-md font-semibold text-emerald-400" style="background: rgba(0,0,0,0.25);">P: {{ meal.plannedMacros.protein }}g</span>
+                  <span class="px-2 py-1 rounded-md font-semibold text-amber-400" style="background: rgba(0,0,0,0.25);">C: {{ meal.plannedMacros.carbs }}g</span>
+                  <span class="px-2 py-1 rounded-md font-semibold text-rose-400" style="background: rgba(0,0,0,0.25);">F: {{ meal.plannedMacros.fat }}g</span>
                 </div>
               </div>
             </div>

@@ -16,12 +16,14 @@ import {
   Sun, 
   Moon,
   Smartphone,
-  ArrowUpRight
+  ArrowUpRight,
+  Scale
 } from 'lucide-vue-next'
 import { useTheme } from '../composables/useTheme'
 import ShoppingListWizard from '../components/shopping/ShoppingListWizard.vue'
 import PatientProgressWizard from '../components/progress/PatientProgressWizard.vue'
 import RecommendationsWizard from '../components/recommendations/RecommendationsWizard.vue'
+import EquivalenceWizard from '../components/equivalences/EquivalenceWizard.vue'
 import PatientDirectory from '../components/patients/PatientDirectory.vue'
 import PatientDetailLayout from '../components/patients/PatientDetailLayout.vue'
 import DietGeneratorModal from '../components/nutrition/DietGeneratorModal.vue'
@@ -34,8 +36,8 @@ const { isDark, toggleTheme } = useTheme()
 // Main Navigation: 'home' | 'pacientes' | 'utilities'
 const currentTab = ref<'home' | 'pacientes' | 'utilities'>('home')
 
-// Active sub-tool within utilities: 'hub' | 'shopping-list' | 'patient-progress' | 'recommendations' | 'diet-generator'
-const activeTool = ref<'hub' | 'shopping-list' | 'patient-progress' | 'recommendations' | 'diet-generator'>('hub')
+// Active sub-tool within utilities: 'hub' | 'shopping-list' | 'patient-progress' | 'recommendations' | 'diet-generator' | 'equivalences'
+const activeTool = ref<'hub' | 'shopping-list' | 'patient-progress' | 'recommendations' | 'diet-generator' | 'equivalences'>('hub')
 
 // Selected patient ID for detail view
 const selectedPatientId = ref<string | null>(null)
@@ -116,7 +118,7 @@ function handleTabClick(tab: 'home' | 'pacientes' | 'utilities') {
   }
 }
 
-function openTool(tool: 'shopping-list' | 'diet-generator' | 'patient-progress' | 'patient-stats' | 'recommendations') {
+function openTool(tool: 'shopping-list' | 'diet-generator' | 'patient-progress' | 'patient-stats' | 'recommendations' | 'equivalences') {
   if (tool === 'diet-generator') {
     showDietGeneratorModal.value = true
     return
@@ -535,6 +537,40 @@ function handlePatientShoppingList(_patient: Patient) {
             </div>
           </div>
 
+          <!-- CARD 6: Sistema de Equivalencias SMAE -->
+          <div
+            @click="openTool('equivalences')"
+            class="bg-white dark:bg-white/5 p-6 rounded-3xl border border-slate-200 dark:border-white/10 hover:border-[#7e9455]/60 transition-all duration-300 flex flex-col justify-between group cursor-pointer relative overflow-hidden shadow-sm hover:shadow-md"
+          >
+            <div class="space-y-4">
+              <div class="flex items-center justify-between">
+                <div class="w-14 h-14 rounded-2xl bg-[#7e9455]/15 border border-[#7e9455]/30 flex items-center justify-center text-[#556637] dark:text-[#9eb07a] group-hover:scale-110 transition-transform">
+                  <Scale class="w-7 h-7" />
+                </div>
+                <span class="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-[#7e9455]/20 text-[#3f4e24] dark:text-[#baccb1] border border-[#7e9455]/40">
+                  Disponible • SMAE
+                </span>
+              </div>
+
+              <div>
+                <h3 class="text-xl font-bold text-slate-900 dark:text-white group-hover:text-[#556637] dark:group-hover:text-[#9eb07a] transition-colors">
+                  Sistema de Equivalencias
+                </h3>
+                <p class="text-xs leading-relaxed mt-2 text-slate-600 dark:text-slate-300">
+                  Guía oficial mexicana de alimentos equivalentes (SMAE). Ficha clínica oficial membretada con 8 grupos, porciones estándar y descarga en PDF.
+                </p>
+              </div>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-xs font-bold text-[#556637] dark:text-[#9eb07a]">
+              <span class="flex items-center gap-1.5">
+                <CheckCircle2 class="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                Abrir Sistema de Equivalencias
+              </span>
+              <span class="group-hover:translate-x-1 transition-transform">→</span>
+            </div>
+          </div>
+
         </div>
       </section>
 
@@ -745,6 +781,40 @@ function handlePatientShoppingList(_patient: Patient) {
               </div>
             </div>
 
+            <!-- OPTION 5: Sistema de Equivalencias SMAE -->
+            <div
+              @click="openTool('equivalences')"
+              class="bg-white dark:bg-white/5 p-6 rounded-3xl border border-slate-200 dark:border-white/10 hover:border-[#7e9455]/60 transition-all duration-300 flex flex-col justify-between group cursor-pointer relative overflow-hidden shadow-sm hover:shadow-md md:col-span-2"
+            >
+              <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <div class="w-14 h-14 rounded-2xl bg-[#7e9455]/15 border border-[#7e9455]/30 flex items-center justify-center text-[#556637] dark:text-[#9eb07a] group-hover:scale-110 transition-transform">
+                    <Scale class="w-7 h-7" />
+                  </div>
+                  <span class="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-[#7e9455]/20 text-[#3f4e24] dark:text-[#baccb1] border border-[#7e9455]/40">
+                    Disponible • SMAE Oficial
+                  </span>
+                </div>
+
+                <div>
+                  <h3 class="text-xl font-bold text-slate-900 dark:text-white group-hover:text-[#556637] dark:group-hover:text-[#9eb07a] transition-colors">
+                    Sistema de Equivalencias Alimentarias
+                  </h3>
+                  <p class="text-xs leading-relaxed mt-2 text-slate-600 dark:text-slate-300">
+                    Catálogo oficial mexicano con los 8 grupos de alimentos (SMAE). Ficha clínica con porciones estándar, reglas de intercambio por equivalencia y descarga oficial en PDF.
+                  </p>
+                </div>
+              </div>
+
+              <div class="mt-6 pt-4 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-xs font-bold text-[#556637] dark:text-[#9eb07a]">
+                <span class="flex items-center gap-1.5">
+                  <CheckCircle2 class="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  Abrir Sistema de Equivalencias
+                </span>
+                <span class="group-hover:translate-x-1 transition-transform">→</span>
+              </div>
+            </div>
+
           </div>
 
         </div>
@@ -766,6 +836,11 @@ function handlePatientShoppingList(_patient: Patient) {
         <!-- ACTIVE SUB-TOOL: Patient Progress & Anthropometry -->
         <div v-else-if="activeTool === 'patient-progress'">
           <PatientProgressWizard />
+        </div>
+
+        <!-- ACTIVE SUB-TOOL: Equivalence Wizard -->
+        <div v-else-if="activeTool === 'equivalences'">
+          <EquivalenceWizard />
         </div>
 
         <!-- ACTIVE SUB-TOOL: Diet Generator Launcher View -->

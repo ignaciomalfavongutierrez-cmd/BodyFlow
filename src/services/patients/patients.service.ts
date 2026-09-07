@@ -283,6 +283,23 @@ export class PatientsService {
       updatedAt: new Date().toISOString()
     };
 
+    // Auto-link con cuenta de usuario existente en la App si se provee email
+    if (patientData.email && !patientData.userId) {
+      try {
+        const usersCol = collection(db, 'users');
+        const q = query(usersCol, where('email', '==', patientData.email.toLowerCase().trim()));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const userDoc = snap.docs[0];
+          patientData.userId = userDoc.id;
+          await setDoc(doc(db, 'users', userDoc.id), { linkedPatientId: newId, updatedAt: serverTimestamp() }, { merge: true });
+          console.log(`[PATIENTS:SERVICE] Auto-vinculado paciente nuevo ${newId} con usuario App ${userDoc.id}`);
+        }
+      } catch (linkErr) {
+        console.warn('[PATIENTS:SERVICE] Auto-vincular usuario omitido:', linkErr);
+      }
+    }
+
     try {
       const docRef = doc(db, PATIENTS_COLLECTION, newId);
       await setDoc(docRef, cleanFirestoreData({
@@ -304,6 +321,23 @@ export class PatientsService {
   static async updatePatient(patientId: string, data: Partial<Patient>): Promise<void> {
     const cleanData = { ...data, updatedAt: new Date().toISOString() };
     delete (cleanData as any).id;
+
+    // Auto-link con cuenta de usuario existente en la App si se agrega/modifica email
+    if (cleanData.email && !cleanData.userId) {
+      try {
+        const usersCol = collection(db, 'users');
+        const q = query(usersCol, where('email', '==', cleanData.email.toLowerCase().trim()));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const userDoc = snap.docs[0];
+          cleanData.userId = userDoc.id;
+          await setDoc(doc(db, 'users', userDoc.id), { linkedPatientId: patientId, updatedAt: serverTimestamp() }, { merge: true });
+          console.log(`[PATIENTS:SERVICE] Auto-vinculado paciente ${patientId} con usuario App ${userDoc.id}`);
+        }
+      } catch (linkErr) {
+        console.warn('[PATIENTS:SERVICE] Auto-vincular usuario omitido:', linkErr);
+      }
+    }
 
     try {
       const docRef = doc(db, PATIENTS_COLLECTION, patientId);

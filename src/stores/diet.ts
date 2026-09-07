@@ -14,6 +14,7 @@ export interface MacroTargets {
 export interface MealPlan {
   id: string
   name: string
+  mealType?: string
   items?: string[]
   plannedMacros?: MacroTargets
 }
