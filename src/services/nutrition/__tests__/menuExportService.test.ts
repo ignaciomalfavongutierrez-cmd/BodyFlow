@@ -1,7 +1,7 @@
 import assert from 'node:assert';
 import { MenuExportService } from '../MenuExportService';
 import { PatientsService } from '../../patients/patients.service';
-import type { PatientDietPlan } from '../../../types/patient';
+import type { Patient, PatientDietPlan } from '../../../types/patient';
 import type { DietPlanMenu } from '../../../types/dietMenu';
 
 console.log('Testing MenuExportService & PatientsService dynamic meal export...');
@@ -9,23 +9,21 @@ console.log('Testing MenuExportService & PatientsService dynamic meal export...'
 // Test 1: Plan with 3 suggested meals should only render 3 sections
 const plan3Meals: PatientDietPlan = {
   id: 'plan-3-meals',
-  patientId: 'pat-1',
   nombre: 'Plan 3 Comidas Definición',
   calorias: 1800,
   macros: { protein: 140, carbs: 180, fat: 50 },
   comidasSugeridas: 3,
   objetivo: 'Pérdida de Grasa',
   fechaAsignacion: '2026-09-06',
-  createdAt: '2026-09-06T10:00:00Z',
-  status: 'activo',
-  tipoPlan: 'semanal'
+  status: 'activo'
 };
 
 const emptyMenu: DietPlanMenu = {
   planId: 'plan-3-meals',
   tipoEstructura: 'siete_dias',
   tiemposComida: ['desayuno', 'comida', 'cena'],
-  dias: []
+  dias: [],
+  updatedAt: '2026-09-06T10:00:00Z'
 };
 
 const sections3 = MenuExportService.getActiveMealSections(plan3Meals, emptyMenu);
@@ -40,13 +38,15 @@ console.log('✓ Test 1 Passed: 3-meal dynamic structure generates exactly 3 sec
 const customMenu: DietPlanMenu = {
   planId: 'plan-custom',
   tipoEstructura: 'siete_dias',
+  tiemposComida: ['desayuno', 'snack_am', 'comida', 'pre_entreno'],
   tiemposComidaConfig: [
     { key: 'desayuno', label: 'Desayuno Campeón', defaultTime: '07:30 AM', icon: '🥑' },
     { key: 'snack_am', label: 'Snack Media Mañana', defaultTime: '11:00 AM', icon: '🍎' },
     { key: 'comida', label: 'Almuerzo Fuerte', defaultTime: '02:00 PM', icon: '🥩' },
     { key: 'pre_entreno', label: 'Power Shot', defaultTime: '06:00 PM', icon: '⚡' }
   ],
-  dias: []
+  dias: [],
+  updatedAt: '2026-09-06T10:00:00Z'
 };
 
 const sectionsCustom = MenuExportService.getActiveMealSections(plan3Meals, customMenu);
@@ -61,25 +61,19 @@ console.log('✓ Test 2 Passed: Custom meal times & custom icons are completely 
 const plansUnsorted: PatientDietPlan[] = [
   {
     id: 'plan-1',
-    patientId: 'pat-1',
     nombre: 'Fase 1: Adaptación',
     calorias: 2000,
     macros: { protein: 120, carbs: 250, fat: 60 },
     fechaAsignacion: '2026-08-01',
-    createdAt: '2026-08-01T10:00:00Z',
-    status: 'completado',
-    tipoPlan: 'semanal'
+    status: 'completado'
   },
   {
     id: 'plan-2',
-    patientId: 'pat-1',
     nombre: 'Fase 2: Definición Avanzada',
     calorias: 1700,
     macros: { protein: 150, carbs: 160, fat: 45 },
     fechaAsignacion: '2026-09-01',
-    createdAt: '2026-09-01T10:00:00Z',
-    status: 'activo',
-    tipoPlan: 'semanal'
+    status: 'activo'
   }
 ];
 
@@ -90,13 +84,18 @@ assert.strictEqual(sorted[1].id, 'plan-1', 'Completed plan must be second');
 console.log('✓ Test 3 Passed: Active diet plan is prioritized first, fixing the "Version 1 download" bug');
 
 // Test 4: HTML output includes icons and centered MENU styling
-const patientMock = {
+const patientMock: Patient = {
   id: 'pat-1',
   nombre: 'Carlos Mendoza',
   email: 'carlos@example.com',
-  status: 'active' as any,
+  status: 'activo',
+  sexo: 'masculino',
+  alertasMedicas: [],
+  metas: {},
   telefono: '5551234567',
-  tags: []
+  tags: [],
+  createdAt: '2026-09-06T10:00:00Z',
+  updatedAt: '2026-09-06T10:00:00Z'
 };
 
 const htmlPreview = MenuExportService.generateClinicalMenuHtml(patientMock, plan3Meals, customMenu, { isForPreview: true });

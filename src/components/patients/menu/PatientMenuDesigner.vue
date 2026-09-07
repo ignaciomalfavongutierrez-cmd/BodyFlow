@@ -1202,7 +1202,6 @@ const showReplicateModal = ref(false);
 const replicateTargetIndices = ref<number[]>([]);
 const showAddMealModal = ref(false);
 
-const isGeneratingAi = ref(false);
 const aiSuggestedDish = ref<DishItem | null>(null);
 const showAiSuggestionModal = ref(false);
 const patientClinicalHistory = ref<ClinicalHistory | null>(null);

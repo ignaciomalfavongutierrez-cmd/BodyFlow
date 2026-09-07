@@ -884,7 +884,7 @@ export class IngredientSearchService {
     }
 
     // Decimal legible con 1 o 2 dígitos
-    return +(qty.toFixed(1)).toString();
+    return String(+(qty.toFixed(1)));
   }
 
   /**

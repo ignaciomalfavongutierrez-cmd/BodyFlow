@@ -104,8 +104,9 @@ function resolveApiKey(): string | undefined {
   if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) {
     return import.meta.env.VITE_GEMINI_API_KEY as string
   }
-  if (typeof process !== 'undefined' && process.env?.VITE_GEMINI_API_KEY) {
-    return process.env.VITE_GEMINI_API_KEY
+  const nodeProcess = (globalThis as any)?.process
+  if (typeof nodeProcess !== 'undefined' && nodeProcess?.env?.VITE_GEMINI_API_KEY) {
+    return nodeProcess.env.VITE_GEMINI_API_KEY
   }
   if (typeof localStorage !== 'undefined') {
     return localStorage.getItem('bodyflow_gemini_api_key') || undefined
