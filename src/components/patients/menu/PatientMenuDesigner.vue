@@ -286,7 +286,7 @@
             ></div>
           </div>
           <div class="flex items-center justify-between text-[10px] font-bold text-amber-600 dark:text-amber-400">
-            <span>{{ remainingCarbs >= 0 ? `Faltan: ${remainingCarbs}g` : `+${Math.abs(remainingCarbs).toFixed(2)}g extra` }}</span>
+            <span>{{ remainingCarbs >= 0 ? `Faltan: ${remainingCarbs.toFixed(2)}g` : `+${Math.abs(remainingCarbs).toFixed(2)}g extra` }}</span>
             <span>{{ Math.round((dayTotals.carbs / (plan.macros.carbs || 1)) * 100) }}%</span>
           </div>
         </div>
@@ -419,6 +419,17 @@
               <span class="text-[11px] font-extrabold text-slate-700 dark:text-slate-300">
                 {{ getMealTimeSubtotal(cat.key).calories }} kcal
               </span>
+
+              <!-- AI Quick Suggestion Button -->
+              <button
+                type="button"
+                @click.stop="openAiSuggestionModal(cat.key)"
+                class="px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 shadow-2xs"
+                title="Sugerir con Gemini IA para este tiempo de comida"
+              >
+                <Sparkles class="w-3.5 h-3.5 text-emerald-500" />
+                <span class="hidden sm:inline">IA</span>
+              </button>
 
               <!-- Add Dish Button -->
               <button
@@ -617,13 +628,11 @@
           <!-- AI Assistant Suggestion Button -->
           <button
             type="button"
-            @click="generateAiSuggestion"
-            :disabled="isGeneratingAi"
-            class="w-full py-2.5 px-3 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-xs font-extrabold flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50"
+            @click="openAiSuggestionModal()"
+            class="w-full py-2.5 px-3 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-teal-500/15 to-emerald-500/15 hover:from-emerald-500/25 hover:to-teal-500/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 text-xs font-black flex items-center justify-center gap-2 cursor-pointer transition-all shadow-xs"
           >
-            <Sparkles v-if="!isGeneratingAi" class="w-4 h-4 text-emerald-500" />
-            <Loader2 v-else class="w-4 h-4 animate-spin text-emerald-500" />
-            <span>{{ isGeneratingAi ? 'Analizando macros faltantes...' : '✨ Sugerir con IA para macros restantes' }}</span>
+            <Sparkles class="w-4 h-4 text-emerald-500" />
+            <span>✨ Sugerir con IA para macros restantes</span>
           </button>
 
           <!-- AI Suggestion Card Result -->
@@ -994,6 +1003,27 @@
       @save="handleSaveEditedDishPortions"
     />
 
+    <!-- MODAL 6.5: AI MEAL SUGGESTION MODAL (GEMINI 3.7 FLASH) -->
+    <AiMealSuggestionModal
+      v-if="showAiSuggestionModal"
+      :show="showAiSuggestionModal"
+      :patient="patient"
+      :plan="plan"
+      :clinicalHistory="patientClinicalHistory"
+      :activeDayName="activeDay.diaNombre"
+      :targetMealTime="currentTargetMealItem"
+      :remainingMacros="{
+        calories: remainingKcal,
+        protein: remainingProtein,
+        carbs: remainingCarbs,
+        fat: remainingFat
+      }"
+      :availableMealTimes="activeMealTimes"
+      @close="showAiSuggestionModal = false"
+      @updateTargetMeal="selectedTargetCategory = $event"
+      @addDish="handleAddAiSuggestedDish"
+    />
+
     <!-- MODAL 7: LIVE CLINICAL SHEET PREVIEW MODAL -->
     <div
       v-if="showPreviewModal"
@@ -1127,7 +1157,7 @@ import {
   Download,
   X
 } from 'lucide-vue-next';
-import type { Patient, PatientDietPlan } from '../../../types/patient';
+import type { Patient, PatientDietPlan, ClinicalHistory } from '../../../types/patient';
 import type { 
   DietPlanMenu, 
   MealTimeKey, 
@@ -1143,6 +1173,7 @@ import { PatientsService } from '../../../services/patients/patients.service';
 import WhatsAppShareModal from '../modals/WhatsAppShareModal.vue';
 import CreateCustomDishModal from '../modals/CreateCustomDishModal.vue';
 import EditDishPortionsModal from '../modals/EditDishPortionsModal.vue';
+import AiMealSuggestionModal from '../modals/AiMealSuggestionModal.vue';
 
 const props = defineProps<{
   patient: Patient;
@@ -1173,6 +1204,8 @@ const showAddMealModal = ref(false);
 
 const isGeneratingAi = ref(false);
 const aiSuggestedDish = ref<DishItem | null>(null);
+const showAiSuggestionModal = ref(false);
+const patientClinicalHistory = ref<ClinicalHistory | null>(null);
 
 const activeDayIndex = ref(0);
 const selectedTargetCategory = ref<string>('desayuno');
@@ -1686,27 +1719,45 @@ function handleCustomDishCreated(dish: DishItem) {
   foodsStore.fetchMyFoods();
 }
 
-// Sugerencia Inteligente IA adaptada a los macros restantes de este día
-function generateAiSuggestion() {
-  isGeneratingAi.value = true;
-  aiSuggestedDish.value = null;
+// Asistente Inteligente IA (Gemini 3.7 Flash) con modal clínico interactivo
+const currentTargetMealItem = computed(() => {
+  return activeMealTimes.value.find(m => m.key === selectedTargetCategory.value) || {
+    key: selectedTargetCategory.value,
+    label: getMealTimeLabel(selectedTargetCategory.value),
+    icon: '🍽️',
+    defaultTime: '12:00 PM'
+  };
+});
 
-  setTimeout(() => {
-    const targetKcal = Math.max(150, Math.min(600, remainingKcal.value));
-    const targetP = Math.max(10, Math.min(45, remainingProtein.value));
+function getMealTimeLabel(catKey: string): string {
+  const found = activeMealTimes.value.find(m => m.key === catKey);
+  return found ? found.label : catKey;
+}
 
-    const candidate = HEALTHY_DISHES_CATALOG.find(d => 
-      Math.abs(d.macros.calories - targetKcal) < 120
-    ) || HEALTHY_DISHES_CATALOG[0];
+async function openAiSuggestionModal(targetKey?: MealTimeKey) {
+  if (targetKey) {
+    selectedTargetCategory.value = targetKey;
+  }
+  if (!patientClinicalHistory.value) {
+    try {
+      patientClinicalHistory.value = await PatientsService.getClinicalHistory(props.patient.id);
+    } catch (err) {
+      console.warn('Could not load clinical history:', err);
+    }
+  }
+  showAiSuggestionModal.value = true;
+}
 
-    aiSuggestedDish.value = {
-      ...candidate,
-      id: `ai_${Date.now()}`,
-      nombre: `[Sugerido IA] ${candidate.nombre}`,
-      descripcion: `Ajustado para ${activeDay.value.diaNombre} para aportar aprox ${targetKcal} kcal y ${targetP}g de proteína.`
-    };
-    isGeneratingAi.value = false;
-  }, 600);
+function handleAddAiSuggestedDish(payload: { dish: DishItem; targetMealKey: MealTimeKey }) {
+  const targetKey = payload.targetMealKey || selectedTargetCategory.value;
+  if (!activeDay.value.comidas[targetKey]) {
+    activeDay.value.comidas[targetKey] = [];
+  }
+  activeDay.value.comidas[targetKey].push(JSON.parse(JSON.stringify(payload.dish)));
+  showAiSuggestionModal.value = false;
+  toastMessage.value = `¡"${payload.dish.nombre}" agregado a ${getMealTimeLabel(targetKey)}!`;
+  showToast.value = true;
+  setTimeout(() => { showToast.value = false; }, 3200);
 }
 
 // Guardar Menú
@@ -1776,8 +1827,13 @@ function resetZoomPreview(scale = 0.85) {
   previewZoom.value = scale;
 }
 
-onMounted(() => {
+onMounted(async () => {
   foodsStore.fetchMyFoods();
+  try {
+    patientClinicalHistory.value = await PatientsService.getClinicalHistory(props.patient.id);
+  } catch (err) {
+    console.warn('Could not load clinical history in onMounted:', err);
+  }
 });
 </script>
 

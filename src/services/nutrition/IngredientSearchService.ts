@@ -9,6 +9,7 @@ export interface IngredientSearchResult {
   unidadBase?: string;
   gramosReferencia?: number;
   categoria?: string;
+  brand?: string;
   fuente: 'local' | 'smae' | 'fatsecret';
   macros: {
     calories: number;
@@ -1216,18 +1217,24 @@ export class IngredientSearchService {
     // -------------------------------------------------------------
     try {
       this.lastFatSecretError = null;
-      const fatSecretResults = await searchFoods(q, 8);
+      const fatSecretResults = await searchFoods(q, 15);
       for (const fsItem of fatSecretResults) {
-        const translatedName = this.translateFoodName(fsItem.name);
+        let displayName = fsItem.name;
+        // Si no trae la marca en el nombre pero sí en el atributo brand, enriquecerlo
+        if (fsItem.brand && !displayName.toLowerCase().includes(fsItem.brand.toLowerCase())) {
+          displayName = `${displayName} (${fsItem.brand})`;
+        }
+        const translatedName = this.translateFoodName(displayName);
         const normKey = translatedName.toLowerCase().trim();
 
         if (!seenNames.has(normKey)) {
           seenNames.add(normKey);
           const cleanPortion = this.normalizeFatSecretServing(fsItem.description);
           results.push({
-            id: `fs_${fsItem.id}`,
+            id: fsItem.id.startsWith('fs') ? fsItem.id : `fs_${fsItem.id}`,
             nombre: translatedName,
             porcion: cleanPortion,
+            brand: fsItem.brand,
             fuente: 'fatsecret',
             macros: {
               calories: Math.round(fsItem.macros.calories || 0),

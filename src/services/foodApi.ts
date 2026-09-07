@@ -19,7 +19,9 @@
 export interface FoodSearchResult {
   id: string
   name: string
+  brand?: string
   description: string
+  fuente?: string
   macros: {
     calories: number
     protein: number

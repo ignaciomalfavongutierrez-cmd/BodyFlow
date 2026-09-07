@@ -160,13 +160,19 @@
                 class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-white/10 transition-colors cursor-pointer flex items-center justify-between gap-2 text-xs"
               >
                 <div class="min-w-0 flex-1">
-                  <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-2 flex-wrap">
                     <span class="font-bold text-slate-900 dark:text-white truncate">{{ item.nombre }}</span>
                     <span 
-                      class="text-[8px] font-black uppercase px-1.5 py-0.2 rounded"
-                      :class="item.fuente === 'fatsecret' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : (item.fuente === 'local' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-slate-500/10 text-slate-600 dark:text-slate-400')"
+                      v-if="item.brand" 
+                      class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 shrink-0"
                     >
-                      {{ item.fuente === 'fatsecret' ? 'FatSecret' : (item.fuente === 'local' ? 'Caché BD' : 'SMAE') }}
+                      🏷️ {{ item.brand }}
+                    </span>
+                    <span 
+                      class="text-[8px] font-black uppercase px-1.5 py-0.2 rounded shrink-0"
+                      :class="item.fuente === 'fatsecret' ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20' : (item.fuente === 'local' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' : 'bg-slate-500/10 text-slate-600 dark:text-slate-400')"
+                    >
+                      {{ item.fuente === 'fatsecret' ? (item.brand ? 'Marca MX' : 'FatSecret') : (item.fuente === 'local' ? 'Caché BD' : 'SMAE') }}
                     </span>
                   </div>
                   <p class="text-[10px] text-slate-400">{{ item.porcion }}</p>

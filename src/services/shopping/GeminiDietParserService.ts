@@ -38,8 +38,13 @@ export class GeminiDietParserService {
 
     // Candidate models starting with gemini-3.7-flash, then gemini-3.6-flash and fallbacks
     const candidateModels = [
-      'gemini-3.7-flash',
-      'gemini-3.6-flash',
+      'gemini-3.7-flash',        // Primary (as per CONTEXT.md)
+      'gemini-3.6-flash',        // First fallback (as per CONTEXT.md)
+      'gemini-3.8-flash',        // High-availability Gemini 3 series
+      'gemini-3.5-flash',        // High-stability Gemini 3 series
+      'gemini-flash-latest',     // Google's dynamically routed latest stable flash
+      'gemini-3.1-flash-lite',   // Ultra-fast lite fallback
+      'gemini-flash-lite-latest' // Google's latest lite
     ];
 
     // If client API key is available, attempt direct GoogleGenerativeAI call with model fallback
@@ -47,38 +52,47 @@ export class GeminiDietParserService {
       const genAI = new GoogleGenerativeAI(apiKey);
 
       for (const modelName of candidateModels) {
-        try {
-          const model = genAI.getGenerativeModel({
-            model: modelName,
-            generationConfig: {
-              responseMimeType: 'application/json',
-            },
-          });
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          try {
+            const model = genAI.getGenerativeModel({
+              model: modelName,
+              generationConfig: {
+                responseMimeType: 'application/json',
+              },
+            });
 
-          let resultText = '';
+            let resultText = '';
 
-          if (!isImage && localText && localText.length > 30) {
-            // High-speed text prompt with extracted content
-            const prompt = `${GEMINI_DIET_SYSTEM_PROMPT}\n\nDOCUMENTO DE DIETA EXTRACTADO (${file.name}):\n${localText}`;
-            const result = await model.generateContent(prompt);
-            resultText = result.response.text();
-          } else {
-            // Multimodal prompt for Images or Scanned Documents
-            const filePart = await LocalDocumentParserService.fileToBase64(file);
-            const prompt = isImage
-              ? `${GEMINI_DIET_SYSTEM_PROMPT}\n\nPor favor analiza la imagen adjunta del plan de alimentación / menú / dieta y devuelve la estructura JSON requerida.`
-              : `${GEMINI_DIET_SYSTEM_PROMPT}\n\nPor favor analiza el archivo adjunto (${file.name}) de dieta y devuelve la estructura JSON requerida.`;
-            
-            const result = await model.generateContent([prompt, filePart]);
-            resultText = result.response.text();
+            if (!isImage && localText && localText.length > 30) {
+              // High-speed text prompt with extracted content
+              const prompt = `${GEMINI_DIET_SYSTEM_PROMPT}\n\nDOCUMENTO DE DIETA EXTRACTADO (${file.name}):\n${localText}`;
+              const result = await model.generateContent(prompt);
+              resultText = result.response.text();
+            } else {
+              // Multimodal prompt for Images or Scanned Documents
+              const filePart = await LocalDocumentParserService.fileToBase64(file);
+              const prompt = isImage
+                ? `${GEMINI_DIET_SYSTEM_PROMPT}\n\nPor favor analiza la imagen adjunta del plan de alimentación / menú / dieta y devuelve la estructura JSON requerida.`
+                : `${GEMINI_DIET_SYSTEM_PROMPT}\n\nPor favor analiza el archivo adjunto (${file.name}) de dieta y devuelve la estructura JSON requerida.`;
+              
+              const result = await model.generateContent([prompt, filePart]);
+              resultText = result.response.text();
+            }
+
+            if (resultText && resultText.trim() !== '') {
+              return this.cleanAndParseJson(resultText);
+            }
+          } catch (err: any) {
+            lastError = err;
+            const msg = err?.message || String(err);
+            console.warn(`[GeminiDietParserService] Intento ${attempt} con modelo ${modelName} falló:`, msg);
+            const isTransient = msg.includes('503') || msg.includes('high demand') || msg.includes('429');
+            if (isTransient && attempt < 2) {
+              await new Promise(r => setTimeout(r, 850));
+              continue;
+            }
+            break;
           }
-
-          if (resultText && resultText.trim() !== '') {
-            return this.cleanAndParseJson(resultText);
-          }
-        } catch (err: any) {
-          console.warn(`[GeminiDietParserService] Falló intento con modelo ${modelName}:`, err?.message || err);
-          lastError = err;
         }
       }
     }

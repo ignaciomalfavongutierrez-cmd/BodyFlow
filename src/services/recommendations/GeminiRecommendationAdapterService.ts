@@ -101,8 +101,13 @@ ESTRUCTURA DE RESPUESTA ESPERADA (JSON):
 }`;
 
     const candidateModels = [
-      'gemini-3.7-flash',
-      'gemini-3.6-flash',
+      'gemini-3.7-flash',        // Primary (as per CONTEXT.md)
+      'gemini-3.6-flash',        // First fallback (as per CONTEXT.md)
+      'gemini-3.8-flash',        // High-availability Gemini 3 series
+      'gemini-3.5-flash',        // High-stability Gemini 3 series
+      'gemini-flash-latest',     // Google's dynamically routed latest stable flash
+      'gemini-3.1-flash-lite',   // Ultra-fast lite fallback
+      'gemini-flash-lite-latest' // Google's latest lite
     ];
 
     let lastError: any = null;
@@ -112,22 +117,31 @@ ESTRUCTURA DE RESPUESTA ESPERADA (JSON):
       const genAI = new GoogleGenerativeAI(apiKey);
 
       for (const modelName of candidateModels) {
-        try {
-          const model = genAI.getGenerativeModel({
-            model: modelName,
-            generationConfig: {
-              responseMimeType: 'application/json',
-            },
-          });
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          try {
+            const model = genAI.getGenerativeModel({
+              model: modelName,
+              generationConfig: {
+                responseMimeType: 'application/json',
+              },
+            });
 
-          const result = await model.generateContent(systemPrompt);
-          const responseText = result.response.text();
-          if (responseText && responseText.trim()) {
-            return this.parseJsonResponse(responseText);
+            const result = await model.generateContent(systemPrompt);
+            const responseText = result.response.text();
+            if (responseText && responseText.trim()) {
+              return this.parseJsonResponse(responseText);
+            }
+          } catch (err: any) {
+            lastError = err;
+            const msg = err?.message || String(err);
+            console.warn(`[GeminiRecommendationAdapterService] Intento ${attempt} con modelo ${modelName} falló:`, msg);
+            const isTransient = msg.includes('503') || msg.includes('high demand') || msg.includes('429');
+            if (isTransient && attempt < 2) {
+              await new Promise(r => setTimeout(r, 850));
+              continue;
+            }
+            break;
           }
-        } catch (err: any) {
-          console.warn(`[GeminiRecommendationAdapterService] Error con modelo ${modelName}:`, err);
-          lastError = err;
         }
       }
     }

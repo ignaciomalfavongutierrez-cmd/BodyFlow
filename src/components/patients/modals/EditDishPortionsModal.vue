@@ -308,10 +308,16 @@
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="font-bold text-xs text-slate-900 dark:text-white group-hover:text-emerald-500 transition-colors">{{ item.nombre }}</span>
                 <span 
+                  v-if="item.brand" 
+                  class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20"
+                >
+                  🏷️ {{ item.brand }}
+                </span>
+                <span 
                   class="text-[8px] font-black uppercase px-1.5 py-0.5 rounded"
                   :class="item.fuente === 'fatsecret' ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20' : (item.fuente === 'local' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20')"
                 >
-                  {{ item.fuente === 'fatsecret' ? 'FatSecret MX' : (item.fuente === 'local' ? 'Mi Alimento' : 'SMAE México') }}
+                  {{ item.fuente === 'fatsecret' ? (item.brand ? 'Marca MX' : 'FatSecret MX') : (item.fuente === 'local' ? 'Mi Alimento' : 'SMAE México') }}
                 </span>
               </div>
               <p class="text-[10px] text-slate-400 pt-0.5">Porción estándar: <strong class="text-slate-600 dark:text-slate-300">{{ item.porcion }}</strong></p>

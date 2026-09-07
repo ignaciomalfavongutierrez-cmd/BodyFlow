@@ -35,50 +35,73 @@ export default async function handler(req, res) {
   const candidateModels = [
     'gemini-3.7-flash',
     'gemini-3.6-flash',
+    'gemini-3.8-flash',
+    'gemini-3.5-flash',
+    'gemini-flash-latest',
+    'gemini-3.1-flash-lite',
+    'gemini-flash-lite-latest'
   ];
 
   const genAI = new GoogleGenerativeAI(apiKey);
   let lastError = null;
 
   for (const modelName of candidateModels) {
-    try {
-      const model = genAI.getGenerativeModel({
-        model: modelName,
-        generationConfig: {
-          responseMimeType: 'application/json'
-        }
-      });
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          generationConfig: {
+            responseMimeType: 'application/json'
+          }
+        });
 
-      let response;
-      if (contents) {
-        let parts = contents;
-        if (Array.isArray(contents)) {
-          parts = contents.map(item => {
-            if (item && item.inlineData) {
-              return {
-                inlineData: {
-                  data: item.inlineData.data,
-                  mimeType: item.inlineData.mimeType || 'application/pdf'
-                }
-              };
-            }
-            return item;
-          });
+        let response;
+        if (contents) {
+          let parts = contents;
+          if (Array.isArray(contents)) {
+            parts = contents.map(item => {
+              if (item && item.inlineData) {
+                return {
+                  inlineData: {
+                    data: item.inlineData.data,
+                    mimeType: item.inlineData.mimeType || 'application/pdf'
+                  }
+                };
+              }
+              return item;
+            });
+          }
+          response = await model.generateContent(parts);
+        } else {
+          response = await model.generateContent(prompt);
         }
-        response = await model.generateContent(parts);
-      } else {
-        response = await model.generateContent(prompt);
+
+        const text = response.response.text();
+        if (text) {
+          return res.status(200).json({ text });
+        }
+      } catch (err) {
+        console.warn(`[api/chat] Intento ${attempt} con modelo ${modelName} falló:`, err?.message || err);
+        lastError = err;
+        const msg = err?.message || String(err);
+        const isTransient = msg.includes('503') || msg.includes('high demand') || msg.includes('429');
+        if (isTransient && attempt < 2) {
+          await new Promise(r => setTimeout(r, 850));
+          continue;
+        }
+        break;
       }
-
-      const text = response.response.text();
-      return res.status(200).json({ text });
-    } catch (err) {
-      console.warn(`[api/chat] Falló intento con modelo ${modelName}:`, err?.message || err);
-      lastError = err;
     }
   }
 
+  const finalMsg = lastError?.message || '';
+  if (finalMsg.includes('503') || finalMsg.includes('high demand')) {
+    return res.status(503).json({
+      error: 'El servicio de IA de Google está experimentando alta demanda temporal (Error 503). Por favor reintenta en unos momentos.'
+    });
+  }
+
   return res.status(500).json({
-    error: lastError?.message || 'Error al comunicarse con Gemini.'
+    error: finalMsg || 'Error al comunicarse con Gemini.'
   });
 }

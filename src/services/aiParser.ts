@@ -84,7 +84,75 @@ export function parseManualJson(jsonStr: string): DayPlan[] {
   }
 }
 
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? ''
+const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ? (import.meta.env.VITE_API_URL as string) : ''
+
+export const GEMINI_CANDIDATE_MODELS = [
+  'gemini-3.7-flash',        // Primary (as per CONTEXT.md)
+  'gemini-3.6-flash',        // First fallback (as per CONTEXT.md)
+  'gemini-3.8-flash',        // High-availability Gemini 3 series
+  'gemini-3.5-flash',        // High-stability Gemini 3 series
+  'gemini-flash-latest',     // Google's dynamically routed latest stable flash
+  'gemini-3.1-flash-lite',   // Ultra-fast lite fallback
+  'gemini-flash-lite-latest' // Google's latest lite
+]
+
+function waitDelay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+function resolveApiKey(): string | undefined {
+  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GEMINI_API_KEY) {
+    return import.meta.env.VITE_GEMINI_API_KEY as string
+  }
+  if (typeof process !== 'undefined' && process.env?.VITE_GEMINI_API_KEY) {
+    return process.env.VITE_GEMINI_API_KEY
+  }
+  if (typeof localStorage !== 'undefined') {
+    return localStorage.getItem('bodyflow_gemini_api_key') || undefined
+  }
+  return undefined
+}
+
+async function executeGeminiDirectCall(promptOrParts: any): Promise<string> {
+  const apiKey = resolveApiKey()
+  if (!apiKey) {
+    throw new Error('No se encontró la clave de API de Gemini (VITE_GEMINI_API_KEY).')
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey)
+  let lastErr: any = null
+
+  for (const modelName of GEMINI_CANDIDATE_MODELS) {
+    // Retry up to 2 times on transient 503 / 429
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName })
+        const result = await model.generateContent(promptOrParts)
+        const text = result.response.text()
+        if (text && text.trim()) {
+          return text
+        }
+      } catch (err: any) {
+        lastErr = err
+        const msg = err?.message || String(err)
+        const isTransient = msg.includes('503') || msg.includes('high demand') || msg.includes('429') || msg.includes('ResourceExhausted')
+        console.warn(`[aiParser] Falló intento ${attempt} con modelo ${modelName}:`, msg)
+
+        if (isTransient && attempt < 2) {
+          await waitDelay(850)
+          continue
+        }
+        break
+      }
+    }
+  }
+
+  const finalMsg = lastErr?.message || ''
+  if (finalMsg.includes('503') || finalMsg.includes('high demand')) {
+    throw new Error('El servicio de IA de Google está experimentando alta demanda temporal (Error 503). Por favor reintenta en unos momentos.')
+  }
+  throw new Error(finalMsg || 'Error al comunicarse con Gemini (directo).')
+}
 
 export async function sendPromptToGemini(prompt: string): Promise<string> {
   try {
@@ -108,25 +176,8 @@ export async function sendPromptToGemini(prompt: string): Promise<string> {
     const data = await res.json()
     return data.text || ''
   } catch (error: any) {
-    console.warn('[aiParser] El backend falló o no está disponible, intentando fallback directo del cliente:', error)
-    const apiKey = (import.meta.env.VITE_GEMINI_API_KEY as string | undefined) || localStorage.getItem('bodyflow_gemini_api_key') || undefined
-    if (apiKey) {
-      const genAI = new GoogleGenerativeAI(apiKey)
-      const candidateModels = ['gemini-3.7-flash', 'gemini-3.6-flash']
-      let lastErr: any = null
-      for (const modelName of candidateModels) {
-        try {
-          const model = genAI.getGenerativeModel({ model: modelName })
-          const result = await model.generateContent(prompt)
-          return result.response.text()
-        } catch (err: any) {
-          console.warn(`[aiParser] Falló intento con modelo ${modelName}:`, err?.message || err)
-          lastErr = err
-        }
-      }
-      throw new Error(lastErr?.message || 'Error al comunicarse con Gemini (directo).')
-    }
-    throw error
+    console.warn('[aiParser] El backend falló o no está disponible, intentando fallback directo del cliente con cascada:', error?.message || error)
+    return executeGeminiDirectCall(prompt)
   }
 }
 
@@ -152,39 +203,22 @@ export async function sendContentsToGemini(contents: any): Promise<string> {
     const data = await res.json()
     return data.text || ''
   } catch (error: any) {
-    console.warn('[aiParser] El backend falló o no está disponible, intentando fallback directo del cliente para contenidos:', error)
-    const apiKey = (import.meta.env.VITE_GEMINI_API_KEY as string | undefined) || localStorage.getItem('bodyflow_gemini_api_key') || undefined
-    if (apiKey) {
-      const genAI = new GoogleGenerativeAI(apiKey)
-      const parts = contents.map((c: any) => {
-        if (c.inlineData) {
-          return {
-            inlineData: {
-              data: c.inlineData.data,
-              mimeType: c.inlineData.mimeType
-            }
+    console.warn('[aiParser] El backend falló o no está disponible, intentando fallback directo del cliente con cascada:', error?.message || error)
+    const parts = contents.map((c: any) => {
+      if (c.inlineData) {
+        return {
+          inlineData: {
+            data: c.inlineData.data,
+            mimeType: c.inlineData.mimeType
           }
         }
-        if (c.text) {
-          return c.text
-        }
-        return c
-      })
-      const candidateModels = ['gemini-3.7-flash', 'gemini-3.6-flash']
-      let lastErr: any = null
-      for (const modelName of candidateModels) {
-        try {
-          const model = genAI.getGenerativeModel({ model: modelName })
-          const result = await model.generateContent(parts)
-          return result.response.text()
-        } catch (err: any) {
-          console.warn(`[aiParser] Falló intento con modelo ${modelName}:`, err?.message || err)
-          lastErr = err
-        }
       }
-      throw new Error(lastErr?.message || 'Error al comunicarse con Gemini (directo).')
-    }
-    throw error
+      if (c.text) {
+        return c.text
+      }
+      return c
+    })
+    return executeGeminiDirectCall(parts)
   }
 }
 
