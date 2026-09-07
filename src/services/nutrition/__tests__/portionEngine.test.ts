@@ -1,6 +1,6 @@
-import { IngredientSearchService } from '../IngredientSearchService';
+import { IngredientSearchService, BASE_MEXICAN_STAPLES } from '../IngredientSearchService';
 
-function runPortionEngineTests() {
+async function runPortionEngineTests() {
   console.log('Testing Portion Engine & Unit Conversions...');
 
   // Test 1: Corrupt Double-Number Sanitization
@@ -70,6 +70,53 @@ function runPortionEngineTests() {
     throw new Error(`Test 7 Failed: Rice conversion error: ${arrozToGrams.newCantidad}, ${arrozToTaza.newCantidad}`);
   }
   console.log('✓ Test 7 Passed: Rice 1 taza <-> 160g (and 80g -> 0.5 taza) exact');
+
+  // Test 8: Bistec de res magro a la plancha must be 'pieza'
+  const bistec = IngredientSearchService.findStapleMatch('Bistec de res magro a la plancha');
+  if (!bistec) {
+    throw new Error('Test 8 Failed: Bistec de res not found in BASE_MEXICAN_STAPLES');
+  }
+  if (bistec.unidadBase !== 'pieza' || bistec.gramosReferencia !== 100) {
+    throw new Error(`Test 8 Failed: Expected bistec unidadBase: 'pieza', refGrams: 100, got: ${bistec.unidadBase}, ${bistec.gramosReferencia}`);
+  }
+  const bistecToGrams = IngredientSearchService.convertIngredientUnit(1, 'pieza', 'g', 'Bistec de res magro a la plancha');
+  const bistecToPieza = IngredientSearchService.convertIngredientUnit(100, 'g', 'pieza', 'Bistec de res magro a la plancha');
+  if (bistecToGrams.newCantidad !== 100 || bistecToPieza.newCantidad !== 1) {
+    throw new Error(`Test 8 Failed: Bistec conversion error: 1 pieza -> ${bistecToGrams.newCantidad}g, 100g -> ${bistecToPieza.newCantidad} pieza`);
+  }
+  console.log('✓ Test 8 Passed: Bistec de res is correctly configured as 1 pieza (100g) with exact bidirectional conversion');
+
+  // Test 9: Catalog Integrity - No staple has unidadBase 'g' with gramosReferencia != 1
+  for (const s of BASE_MEXICAN_STAPLES) {
+    if (s.unidadBase === 'g' && s.gramosReferencia !== 1) {
+      throw new Error(`Test 9 Failed: Staple "${s.id}" has unidadBase 'g' but gramosReferencia is ${s.gramosReferencia}. 1 gram must be 1 gram.`);
+    }
+    if (s.densidades && s.densidades[s.unidadBase] && s.densidades[s.unidadBase] !== s.gramosReferencia) {
+      throw new Error(`Test 9 Failed: Staple "${s.id}" densidades[${s.unidadBase}] (${s.densidades[s.unidadBase]}) does not match gramosReferencia (${s.gramosReferencia})`);
+    }
+  }
+  console.log(`✓ Test 9 Passed: All ${BASE_MEXICAN_STAPLES.length} staples in BASE_MEXICAN_STAPLES verified mathematically consistent`);
+
+  // Test 10: Auto-healing corrupted dishes (1 g of bistec with 100g total)
+  const corruptedDish: any = {
+    id: 'test_corrupted_1',
+    nombre: 'Comida con Bistec',
+    macros: { calories: 180, protein: 26, carbs: 0, fat: 8 },
+    ingredientesDetalle: [
+      {
+        nombre: 'Bistec de res magro a la plancha',
+        cantidad: 1,
+        unidad: 'g',
+        gramosEquivalentes: 100,
+        macros: { calories: 180, protein: 26, carbs: 0, fat: 8 }
+      }
+    ]
+  };
+  const healed = IngredientSearchService.ensureDishIngredients(corruptedDish);
+  if (healed[0].unidad !== 'pieza' || healed[0].cantidad !== 1 || healed[0].gramosEquivalentes !== 100) {
+    throw new Error(`Test 10 Failed: Auto-healing did not correct 1g bistec to 1 pieza: unidad=${healed[0].unidad}, cantidad=${healed[0].cantidad}`);
+  }
+  console.log('✓ Test 10 Passed: ensureDishIngredients auto-heals corrupted "1 g (100g)" ingredients to "1 pieza (100g)"');
 
   console.log('\n=============================================');
   console.log('🎉 ALL PORTION ENGINE & UNIT TESTS PASSED!');

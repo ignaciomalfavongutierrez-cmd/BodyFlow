@@ -48,20 +48,20 @@ export const BASE_MEXICAN_STAPLES: SmaeStapleItem[] = [
     id: 'staple-pechuga-pollo',
     nombre: 'Pechuga de pollo a la plancha / cocida',
     categoria: 'aoa',
-    porcion: '100 g',
-    unidadBase: 'g',
+    porcion: '1 pieza (100g)',
+    unidadBase: 'pieza',
     gramosReferencia: 100,
-    densidades: { g: 1, pieza: 120, taza: 140, cda: 15 },
+    densidades: { pieza: 100, g: 1, taza: 140, cda: 15, porción: 100 },
     macros: { calories: 165, protein: 31, carbs: 0, fat: 3.6 }
   },
   {
     id: 'staple-pechuga-deshebrada',
     nombre: 'Pechuga de pollo deshebrada',
     categoria: 'aoa',
-    porcion: '100 g',
-    unidadBase: 'g',
+    porcion: '1 porción (100g)',
+    unidadBase: 'porción',
     gramosReferencia: 100,
-    densidades: { g: 1, taza: 130, cda: 15, pieza: 100 },
+    densidades: { porción: 100, taza: 130, cda: 15, g: 1, pieza: 100 },
     macros: { calories: 165, protein: 31, carbs: 0, fat: 3.6 }
   },
   {
@@ -91,57 +91,57 @@ export const BASE_MEXICAN_STAPLES: SmaeStapleItem[] = [
     porcion: '1 lata drenada (100g)',
     unidadBase: 'lata',
     gramosReferencia: 100,
-    densidades: { lata: 100, g: 1, cda: 20 },
+    densidades: { lata: 100, g: 1, cda: 20, porción: 100 },
     macros: { calories: 110, protein: 25, carbs: 0, fat: 1 }
   },
   {
     id: 'staple-bistec-res',
     nombre: 'Bistec de res magro a la plancha',
     categoria: 'aoa',
-    porcion: '100 g',
-    unidadBase: 'g',
+    porcion: '1 pieza (100g)',
+    unidadBase: 'pieza',
     gramosReferencia: 100,
-    densidades: { g: 1, pieza: 120, rebanada: 60 },
+    densidades: { pieza: 100, g: 1, rebanada: 50, porción: 100 },
     macros: { calories: 180, protein: 26, carbs: 0, fat: 8 }
   },
   {
     id: 'staple-carne-molida-magra',
     nombre: 'Carne molida de res magra (90/10)',
     categoria: 'aoa',
-    porcion: '100 g cocida',
-    unidadBase: 'g',
+    porcion: '1 porción (100g cocida)',
+    unidadBase: 'porción',
     gramosReferencia: 100,
-    densidades: { g: 1, taza: 150, cda: 18 },
+    densidades: { porción: 100, taza: 150, cda: 18, g: 1 },
     macros: { calories: 176, protein: 26, carbs: 0, fat: 7.5 }
   },
   {
     id: 'staple-pescado-blanco',
     nombre: 'Filete de pescado blanco / Tilapia',
     categoria: 'aoa',
-    porcion: '100 g cocido',
-    unidadBase: 'g',
+    porcion: '1 pieza / filete (100g cocido)',
+    unidadBase: 'pieza',
     gramosReferencia: 100,
-    densidades: { g: 1, pieza: 120 },
+    densidades: { pieza: 100, g: 1, porción: 100 },
     macros: { calories: 110, protein: 24, carbs: 0, fat: 1.5 }
   },
   {
     id: 'staple-salmon',
     nombre: 'Salmón fresco a la plancha',
     categoria: 'aoa',
-    porcion: '100 g cocido',
-    unidadBase: 'g',
+    porcion: '1 pieza / filete (100g cocido)',
+    unidadBase: 'pieza',
     gramosReferencia: 100,
-    densidades: { g: 1, pieza: 130 },
+    densidades: { pieza: 100, g: 1, porción: 100 },
     macros: { calories: 206, protein: 22, carbs: 0, fat: 12 }
   },
   {
     id: 'staple-camaron',
     nombre: 'Camarones cocidos / al vapor',
     categoria: 'aoa',
-    porcion: '100 g',
-    unidadBase: 'g',
+    porcion: '1 porción (100g)',
+    unidadBase: 'porción',
     gramosReferencia: 100,
-    densidades: { g: 1, pieza: 12, taza: 140 },
+    densidades: { porción: 100, pieza: 12, taza: 140, g: 1 },
     macros: { calories: 99, protein: 21, carbs: 0.9, fat: 1.1 }
   },
   {
@@ -151,28 +151,28 @@ export const BASE_MEXICAN_STAPLES: SmaeStapleItem[] = [
     porcion: '1 rebanada (40g)',
     unidadBase: 'rebanada',
     gramosReferencia: 40,
-    densidades: { rebanada: 40, pieza: 40, g: 1 },
+    densidades: { rebanada: 40, pieza: 40, g: 1, porción: 40 },
     macros: { calories: 85, protein: 7, carbs: 1, fat: 5.5 }
   },
   {
     id: 'staple-queso-oaxaca',
     nombre: 'Queso Oaxaca light / en hebra',
     categoria: 'aoa',
-    porcion: '30 g',
-    unidadBase: 'g',
+    porcion: '1 porción (30g)',
+    unidadBase: 'porción',
     gramosReferencia: 30,
-    densidades: { g: 1, rebanada: 30, cda: 15 },
+    densidades: { porción: 30, rebanada: 30, cda: 15, g: 1 },
     macros: { calories: 84, protein: 7.5, carbs: 0.5, fat: 6 }
   },
   {
     id: 'staple-requeson',
     nombre: 'Requesón bajo en grasa',
     categoria: 'aoa',
-    porcion: '3 cucharadas (45g)',
+    porcion: '1 cucharada (15g)',
     unidadBase: 'cda',
     gramosReferencia: 15,
-    densidades: { cda: 15, g: 1, taza: 220 },
-    macros: { calories: 45, protein: 5.5, carbs: 1.5, fat: 1.8 }
+    densidades: { cda: 15, g: 1, taza: 220, porción: 45 },
+    macros: { calories: 15, protein: 1.8, carbs: 0.5, fat: 0.6 }
   },
   {
     id: 'staple-cottage',
@@ -181,18 +181,18 @@ export const BASE_MEXICAN_STAPLES: SmaeStapleItem[] = [
     porcion: '1/2 taza (100g)',
     unidadBase: 'taza',
     gramosReferencia: 200,
-    densidades: { taza: 200, cda: 20, g: 1 },
+    densidades: { taza: 200, cda: 20, g: 1, porción: 100 },
     macros: { calories: 144, protein: 22, carbs: 6.5, fat: 3 }
   },
   {
     id: 'staple-jamon-pavo',
     nombre: 'Jamón de pechuga de pavo bajo en sodio',
     categoria: 'aoa',
-    porcion: '2 rebanadas (40g)',
+    porcion: '1 rebanada (20g)',
     unidadBase: 'rebanada',
     gramosReferencia: 20,
     densidades: { rebanada: 20, pieza: 20, g: 1 },
-    macros: { calories: 42, protein: 7.6, carbs: 0.8, fat: 0.8 }
+    macros: { calories: 21, protein: 3.8, carbs: 0.4, fat: 0.4 }
   },
   {
     id: 'staple-proteina-whey',
@@ -390,7 +390,7 @@ export const BASE_MEXICAN_STAPLES: SmaeStapleItem[] = [
     id: 'staple-aceite-oliva',
     nombre: 'Aceite de oliva extra virgen',
     categoria: 'grasa',
-    porcion: '1 cucharadita (5ml)',
+    porcion: '1 cucharada (14g / 15ml)',
     unidadBase: 'cda',
     gramosReferencia: 14,
     densidades: { cda: 14, cdta: 4.5, ml: 15, g: 1 },
@@ -400,7 +400,7 @@ export const BASE_MEXICAN_STAPLES: SmaeStapleItem[] = [
     id: 'staple-aceite-aguacate',
     nombre: 'Aceite de aguacate prensado en frío',
     categoria: 'grasa',
-    porcion: '1 cucharadita (5ml)',
+    porcion: '1 cucharada (14g / 15ml)',
     unidadBase: 'cda',
     gramosReferencia: 14,
     densidades: { cda: 14, cdta: 4.5, ml: 15, g: 1 },
@@ -544,7 +544,7 @@ export const BASE_MEXICAN_STAPLES: SmaeStapleItem[] = [
     id: 'staple-pepino',
     nombre: 'Pepino rebanado con cáscara',
     categoria: 'verdura',
-    porcion: '1 taza rebanada (120g)',
+    porcion: '1 taza (120g)',
     unidadBase: 'taza',
     gramosReferencia: 120,
     densidades: { taza: 120, pieza: 200, g: 1 },
@@ -1048,9 +1048,10 @@ export class IngredientSearchService {
     const staple = this.findStapleMatch(str);
     const defaultUnit = staple ? staple.unidadBase : 'porción';
     const defaultGrams = staple ? staple.gramosReferencia : 50;
+    const defaultQty = (defaultUnit === 'g' || defaultUnit === 'ml') ? defaultGrams : 1;
 
     return {
-      cantidad: 1,
+      cantidad: defaultQty,
       unidad: defaultUnit,
       nombre: str,
       gramosEquivalentes: defaultGrams
@@ -1284,21 +1285,42 @@ export class IngredientSearchService {
    * Asegura que un platillo tenga un desglose estructurado de DishIngredient[]
    * Si ya los tiene, los sanitiza y repara. Si solo tiene string[] de ingredientes,
    * los parsea limpiamente sin duplicaciones numéricas.
+   *
+   * IMPORTANTE: baseMacros siempre se calculan como MACROS POR GRAMO (per-gram).
+   * Esto garantiza que al cambiar cantidad o unidad, la fórmula sea:
+   *   totalGrams = cantidad × gramsPerUnit(unidad)
+   *   macros = baseMacros × totalGrams
    */
   static ensureDishIngredients(dish: DishItem): DishIngredient[] {
     if (dish.ingredientesDetalle && dish.ingredientesDetalle.length > 0) {
       return dish.ingredientesDetalle.map(ing => {
-        const cleanUnit = this.normalizeUnitKey(ing.unidad);
-        const totalGrams = ing.gramosEquivalentes || this.calculateIngredientGrams(ing.cantidad, cleanUnit, ing.nombre);
+        let cleanUnit = this.normalizeUnitKey(ing.unidad);
+        let qty = ing.cantidad;
+        let totalGrams = ing.gramosEquivalentes || this.calculateIngredientGrams(qty, cleanUnit, ing.nombre);
+
+        // Auto-reparación de inconsistencias previas (ej. "1 g" con ≈ 100g de bistec)
+        if (cleanUnit === 'g' && qty === 1 && totalGrams > 10) {
+          const staple = this.findStapleMatch(ing.nombre);
+          if (staple && staple.unidadBase === 'pieza') {
+            cleanUnit = 'pieza';
+            qty = 1;
+          } else {
+            qty = totalGrams;
+          }
+        }
+
+        const safeGrams = Math.max(1, totalGrams);
         return {
           ...ing,
+          cantidad: qty,
           unidad: cleanUnit,
           gramosEquivalentes: totalGrams,
-          baseMacros: ing.baseMacros || {
-            calories: Math.round(ing.macros.calories / (ing.cantidad || 1)),
-            protein: +(ing.macros.protein / (ing.cantidad || 1)).toFixed(1),
-            carbs: +(ing.macros.carbs / (ing.cantidad || 1)).toFixed(1),
-            fat: +(ing.macros.fat / (ing.cantidad || 1)).toFixed(1)
+          // baseMacros = macros per 1 gram (invariant anchor for all scaling)
+          baseMacros: {
+            calories: ing.macros.calories / safeGrams,
+            protein: ing.macros.protein / safeGrams,
+            carbs: ing.macros.carbs / safeGrams,
+            fat: ing.macros.fat / safeGrams
           }
         };
       });
@@ -1306,14 +1328,21 @@ export class IngredientSearchService {
 
     const stringList = dish.ingredientes || [];
     if (stringList.length === 0) {
+      // Single ingredient fallback — baseMacros per gram (assume ~100g serving)
+      const fallbackGrams = 100;
       return [{
         id: `ing_${Date.now()}`,
         nombre: dish.nombre,
         cantidad: 1,
         unidad: 'porción',
-        gramosEquivalentes: 100,
+        gramosEquivalentes: fallbackGrams,
         macros: { ...dish.macros },
-        baseMacros: { ...dish.macros }
+        baseMacros: {
+          calories: dish.macros.calories / fallbackGrams,
+          protein: dish.macros.protein / fallbackGrams,
+          carbs: dish.macros.carbs / fallbackGrams,
+          fat: dish.macros.fat / fallbackGrams
+        }
       }];
     }
 
@@ -1321,21 +1350,27 @@ export class IngredientSearchService {
     return stringList.map((ingStr, idx) => {
       const parsed = this.parseIngredientString(ingStr);
       const staple = this.findStapleMatch(parsed.nombre);
+      const totalGrams = parsed.gramosEquivalentes || 50;
+      const safeGrams = Math.max(1, totalGrams);
 
-      let itemMacros = {
-        calories: Math.round(dish.macros.calories / count),
-        protein: Math.round(dish.macros.protein / count),
-        carbs: Math.round(dish.macros.carbs / count),
-        fat: Math.round(dish.macros.fat / count)
-      };
+      let itemMacros: { calories: number; protein: number; carbs: number; fat: number };
 
       if (staple) {
-        const factor = (parsed.gramosEquivalentes || 100) / (staple.gramosReferencia || 100);
+        // Use real SMAE macros scaled to the parsed grams
+        const factor = totalGrams / (staple.gramosReferencia || 100);
         itemMacros = {
           calories: Math.round(staple.macros.calories * factor),
           protein: +(staple.macros.protein * factor).toFixed(1),
           carbs: +(staple.macros.carbs * factor).toFixed(1),
           fat: +(staple.macros.fat * factor).toFixed(1)
+        };
+      } else {
+        // No SMAE match — distribute dish macros proportionally
+        itemMacros = {
+          calories: Math.round(dish.macros.calories / count),
+          protein: +(dish.macros.protein / count).toFixed(1),
+          carbs: +(dish.macros.carbs / count).toFixed(1),
+          fat: +(dish.macros.fat / count).toFixed(1)
         };
       }
 
@@ -1344,13 +1379,14 @@ export class IngredientSearchService {
         nombre: parsed.nombre,
         cantidad: parsed.cantidad,
         unidad: parsed.unidad,
-        gramosEquivalentes: parsed.gramosEquivalentes,
+        gramosEquivalentes: totalGrams,
         macros: itemMacros,
+        // baseMacros = macros per 1 gram
         baseMacros: {
-          calories: Math.round(itemMacros.calories / (parsed.cantidad || 1)),
-          protein: +(itemMacros.protein / (parsed.cantidad || 1)).toFixed(1),
-          carbs: +(itemMacros.carbs / (parsed.cantidad || 1)).toFixed(1),
-          fat: +(itemMacros.fat / (parsed.cantidad || 1)).toFixed(1)
+          calories: itemMacros.calories / safeGrams,
+          protein: itemMacros.protein / safeGrams,
+          carbs: itemMacros.carbs / safeGrams,
+          fat: itemMacros.fat / safeGrams
         }
       };
     });

@@ -24,6 +24,7 @@ import PatientProgressWizard from '../components/progress/PatientProgressWizard.
 import RecommendationsWizard from '../components/recommendations/RecommendationsWizard.vue'
 import PatientDirectory from '../components/patients/PatientDirectory.vue'
 import PatientDetailLayout from '../components/patients/PatientDetailLayout.vue'
+import DietGeneratorModal from '../components/nutrition/DietGeneratorModal.vue'
 import type { Patient } from '../types/patient'
 
 const router = useRouter()
@@ -33,13 +34,23 @@ const { isDark, toggleTheme } = useTheme()
 // Main Navigation: 'home' | 'pacientes' | 'utilities'
 const currentTab = ref<'home' | 'pacientes' | 'utilities'>('home')
 
-// Active sub-tool within utilities: 'hub' | 'shopping-list' | 'patient-progress' | 'recommendations'
-const activeTool = ref<'hub' | 'shopping-list' | 'patient-progress' | 'recommendations'>('hub')
+// Active sub-tool within utilities: 'hub' | 'shopping-list' | 'patient-progress' | 'recommendations' | 'diet-generator'
+const activeTool = ref<'hub' | 'shopping-list' | 'patient-progress' | 'recommendations' | 'diet-generator'>('hub')
 
 // Selected patient ID for detail view
 const selectedPatientId = ref<string | null>(null)
 const currentPatientTab = ref<string>('overview')
 const currentPlanId = ref<string | null>(null)
+
+// Modal for Diet Generator (Express vs DB Patient)
+const showDietGeneratorModal = ref(false)
+
+function handleCloseDietGeneratorModal() {
+  showDietGeneratorModal.value = false
+  if (activeTool.value === 'diet-generator') {
+    router.push('/utilities/herramientas')
+  }
+}
 
 // Synchronize state from current URL params so F5 reloads preserve state
 function syncFromRoute() {
@@ -48,6 +59,9 @@ function syncFromRoute() {
     currentTab.value = 'utilities'
     activeTool.value = (route.params.toolId as any) || 'hub'
     selectedPatientId.value = null
+    if (activeTool.value === 'diet-generator') {
+      showDietGeneratorModal.value = true
+    }
   } else if (path.startsWith('/utilities/pacientes')) {
     currentTab.value = 'pacientes'
     selectedPatientId.value = (route.params.patientId as string) || null
@@ -104,12 +118,7 @@ function handleTabClick(tab: 'home' | 'pacientes' | 'utilities') {
 
 function openTool(tool: 'shopping-list' | 'diet-generator' | 'patient-progress' | 'patient-stats' | 'recommendations') {
   if (tool === 'diet-generator') {
-    comingSoonModal.value = {
-      open: true,
-      title: 'Generador Inteligente de Dietas',
-      description: 'Esta herramienta permitirá estructurar y crear planes alimenticios completos calculando macros automáticamente y adaptándose a las preferencias y restricciones del paciente con Inteligencia Artificial.',
-      icon: Sparkles
-    }
+    showDietGeneratorModal.value = true
     return
   }
 
@@ -495,7 +504,7 @@ function handlePatientShoppingList(_patient: Patient) {
           <!-- CARD 5: Generador de Dietas -->
           <div
             @click="openTool('diet-generator')"
-            class="bg-white dark:bg-white/5 p-6 rounded-3xl border border-slate-200 dark:border-white/10 hover:border-purple-300 dark:hover:border-white/30 transition-all duration-300 flex flex-col justify-between group cursor-pointer relative overflow-hidden shadow-sm hover:shadow-md"
+            class="bg-white dark:bg-white/5 p-6 rounded-3xl border border-slate-200 dark:border-white/10 hover:border-purple-300 dark:hover:border-purple-500/50 transition-all duration-300 flex flex-col justify-between group cursor-pointer relative overflow-hidden shadow-sm hover:shadow-md"
           >
             <div class="space-y-4">
               <div class="flex items-center justify-between">
@@ -503,7 +512,7 @@ function handlePatientShoppingList(_patient: Patient) {
                   <Sparkles class="w-7 h-7" />
                 </div>
                 <span class="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30">
-                  Próximamente
+                  Disponible • Asistente IA
                 </span>
               </div>
 
@@ -512,13 +521,16 @@ function handlePatientShoppingList(_patient: Patient) {
                   Generador de Dietas
                 </h3>
                 <p class="text-xs leading-relaxed mt-2 text-slate-500 dark:text-slate-400">
-                  Crea planes de alimentación a medida con Inteligencia Artificial, ajustando requerimientos calóricos, macronutrientes y distribución de comidas.
+                  Crea planes de alimentación a medida con Inteligencia Artificial: genera dietas rápidas para consultas express o asígnalas al expediente de pacientes registrados.
                 </p>
               </div>
             </div>
 
             <div class="mt-6 pt-4 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-xs font-bold text-purple-600 dark:text-purple-400">
-              <span>En Desarrollo</span>
+              <span class="flex items-center gap-1.5">
+                <CheckCircle2 class="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                Abrir Generador de Dietas
+              </span>
               <span class="group-hover:translate-x-1 transition-transform">→</span>
             </div>
           </div>
@@ -702,7 +714,7 @@ function handlePatientShoppingList(_patient: Patient) {
             <!-- OPTION 4: Generador de Dietas -->
             <div
               @click="openTool('diet-generator')"
-              class="bg-white dark:bg-white/5 p-6 rounded-3xl border border-slate-200 dark:border-white/10 hover:border-purple-300 dark:hover:border-white/30 transition-all duration-300 flex flex-col justify-between group cursor-pointer relative overflow-hidden shadow-sm hover:shadow-md"
+              class="bg-white dark:bg-white/5 p-6 rounded-3xl border border-slate-200 dark:border-white/10 hover:border-purple-300 dark:hover:border-purple-500/50 transition-all duration-300 flex flex-col justify-between group cursor-pointer relative overflow-hidden shadow-sm hover:shadow-md"
             >
               <div class="space-y-4">
                 <div class="flex items-center justify-between">
@@ -710,7 +722,7 @@ function handlePatientShoppingList(_patient: Patient) {
                     <Sparkles class="w-7 h-7" />
                   </div>
                   <span class="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30">
-                    Próximamente
+                    Disponible • Asistente IA
                   </span>
                 </div>
 
@@ -719,13 +731,16 @@ function handlePatientShoppingList(_patient: Patient) {
                     Generador de Dietas
                   </h3>
                   <p class="text-xs leading-relaxed mt-2 text-slate-500 dark:text-slate-400">
-                    Crea planes de alimentación a medida con Inteligencia Artificial, ajustando requerimientos calóricos, macronutrientes y distribución de comidas.
+                    Crea planes de alimentación a medida con Inteligencia Artificial: genera dietas rápidas para consultas express o asígnalas al expediente de pacientes registrados.
                   </p>
                 </div>
               </div>
 
               <div class="mt-6 pt-4 border-t border-slate-100 dark:border-white/5 flex items-center justify-between text-xs font-bold text-purple-600 dark:text-purple-400">
-                <span>En Desarrollo</span>
+                <span class="flex items-center gap-1.5">
+                  <CheckCircle2 class="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  Abrir Generador de Dietas
+                </span>
                 <span class="group-hover:translate-x-1 transition-transform">→</span>
               </div>
             </div>
@@ -753,9 +768,45 @@ function handlePatientShoppingList(_patient: Patient) {
           <PatientProgressWizard />
         </div>
 
+        <!-- ACTIVE SUB-TOOL: Diet Generator Launcher View -->
+        <div v-else-if="activeTool === 'diet-generator'">
+          <div class="max-w-xl mx-auto py-12 text-center space-y-4">
+            <div class="w-16 h-16 rounded-3xl bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center mx-auto">
+              <Sparkles class="w-8 h-8" />
+            </div>
+            <h3 class="text-2xl font-black text-slate-900 dark:text-white" style="font-family: var(--font-display);">
+              Generador de Dietas Inteligente
+            </h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+              Genera una dieta rápida para consulta express o selecciona un paciente registrado para estructurar su menú con Inteligencia Artificial.
+            </p>
+            <div class="pt-2 flex items-center justify-center gap-3">
+              <button
+                @click="showDietGeneratorModal = true"
+                class="px-5 py-2.5 rounded-xl btn-primary text-xs font-bold shadow-md cursor-pointer flex items-center gap-2"
+              >
+                <Sparkles class="w-4 h-4" />
+                <span>Abrir Opciones del Generador</span>
+              </button>
+              <button
+                @click="returnToHub"
+                class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 dark:hover:bg-white/15 transition-all cursor-pointer"
+              >
+                Volver a Herramientas
+              </button>
+            </div>
+          </div>
+        </div>
+
       </section>
 
     </main>
+
+    <!-- Modal for Diet Generator (Express / DB Patient) -->
+    <DietGeneratorModal
+      v-if="showDietGeneratorModal"
+      @close="handleCloseDietGeneratorModal"
+    />
 
     <!-- Modal for Coming Soon Features -->
     <div

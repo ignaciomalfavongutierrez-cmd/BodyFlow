@@ -80,7 +80,12 @@
               class="p-2.5 rounded-xl bg-white dark:bg-[#201f22] border border-slate-200 dark:border-white/10 flex items-center justify-between gap-2.5 text-xs shadow-2xs"
             >
               <div class="flex-1 min-w-0">
-                <p class="font-bold text-slate-900 dark:text-white truncate">{{ ing.nombre }}</p>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <p class="font-bold text-slate-900 dark:text-white truncate">{{ ing.nombre }}</p>
+                  <span class="text-[9px] font-black px-1.5 py-0.2 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+                    ≈ {{ ing.gramosEquivalentes || 50 }} g
+                  </span>
+                </div>
                 <div class="flex items-center gap-2 text-[10px] font-bold text-slate-500 dark:text-slate-400 pt-0.5">
                   <span class="text-slate-800 dark:text-slate-200">{{ ing.macros.calories }} kcal</span>
                   <span class="text-blue-500">{{ ing.macros.protein }}g P</span>
@@ -333,14 +338,23 @@ async function selectAndAddIngredient(item: IngredientSearchResult) {
   const baseUnit = item.unidadBase || (staple ? staple.unidadBase : IngredientSearchService.normalizeUnitKey(item.porcion));
   const baseGrams = item.gramosReferencia || (staple ? staple.gramosReferencia : IngredientSearchService.calculateIngredientGrams(1, baseUnit, item.nombre));
 
+  const initialQty = (baseUnit === 'g' || baseUnit === 'ml') ? Math.max(1, Math.round(baseGrams)) : 1;
+  const initialGrams = (baseUnit === 'g' || baseUnit === 'ml') ? initialQty : baseGrams;
+  const safeGrams = Math.max(1, initialGrams);
+
   const newIng: DishIngredient = {
     id: `ing_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
     nombre: item.nombre,
-    cantidad: 1,
+    cantidad: initialQty,
     unidad: baseUnit,
-    gramosEquivalentes: baseGrams,
+    gramosEquivalentes: initialGrams,
     macros: { ...item.macros },
-    baseMacros: { ...item.macros }
+    baseMacros: {
+      calories: item.macros.calories / safeGrams,
+      protein: item.macros.protein / safeGrams,
+      carbs: item.macros.carbs / safeGrams,
+      fat: item.macros.fat / safeGrams
+    }
   };
 
   ingredientsList.value.push(newIng);
@@ -367,32 +381,37 @@ function onUnitSelectChange(ing: DishIngredient, event: Event) {
   ing.unidad = newUnit;
   ing.gramosEquivalentes = converted.totalGrams;
 
-  ing.baseMacros = {
-    calories: ing.macros.calories / (ing.cantidad || 1),
-    protein: +(ing.macros.protein / (ing.cantidad || 1)).toFixed(1),
-    carbs: +(ing.macros.carbs / (ing.cantidad || 1)).toFixed(1),
-    fat: +(ing.macros.fat / (ing.cantidad || 1)).toFixed(1)
-  };
+  // baseMacros is per-gram — stays unchanged across unit switches
+  if (ing.baseMacros) {
+    ing.macros.calories = Math.round(ing.baseMacros.calories * converted.totalGrams);
+    ing.macros.protein = +(ing.baseMacros.protein * converted.totalGrams).toFixed(1);
+    ing.macros.carbs = +(ing.baseMacros.carbs * converted.totalGrams).toFixed(1);
+    ing.macros.fat = +(ing.baseMacros.fat * converted.totalGrams).toFixed(1);
+  }
 
   recalculateDishTotals();
 }
 
 function handleQuantityChange(ing: DishIngredient) {
   if (!ing.baseMacros) {
+    const currentTotalGrams = IngredientSearchService.calculateIngredientGrams(ing.cantidad || 1, ing.unidad, ing.nombre);
+    const safeGrams = Math.max(1, currentTotalGrams);
     ing.baseMacros = {
-      calories: ing.macros.calories / (ing.cantidad || 1),
-      protein: +(ing.macros.protein / (ing.cantidad || 1)).toFixed(1),
-      carbs: +(ing.macros.carbs / (ing.cantidad || 1)).toFixed(1),
-      fat: +(ing.macros.fat / (ing.cantidad || 1)).toFixed(1)
+      calories: ing.macros.calories / safeGrams,
+      protein: ing.macros.protein / safeGrams,
+      carbs: ing.macros.carbs / safeGrams,
+      fat: ing.macros.fat / safeGrams
     };
   }
 
   const qty = Math.max(0.05, ing.cantidad || 1);
-  ing.macros.calories = Math.round(ing.baseMacros.calories * qty);
-  ing.macros.protein = +(ing.baseMacros.protein * qty).toFixed(1);
-  ing.macros.carbs = +(ing.baseMacros.carbs * qty).toFixed(1);
-  ing.macros.fat = +(ing.baseMacros.fat * qty).toFixed(1);
-  ing.gramosEquivalentes = IngredientSearchService.calculateIngredientGrams(qty, ing.unidad, ing.nombre);
+  const totalGrams = IngredientSearchService.calculateIngredientGrams(qty, ing.unidad, ing.nombre);
+  ing.gramosEquivalentes = totalGrams;
+
+  ing.macros.calories = Math.round(ing.baseMacros.calories * totalGrams);
+  ing.macros.protein = +(ing.baseMacros.protein * totalGrams).toFixed(1);
+  ing.macros.carbs = +(ing.baseMacros.carbs * totalGrams).toFixed(1);
+  ing.macros.fat = +(ing.baseMacros.fat * totalGrams).toFixed(1);
 
   recalculateDishTotals();
 }

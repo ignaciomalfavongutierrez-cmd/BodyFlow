@@ -156,7 +156,8 @@ ${customNotes && customNotes.trim() ? `- 📝 NOTAS PARTICULARES DE LA NUTRIÓLO
    - Piezas con gramaje (ej: "2 piezas (60g) Tortilla de maíz", "1/4 pieza (30g) Aguacate Hass").
    - Medidas caseras: taza, cucharada (cda), cucharadita (cdta) (ej: "1/2 taza (80g) Frijoles de la olla", "1 cucharada (15ml) Aceite de oliva").
    - NUNCA pongas números duplicados como "4 1 pieza" o "0.2 pieza".
-3. Responde ÚNICAMENTE con un JSON válido con esta estructura exacta:
+3. El campo "ingredientesDetalle" es **OBLIGATORIO** y debe contener **TODOS** los ingredientes del platillo (no solo un ejemplo). Cada ingrediente debe incluir su nombre, cantidad, unidad, gramosEquivalentes y macros individuales. La suma de los macros de todos los ingredientes debe coincidir con los macros totales del platillo.
+4. Responde ÚNICAMENTE con un JSON válido con esta estructura exacta:
 
 [
   {
@@ -178,6 +179,34 @@ ${customNotes && customNotes.trim() ? `- 📝 NOTAS PARTICULARES DE LA NUTRIÓLO
         "unidad": "g",
         "gramosEquivalentes": 120,
         "macros": { "calories": 198, "protein": 37, "carbs": 0, "fat": 4.3 }
+      },
+      {
+        "nombre": "Tortilla de maíz",
+        "cantidad": 2,
+        "unidad": "pieza",
+        "gramosEquivalentes": 60,
+        "macros": { "calories": 104, "protein": 2.6, "carbs": 21.8, "fat": 1.2 }
+      },
+      {
+        "nombre": "Aguacate Hass",
+        "cantidad": 0.25,
+        "unidad": "pieza",
+        "gramosEquivalentes": 30,
+        "macros": { "calories": 48, "protein": 0.6, "carbs": 2.6, "fat": 4.4 }
+      },
+      {
+        "nombre": "Frijoles negros de la olla",
+        "cantidad": 0.5,
+        "unidad": "taza",
+        "gramosEquivalentes": 100,
+        "macros": { "calories": 114, "protein": 7.6, "carbs": 20, "fat": 0.5 }
+      },
+      {
+        "nombre": "Pico de gallo",
+        "cantidad": 1,
+        "unidad": "porción",
+        "gramosEquivalentes": 40,
+        "macros": { "calories": 10, "protein": 0.4, "carbs": 2.2, "fat": 0.1 }
       }
     ],
     "macros": {
@@ -331,17 +360,26 @@ ${customNotes && customNotes.trim() ? `- 📝 NOTAS PARTICULARES DE LA NUTRIÓLO
           const ingName = String(ing.nombre || `Ingrediente ${iIdx + 1}`);
           const ingGrams = Number(ing.gramosEquivalentes) || IngredientSearchService.calculateIngredientGrams(qty, unit, ingName);
           const ingMacros = ing.macros || {};
+          const macros = {
+            calories: Math.round(Number(ingMacros.calories || 0)),
+            protein: +(Number(ingMacros.protein || 0)).toFixed(1),
+            carbs: +(Number(ingMacros.carbs || 0)).toFixed(1),
+            fat: +(Number(ingMacros.fat || 0)).toFixed(1)
+          };
+          // baseMacros = per-gram values for correct scaling in EditDishPortionsModal
+          const safeGrams = Math.max(1, ingGrams);
           return {
             id: `ing_ai_${Date.now()}_${iIdx}`,
             nombre: ingName,
             cantidad: qty,
             unidad: unit,
             gramosEquivalentes: ingGrams,
-            macros: {
-              calories: Math.round(Number(ingMacros.calories || 0)),
-              protein: +(Number(ingMacros.protein || 0)).toFixed(1),
-              carbs: +(Number(ingMacros.carbs || 0)).toFixed(1),
-              fat: +(Number(ingMacros.fat || 0)).toFixed(1)
+            macros,
+            baseMacros: {
+              calories: macros.calories / safeGrams,
+              protein: macros.protein / safeGrams,
+              carbs: macros.carbs / safeGrams,
+              fat: macros.fat / safeGrams
             }
           };
         });

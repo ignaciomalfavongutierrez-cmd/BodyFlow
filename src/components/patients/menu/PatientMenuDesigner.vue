@@ -259,7 +259,7 @@
         <div class="p-3.5 rounded-2xl bg-blue-500/5 border border-blue-500/20 space-y-2">
           <div class="flex items-center justify-between">
             <span class="text-[10px] uppercase font-bold text-blue-500">Proteína</span>
-            <span class="font-black text-blue-700 dark:text-blue-300">{{ dayTotals.protein }}g / {{ plan.macros.protein }}g</span>
+            <span class="font-black text-blue-700 dark:text-blue-300">{{ dayTotals.protein.toFixed(2) }}g / {{ plan.macros.protein.toFixed(2) }}g</span>
           </div>
           <div class="w-full bg-blue-200 dark:bg-blue-950/40 h-2 rounded-full overflow-hidden">
             <div
@@ -268,8 +268,8 @@
             ></div>
           </div>
           <div class="flex items-center justify-between text-[10px] font-bold text-blue-600 dark:text-blue-400">
-            <span>{{ remainingProtein >= 0 ? `Faltan: ${remainingProtein}g` : `+${Math.abs(remainingProtein).toFixed(2)}g extra` }}</span>
-            <span>{{ Math.round((dayTotals.protein / (plan.macros.protein || 1)) * 100) }}%</span>
+            <span>{{ remainingProtein >= 0 ? `Faltan: ${remainingProtein.toFixed(2)}g` : `+${Math.abs(remainingProtein).toFixed(2)}g extra` }}</span>
+            <span>{{ Math.round((dayTotals.protein / (plan.macros.protein || 1)) * 100).toFixed(2) }}%</span>
           </div>
         </div>
 
@@ -277,7 +277,7 @@
         <div class="p-3.5 rounded-2xl bg-amber-500/5 border border-amber-500/20 space-y-2">
           <div class="flex items-center justify-between">
             <span class="text-[10px] uppercase font-bold text-amber-500">Carbos</span>
-            <span class="font-black text-amber-700 dark:text-amber-300">{{ dayTotals.carbs }}g / {{ plan.macros.carbs }}g</span>
+            <span class="font-black text-amber-700 dark:text-amber-300">{{ dayTotals.carbs.toFixed(2) }}g / {{ plan.macros.carbs.toFixed(2) }}g</span>
           </div>
           <div class="w-full bg-amber-200 dark:bg-amber-950/40 h-2 rounded-full overflow-hidden">
             <div
@@ -304,8 +304,8 @@
             ></div>
           </div>
           <div class="flex items-center justify-between text-[10px] font-bold text-rose-600 dark:text-rose-400">
-            <span>{{ remainingFat >= 0 ? `Faltan: ${remainingFat}g` : `+${Math.abs(remainingFat).toFixed(2)}g extra` }}</span>
-            <span>{{ Math.round((dayTotals.fat / (plan.macros.fat || 1)) * 100) }}%</span>
+            <span>{{ remainingFat >= 0 ? `Faltan: ${remainingFat.toFixed(2)}g` : `+${Math.abs(remainingFat).toFixed(2)}g extra` }}</span>
+            <span>{{ Math.round((dayTotals.fat / (plan.macros.fat || 1)) * 100).toFixed(2) }}%</span>
           </div>
         </div>
 
@@ -1658,7 +1658,7 @@ async function handleSaveEditedDishPortions(payload: {
       toastMessage.value = `Platillo actualizado en el menú.`;
     }
   } else {
-    toastMessage.value = `Platillo actualizado con nuevas porciones (${payload.updatedDish.macros.calories} kcal).`;
+    toastMessage.value = `¡"${payload.updatedDish.nombre}" actualizado en el menú (${payload.updatedDish.macros.calories} kcal)!`;
   }
 
   showToast.value = true;

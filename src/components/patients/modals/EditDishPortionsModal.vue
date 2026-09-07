@@ -13,19 +13,35 @@
       </button>
 
       <!-- Encabezado del Modal -->
-      <div class="border-b border-slate-100 dark:border-white/10 pb-3 pr-8">
+      <div class="border-b border-slate-100 dark:border-white/10 pb-3 pr-8 space-y-3">
         <div class="flex items-center gap-2.5">
           <div class="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 shrink-0">
             <SlidersHorizontal class="w-4 h-4" />
           </div>
           <div>
             <h3 class="text-base font-black text-slate-900 dark:text-white">
-              Personalizar Porciones e Ingredientes
+              Personalizar Platillo y Porciones
             </h3>
             <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Ajusta cantidades o sustituye ingredientes en <strong class="text-emerald-600 dark:text-emerald-400">{{ dish.nombre }}</strong> ({{ dayName }}). Los macros y gramajes se recalculan automáticamente.
+              Ajusta el nombre, cantidades o sustituye ingredientes para <strong class="text-emerald-600 dark:text-emerald-400">{{ dayName }}</strong>.
             </p>
           </div>
+        </div>
+
+        <!-- Campo Editable para el Nombre del Platillo / Comida -->
+        <div class="space-y-1">
+          <div class="flex items-center justify-between">
+            <label class="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Nombre de la Comida / Platillo
+            </label>
+            <span class="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold">Puedes renombrar el platillo</span>
+          </div>
+          <input
+            v-model="dishName"
+            type="text"
+            placeholder="Ej. Batido de fresas con leche entera..."
+            class="w-full px-3.5 py-2 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/15 focus:border-emerald-500 rounded-xl text-xs sm:text-sm font-black text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-2xs"
+          />
         </div>
       </div>
 
@@ -103,7 +119,7 @@
               
               <!-- Quick Fraction Shortcuts (1/4, 1/3, 1/2, 1, 2) for rapid dosage -->
               <div 
-                v-if="['pieza', 'taza', 'scoop', 'lata'].includes(ing.unidad)" 
+                v-if="['pieza', 'taza', 'scoop', 'lata', 'porción', 'rebanada'].includes(ing.unidad)" 
                 class="flex items-center gap-1 bg-white dark:bg-black/30 p-0.5 rounded-xl border border-slate-200 dark:border-white/10"
               >
                 <button
@@ -424,7 +440,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { X, SlidersHorizontal, Trash2, Search, Loader2, Check } from 'lucide-vue-next';
 import type { DishItem, DishIngredient } from '../../../types/dietMenu';
 import { IngredientSearchService, type IngredientSearchResult } from '../../../services/nutrition/IngredientSearchService';
@@ -440,7 +456,11 @@ const emit = defineEmits<{
   (e: 'save', payload: { updatedDish: DishItem; saveAsNewInLibrary: boolean; customDishName?: string }): void;
 }>();
 
+// Editable dish name
+const dishName = ref(props.dish.nombre);
+
 // Clone and sanitize ingredients to structured editable models
+// baseMacros are now per-gram for all ingredients
 const editableIngredients = ref<DishIngredient[]>(
   IngredientSearchService.ensureDishIngredients(props.dish)
 );
@@ -449,6 +469,13 @@ const originalMacros = { ...props.dish.macros };
 
 const saveAsNewInLibrary = ref(false);
 const customDishName = ref(`${props.dish.nombre} (Personalizado)`);
+
+// Keep customDishName aligned with dishName unless manually modified
+watch(dishName, (newName) => {
+  if (!saveAsNewInLibrary.value || customDishName.value.endsWith('(Personalizado)')) {
+    customDishName.value = `${newName.trim() || props.dish.nombre} (Personalizado)`;
+  }
+});
 
 const searchQuery = ref('');
 const searchResults = ref<IngredientSearchResult[]>([]);
@@ -489,24 +516,35 @@ const totalKcalDiff = computed(() => {
   return recalculatedMacros.value.calories - originalMacros.calories;
 });
 
+/**
+ * Recalculates macros when quantity changes.
+ * baseMacros = macros per 1 gram (invariant anchor).
+ * Formula: totalGrams = cantidad × gramsPerUnit → macros = baseMacros × totalGrams
+ */
 function handleQuantityChange(ing: DishIngredient) {
+  // Ensure baseMacros exist as per-gram values
   if (!ing.baseMacros) {
+    // Calculate total grams for the current quantity + unit
+    const currentTotalGrams = IngredientSearchService.calculateIngredientGrams(ing.cantidad || 1, ing.unidad, ing.nombre);
+    const safeGrams = Math.max(1, currentTotalGrams);
     ing.baseMacros = {
-      calories: ing.macros.calories / (ing.cantidad || 1),
-      protein: +(ing.macros.protein / (ing.cantidad || 1)).toFixed(1),
-      carbs: +(ing.macros.carbs / (ing.cantidad || 1)).toFixed(1),
-      fat: +(ing.macros.fat / (ing.cantidad || 1)).toFixed(1)
+      calories: ing.macros.calories / safeGrams,
+      protein: ing.macros.protein / safeGrams,
+      carbs: ing.macros.carbs / safeGrams,
+      fat: ing.macros.fat / safeGrams
     };
   }
 
   const qty = Math.max(0.05, ing.cantidad || 1);
-  ing.macros.calories = Math.round(ing.baseMacros.calories * qty);
-  ing.macros.protein = +(ing.baseMacros.protein * qty).toFixed(1);
-  ing.macros.carbs = +(ing.baseMacros.carbs * qty).toFixed(1);
-  ing.macros.fat = +(ing.baseMacros.fat * qty).toFixed(1);
+  // Calculate total grams for the new quantity
+  const totalGrams = IngredientSearchService.calculateIngredientGrams(qty, ing.unidad, ing.nombre);
+  ing.gramosEquivalentes = totalGrams;
 
-  // Recalculate estimated grams
-  ing.gramosEquivalentes = IngredientSearchService.calculateIngredientGrams(qty, ing.unidad, ing.nombre);
+  // Apply per-gram macros × total grams
+  ing.macros.calories = Math.round(ing.baseMacros.calories * totalGrams);
+  ing.macros.protein = +(ing.baseMacros.protein * totalGrams).toFixed(1);
+  ing.macros.carbs = +(ing.baseMacros.carbs * totalGrams).toFixed(1);
+  ing.macros.fat = +(ing.baseMacros.fat * totalGrams).toFixed(1);
 }
 
 function stepQuantity(ing: DishIngredient, direction: number) {
@@ -535,6 +573,10 @@ function quickSetQuantity(ing: DishIngredient, value: number) {
   handleQuantityChange(ing);
 }
 
+/**
+ * When the user changes the unit (e.g. 'porción' → 'g'), convert the quantity
+ * to preserve total grams. baseMacros (per-gram) stays unchanged — no recalculation needed.
+ */
 function onUnitSelectChange(ing: DishIngredient, event: Event) {
   const select = event.target as HTMLSelectElement;
   const newUnit = select.value;
@@ -542,7 +584,7 @@ function onUnitSelectChange(ing: DishIngredient, event: Event) {
 
   if (oldUnit === newUnit) return;
 
-  // Convert quantity while conserving total mass and macros
+  // Convert quantity while conserving total mass
   const converted = IngredientSearchService.convertIngredientUnit(
     ing.cantidad,
     oldUnit,
@@ -554,13 +596,14 @@ function onUnitSelectChange(ing: DishIngredient, event: Event) {
   ing.unidad = newUnit;
   ing.gramosEquivalentes = converted.totalGrams;
 
-  // Recalculate base macros per single unit of the new unit
-  ing.baseMacros = {
-    calories: ing.macros.calories / (ing.cantidad || 1),
-    protein: +(ing.macros.protein / (ing.cantidad || 1)).toFixed(1),
-    carbs: +(ing.macros.carbs / (ing.cantidad || 1)).toFixed(1),
-    fat: +(ing.macros.fat / (ing.cantidad || 1)).toFixed(1)
-  };
+  // baseMacros is per-gram — it does NOT change when switching units.
+  // Just recalculate display macros using the converted total grams.
+  if (ing.baseMacros) {
+    ing.macros.calories = Math.round(ing.baseMacros.calories * converted.totalGrams);
+    ing.macros.protein = +(ing.baseMacros.protein * converted.totalGrams).toFixed(1);
+    ing.macros.carbs = +(ing.baseMacros.carbs * converted.totalGrams).toFixed(1);
+    ing.macros.fat = +(ing.baseMacros.fat * converted.totalGrams).toFixed(1);
+  }
 }
 
 function removeIngredient(index: number) {
@@ -606,14 +649,24 @@ function addCustomSearchedIngredient() {
   const baseGrams = staple ? staple.gramosReferencia : 50;
   const defaultMacros = staple ? { ...staple.macros } : { calories: 50, protein: 2, carbs: 8, fat: 1 };
 
+  const initialQty = (baseUnit === 'g' || baseUnit === 'ml') ? Math.max(1, Math.round(baseGrams)) : 1;
+  const initialGrams = (baseUnit === 'g' || baseUnit === 'ml') ? initialQty : baseGrams;
+
+  // baseMacros = per-gram values
+  const safeGrams = Math.max(1, initialGrams);
   const newIng: DishIngredient = {
     id: `ing_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
     nombre: name,
-    cantidad: 1,
+    cantidad: initialQty,
     unidad: baseUnit,
-    gramosEquivalentes: baseGrams,
-    macros: defaultMacros,
-    baseMacros: { ...defaultMacros }
+    gramosEquivalentes: initialGrams,
+    macros: { ...defaultMacros },
+    baseMacros: {
+      calories: defaultMacros.calories / safeGrams,
+      protein: defaultMacros.protein / safeGrams,
+      carbs: defaultMacros.carbs / safeGrams,
+      fat: defaultMacros.fat / safeGrams
+    }
   };
 
   editableIngredients.value.push(newIng);
@@ -630,14 +683,24 @@ async function selectAndAddIngredient(item: IngredientSearchResult) {
   const baseUnit = item.unidadBase || (staple ? staple.unidadBase : IngredientSearchService.normalizeUnitKey(item.porcion));
   const baseGrams = item.gramosReferencia || (staple ? staple.gramosReferencia : IngredientSearchService.calculateIngredientGrams(1, baseUnit, item.nombre));
 
+  const initialQty = (baseUnit === 'g' || baseUnit === 'ml') ? Math.max(1, Math.round(baseGrams)) : 1;
+  const initialGrams = (baseUnit === 'g' || baseUnit === 'ml') ? initialQty : baseGrams;
+
+  // baseMacros = per-gram values (item.macros are for 1 baseUnit = baseGrams grams)
+  const safeGrams = Math.max(1, initialGrams);
   const newIng: DishIngredient = {
     id: `ing_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
     nombre: item.nombre,
-    cantidad: 1,
+    cantidad: initialQty,
     unidad: baseUnit,
-    gramosEquivalentes: baseGrams,
+    gramosEquivalentes: initialGrams,
     macros: { ...item.macros },
-    baseMacros: { ...item.macros }
+    baseMacros: {
+      calories: item.macros.calories / safeGrams,
+      protein: item.macros.protein / safeGrams,
+      carbs: item.macros.carbs / safeGrams,
+      fat: item.macros.fat / safeGrams
+    }
   };
 
   editableIngredients.value.push(newIng);
@@ -650,8 +713,11 @@ function handleSave() {
     IngredientSearchService.formatIngredientDisplay(ing)
   );
 
+  const finalName = dishName.value.trim() || props.dish.nombre;
+
   const updatedDish: DishItem = {
     ...props.dish,
+    nombre: finalName,
     ingredientes: stringIngredients,
     ingredientesDetalle: JSON.parse(JSON.stringify(editableIngredients.value)),
     macros: {
@@ -665,7 +731,7 @@ function handleSave() {
   emit('save', {
     updatedDish,
     saveAsNewInLibrary: saveAsNewInLibrary.value,
-    customDishName: customDishName.value.trim() || updatedDish.nombre
+    customDishName: customDishName.value.trim() || finalName
   });
 }
 </script>
