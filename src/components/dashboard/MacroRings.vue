@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Flame, Sparkles, AlertCircle } from 'lucide-vue-next'
+import { Flame, Sparkles, AlertCircle, ArrowRightLeft } from 'lucide-vue-next'
 
 const props = defineProps<{
   current: {
@@ -23,11 +23,11 @@ const props = defineProps<{
 // Mode toggle: 'remaining' vs 'consumed'
 const displayMode = ref<'remaining' | 'consumed'>('remaining')
 
-// SVG Ring Dimensions
-const R_PROTEIN = 68
-const R_CARBS = 53
-const R_FAT = 38
-const STROKE_WIDTH = 8
+// SVG Ring Dimensions (Optimized for 210x210 viewBox with expansive 119px inner diameter)
+const R_PROTEIN = 92
+const R_CARBS = 78
+const R_FAT = 64
+const STROKE_WIDTH = 9
 
 const C_PROTEIN = 2 * Math.PI * R_PROTEIN
 const C_CARBS = 2 * Math.PI * R_CARBS
@@ -91,174 +91,250 @@ function toggleDisplayMode() {
     <div class="glass-card p-4 sm:p-5 rounded-3xl border relative overflow-hidden transition-all duration-300" style="background: var(--surface-container-high); border-color: var(--glass-border);">
       
       <!-- Subtle ambient glow matching primary brand -->
-      <div class="absolute -left-10 -top-10 w-36 h-36 rounded-full blur-3xl pointer-events-none opacity-15" style="background: var(--primary);"></div>
+      <div class="absolute -left-10 -top-10 w-36 h-36 rounded-full blur-3xl pointer-events-none opacity-20" style="background: var(--primary);"></div>
       <div class="absolute -right-10 -bottom-10 w-36 h-36 rounded-full blur-3xl pointer-events-none opacity-15" style="background: #f59e0b;"></div>
 
       <!-- Plan Override Badge (if applicable) -->
-      <div v-if="isMealPlanOverride" class="mb-3 flex items-center justify-between gap-2 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-[var(--primary)] border border-emerald-200 dark:border-emerald-800/40">
-        <span class="flex items-center gap-1">
-          <Sparkles class="w-3 h-3" /> Plan Nutricional Talia Tinoco
+      <div v-if="isMealPlanOverride" class="mb-3 flex items-center justify-between gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-700 dark:text-[#87ff70] border border-emerald-500/25 shadow-2xs backdrop-blur-xs">
+        <span class="flex items-center gap-1.5">
+          <Sparkles class="w-3.5 h-3.5 text-emerald-500 dark:text-[#87ff70]" /> Plan Nutricional Talia Tinoco
         </span>
-        <span class="text-[9px] opacity-75 lowercase font-normal">sincronizado</span>
+        <span class="text-[9px] opacity-80 lowercase font-medium px-2 py-0.5 rounded-full bg-emerald-500/15">sincronizado</span>
       </div>
 
-      <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6">
         
         <!-- Left / Center: Concentric SVG Rings Dial -->
-        <div class="relative flex items-center justify-center shrink-0 cursor-pointer select-none group" @click="toggleDisplayMode" title="Toca para alternar entre restantes y consumidas">
-          <svg class="w-40 h-40 transform -rotate-90" viewBox="0 0 160 160">
-            <!-- Background Tracks -->
-            <!-- Protein Track -->
-            <circle
-              cx="80"
-              cy="80"
-              :r="R_PROTEIN"
-              fill="transparent"
-              stroke="currentColor"
-              :stroke-width="STROKE_WIDTH"
-              class="text-emerald-950/30 dark:text-emerald-950/50"
-            />
-            <!-- Carbs Track -->
-            <circle
-              cx="80"
-              cy="80"
-              :r="R_CARBS"
-              fill="transparent"
-              stroke="currentColor"
-              :stroke-width="STROKE_WIDTH"
-              class="text-amber-950/30 dark:text-amber-950/50"
-            />
-            <!-- Fat Track -->
-            <circle
-              cx="80"
-              cy="80"
-              :r="R_FAT"
-              fill="transparent"
-              stroke="currentColor"
-              :stroke-width="STROKE_WIDTH"
-              class="text-rose-950/30 dark:text-rose-950/50"
-            />
+        <div class="flex flex-col items-center shrink-0">
+          <div 
+            class="relative flex items-center justify-center shrink-0 cursor-pointer select-none group transition-transform duration-200 active:scale-98" 
+            @click="toggleDisplayMode" 
+            title="Toca para alternar entre calorías restantes y consumidas"
+          >
+            <svg class="w-44 h-44 sm:w-48 sm:h-48 transform -rotate-90" viewBox="0 0 210 210">
+              <defs>
+                <!-- Protein Gradient (Emerald -> Neon Lime) -->
+                <linearGradient id="proteinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#10b981" />
+                  <stop offset="100%" stop-color="#34d399" />
+                </linearGradient>
 
-            <!-- Active Progress Rings with Gradients / Neon Accents -->
-            <!-- Protein Ring (Emerald / Primary) -->
-            <circle
-              cx="80"
-              cy="80"
-              :r="R_PROTEIN"
-              fill="transparent"
-              stroke="#10b981"
-              :stroke-width="STROKE_WIDTH"
-              stroke-linecap="round"
-              :stroke-dasharray="C_PROTEIN"
-              :stroke-dashoffset="offsetProtein"
-              class="transition-all duration-700 ease-out"
-              style="filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.4));"
-            />
+                <!-- Carbs Gradient (Golden Amber -> Warm Orange) -->
+                <linearGradient id="carbsGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#f59e0b" />
+                  <stop offset="100%" stop-color="#fb923c" />
+                </linearGradient>
 
-            <!-- Carbs Ring (Amber / Gold) -->
-            <circle
-              cx="80"
-              cy="80"
-              :r="R_CARBS"
-              fill="transparent"
-              stroke="#f59e0b"
-              :stroke-width="STROKE_WIDTH"
-              stroke-linecap="round"
-              :stroke-dasharray="C_CARBS"
-              :stroke-dashoffset="offsetCarbs"
-              class="transition-all duration-700 ease-out"
-              style="filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.4));"
-            />
+                <!-- Fat Gradient (Vibrant Rose -> Neon Coral) -->
+                <linearGradient id="fatGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#f43f5e" />
+                  <stop offset="100%" stop-color="#fb7185" />
+                </linearGradient>
+              </defs>
 
-            <!-- Fat Ring (Rose / Coral) -->
-            <circle
-              cx="80"
-              cy="80"
-              :r="R_FAT"
-              fill="transparent"
-              stroke="#f43f5e"
-              :stroke-width="STROKE_WIDTH"
-              stroke-linecap="round"
-              :stroke-dasharray="C_FAT"
-              :stroke-dashoffset="offsetFat"
-              class="transition-all duration-700 ease-out"
-              style="filter: drop-shadow(0 0 4px rgba(244, 63, 94, 0.4));"
-            />
-          </svg>
+              <!-- Background Tracks -->
+              <!-- Protein Track -->
+              <circle
+                cx="105"
+                cy="105"
+                :r="R_PROTEIN"
+                fill="transparent"
+                stroke="rgba(16, 185, 129, 0.12)"
+                :stroke-width="STROKE_WIDTH"
+              />
+              <!-- Carbs Track -->
+              <circle
+                cx="105"
+                cy="105"
+                :r="R_CARBS"
+                fill="transparent"
+                stroke="rgba(245, 158, 11, 0.12)"
+                :stroke-width="STROKE_WIDTH"
+              />
+              <!-- Fat Track -->
+              <circle
+                cx="105"
+                cy="105"
+                :r="R_FAT"
+                fill="transparent"
+                stroke="rgba(244, 63, 94, 0.12)"
+                :stroke-width="STROKE_WIDTH"
+              />
 
-          <!-- Center Content: Calories -->
-          <div class="absolute inset-0 flex flex-col items-center justify-center text-center p-2">
-            <Flame class="w-4 h-4 mb-0.5 animate-pulse" :class="isCaloriesOver ? 'text-rose-500' : 'text-amber-500'" />
-            
-            <div 
-              class="text-2xl font-black tracking-tight leading-none transition-colors"
-              :class="isCaloriesOver ? 'text-rose-500' : 'text-slate-800 dark:text-white'"
-              style="font-family: var(--font-display);"
-            >
-              {{ displayMode === 'remaining' ? (isCaloriesOver ? `+${current.calories - targets.calories}` : caloriesRemaining) : current.calories }}
+              <!-- Active Progress Rings with Vibrant Gradients & Glow Accents -->
+              <!-- Protein Ring (Emerald / Primary) -->
+              <circle
+                cx="105"
+                cy="105"
+                :r="R_PROTEIN"
+                fill="transparent"
+                stroke="url(#proteinGrad)"
+                :stroke-width="STROKE_WIDTH"
+                stroke-linecap="round"
+                :stroke-dasharray="C_PROTEIN"
+                :stroke-dashoffset="offsetProtein"
+                class="transition-all duration-700 ease-out"
+                style="filter: drop-shadow(0 0 5px rgba(16, 185, 129, 0.45));"
+              />
+
+              <!-- Carbs Ring (Amber / Gold) -->
+              <circle
+                cx="105"
+                cy="105"
+                :r="R_CARBS"
+                fill="transparent"
+                stroke="url(#carbsGrad)"
+                :stroke-width="STROKE_WIDTH"
+                stroke-linecap="round"
+                :stroke-dasharray="C_CARBS"
+                :stroke-dashoffset="offsetCarbs"
+                class="transition-all duration-700 ease-out"
+                style="filter: drop-shadow(0 0 5px rgba(245, 158, 11, 0.45));"
+              />
+
+              <!-- Fat Ring (Rose / Coral) -->
+              <circle
+                cx="105"
+                cy="105"
+                :r="R_FAT"
+                fill="transparent"
+                stroke="url(#fatGrad)"
+                :stroke-width="STROKE_WIDTH"
+                stroke-linecap="round"
+                :stroke-dasharray="C_FAT"
+                :stroke-dashoffset="offsetFat"
+                class="transition-all duration-700 ease-out"
+                style="filter: drop-shadow(0 0 5px rgba(244, 63, 94, 0.45));"
+              />
+            </svg>
+
+            <!-- Center Content: Generously Spaced, Elegant & Clear Calories Display -->
+            <div class="absolute inset-0 flex flex-col items-center justify-center text-center select-none pointer-events-none p-2">
+              
+              <!-- Flame Icon Pill -->
+              <div 
+                class="w-5 h-5 rounded-full flex items-center justify-center mb-0.5 transition-colors duration-300"
+                :class="isCaloriesOver ? 'bg-rose-500/15 border border-rose-500/30' : 'bg-amber-500/15 border border-amber-500/30'"
+              >
+                <Flame 
+                  class="w-3 h-3 transition-colors animate-pulse" 
+                  :class="isCaloriesOver ? 'text-rose-400 fill-rose-400/40' : 'text-amber-400 fill-amber-400/40'" 
+                />
+              </div>
+              
+              <!-- Main Calorie Number -->
+              <div 
+                class="text-2xl sm:text-3xl font-black tracking-tight leading-none transition-colors tabular-nums my-0.5"
+                :class="isCaloriesOver ? 'text-rose-400' : 'text-slate-900 dark:text-white'"
+                style="font-family: var(--font-display);"
+              >
+                {{ displayMode === 'remaining' ? (isCaloriesOver ? `+${(current.calories - targets.calories).toLocaleString()}` : caloriesRemaining.toLocaleString()) : current.calories.toLocaleString() }}
+              </div>
+              
+              <!-- Mode Label -->
+              <span 
+                class="text-[9px] font-extrabold uppercase tracking-wider transition-colors leading-tight"
+                :class="isCaloriesOver ? 'text-rose-400/90' : 'text-emerald-600 dark:text-[#87ff70]'"
+              >
+                {{ displayMode === 'remaining' ? (isCaloriesOver ? 'kcal extra' : 'kcal faltan') : 'kcal comidas' }}
+              </span>
+              
+              <!-- Target Pill (Spacious, Clean, No Ring Collision) -->
+              <span class="text-[9px] font-semibold text-slate-500 dark:text-zinc-400 mt-1 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 leading-none">
+                de {{ targets.calories.toLocaleString() }}
+              </span>
             </div>
-            
-            <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-400 mt-0.5">
-              {{ displayMode === 'remaining' ? (isCaloriesOver ? 'kcal extra' : 'kcal faltan') : 'kcal comidas' }}
-            </span>
-            
-            <span class="text-[8px] text-slate-500 dark:text-zinc-500 font-medium">
-              de {{ targets.calories }}
-            </span>
           </div>
+
+          <!-- Micro Toggle Hint -->
+          <button 
+            type="button"
+            @click="toggleDisplayMode"
+            class="mt-1 flex items-center gap-1 text-[9px] font-bold text-slate-400 dark:text-zinc-500 hover:text-emerald-500 dark:hover:text-[#87ff70] transition-colors cursor-pointer"
+          >
+            <ArrowRightLeft class="w-2.5 h-2.5" />
+            <span>{{ displayMode === 'remaining' ? 'Ver consumidas' : 'Ver restantes' }}</span>
+          </button>
         </div>
 
-        <!-- Right: Macro Cards Grid -->
-        <div class="flex-1 w-full grid grid-cols-3 sm:grid-cols-1 gap-2">
+        <!-- Right / Bottom: Macro Cards Grid with Dynamic Progress Bars -->
+        <div class="flex-1 w-full grid grid-cols-3 sm:grid-cols-1 gap-2 sm:gap-2.5">
           
           <!-- Protein Card -->
-          <div class="p-2.5 rounded-2xl border transition-all duration-200" style="background: rgba(16, 185, 129, 0.06); border-color: rgba(16, 185, 129, 0.2);">
-            <div class="flex items-center justify-between mb-1">
-              <div class="flex items-center gap-1.5">
-                <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-xs"></span>
-                <span class="text-[11px] font-bold text-slate-700 dark:text-zinc-200">Proteína</span>
+          <div class="p-2.5 sm:p-3 rounded-2xl border transition-all duration-200 hover:scale-[1.02]" style="background: rgba(16, 185, 129, 0.06); border-color: rgba(16, 185, 129, 0.25);">
+            <div class="flex items-center justify-between gap-1 mb-1">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0 shadow-2xs"></span>
+                <span class="text-[11px] font-bold text-slate-700 dark:text-zinc-200 truncate">Proteína</span>
               </div>
-              <span class="text-[10px] font-bold text-emerald-500">
+              <span class="text-[10px] font-black px-1.5 py-0.2 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shrink-0">
                 {{ Math.round(proteinPct * 100) }}%
               </span>
             </div>
             <div class="flex items-baseline gap-1">
-              <span class="text-sm font-extrabold text-slate-800 dark:text-white">{{ current.protein }}</span>
-              <span class="text-[10px] text-slate-400 dark:text-zinc-400">/ {{ targets.protein }}g</span>
+              <span class="text-sm sm:text-base font-black text-slate-800 dark:text-white tabular-nums">{{ current.protein }}</span>
+              <span class="text-[10px] text-slate-400 dark:text-zinc-400 font-medium">/ {{ targets.protein }}g</span>
+            </div>
+            <div class="w-full h-1 rounded-full bg-black/20 dark:bg-white/10 overflow-hidden mt-1.5">
+              <div 
+                class="h-full rounded-full transition-all duration-700 ease-out" 
+                :style="{ 
+                  width: `${Math.min(proteinPct * 100, 100)}%`,
+                  background: 'linear-gradient(90deg, #10b981, #34d399)'
+                }"
+              ></div>
             </div>
           </div>
 
           <!-- Carbs Card -->
-          <div class="p-2.5 rounded-2xl border transition-all duration-200" style="background: rgba(245, 158, 11, 0.06); border-color: rgba(245, 158, 11, 0.2);">
-            <div class="flex items-center justify-between mb-1">
-              <div class="flex items-center gap-1.5">
-                <span class="w-2 h-2 rounded-full bg-amber-500 shadow-xs"></span>
-                <span class="text-[11px] font-bold text-slate-700 dark:text-zinc-200">Carbs</span>
+          <div class="p-2.5 sm:p-3 rounded-2xl border transition-all duration-200 hover:scale-[1.02]" style="background: rgba(245, 158, 11, 0.06); border-color: rgba(245, 158, 11, 0.25);">
+            <div class="flex items-center justify-between gap-1 mb-1">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span class="w-2 h-2 rounded-full bg-amber-500 shrink-0 shadow-2xs"></span>
+                <span class="text-[11px] font-bold text-slate-700 dark:text-zinc-200 truncate">Carbs</span>
               </div>
-              <span class="text-[10px] font-bold text-amber-500">
+              <span class="text-[10px] font-black px-1.5 py-0.2 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0">
                 {{ Math.round(carbsPct * 100) }}%
               </span>
             </div>
             <div class="flex items-baseline gap-1">
-              <span class="text-sm font-extrabold text-slate-800 dark:text-white">{{ current.carbs }}</span>
-              <span class="text-[10px] text-slate-400 dark:text-zinc-400">/ {{ targets.carbs }}g</span>
+              <span class="text-sm sm:text-base font-black text-slate-800 dark:text-white tabular-nums">{{ current.carbs }}</span>
+              <span class="text-[10px] text-slate-400 dark:text-zinc-400 font-medium">/ {{ targets.carbs }}g</span>
+            </div>
+            <div class="w-full h-1 rounded-full bg-black/20 dark:bg-white/10 overflow-hidden mt-1.5">
+              <div 
+                class="h-full rounded-full transition-all duration-700 ease-out" 
+                :style="{ 
+                  width: `${Math.min(carbsPct * 100, 100)}%`,
+                  background: 'linear-gradient(90deg, #f59e0b, #fbbf24)'
+                }"
+              ></div>
             </div>
           </div>
 
           <!-- Fat Card -->
-          <div class="p-2.5 rounded-2xl border transition-all duration-200" style="background: rgba(244, 63, 94, 0.06); border-color: rgba(244, 63, 94, 0.2);">
-            <div class="flex items-center justify-between mb-1">
-              <div class="flex items-center gap-1.5">
-                <span class="w-2 h-2 rounded-full bg-rose-500 shadow-xs"></span>
-                <span class="text-[11px] font-bold text-slate-700 dark:text-zinc-200">Grasas</span>
+          <div class="p-2.5 sm:p-3 rounded-2xl border transition-all duration-200 hover:scale-[1.02]" style="background: rgba(244, 63, 94, 0.06); border-color: rgba(244, 63, 94, 0.25);">
+            <div class="flex items-center justify-between gap-1 mb-1">
+              <div class="flex items-center gap-1.5 min-w-0">
+                <span class="w-2 h-2 rounded-full bg-rose-500 shrink-0 shadow-2xs"></span>
+                <span class="text-[11px] font-bold text-slate-700 dark:text-zinc-200 truncate">Grasas</span>
               </div>
-              <span class="text-[10px] font-bold text-rose-500">
+              <span class="text-[10px] font-black px-1.5 py-0.2 rounded-md bg-rose-500/15 text-rose-600 dark:text-rose-400 shrink-0">
                 {{ Math.round(fatPct * 100) }}%
               </span>
             </div>
             <div class="flex items-baseline gap-1">
-              <span class="text-sm font-extrabold text-slate-800 dark:text-white">{{ current.fat }}</span>
-              <span class="text-[10px] text-slate-400 dark:text-zinc-400">/ {{ targets.fat }}g</span>
+              <span class="text-sm sm:text-base font-black text-slate-800 dark:text-white tabular-nums">{{ current.fat }}</span>
+              <span class="text-[10px] text-slate-400 dark:text-zinc-400 font-medium">/ {{ targets.fat }}g</span>
+            </div>
+            <div class="w-full h-1 rounded-full bg-black/20 dark:bg-white/10 overflow-hidden mt-1.5">
+              <div 
+                class="h-full rounded-full transition-all duration-700 ease-out" 
+                :style="{ 
+                  width: `${Math.min(fatPct * 100, 100)}%`,
+                  background: 'linear-gradient(90deg, #f43f5e, #fb7185)'
+                }"
+              ></div>
             </div>
           </div>
 
@@ -266,17 +342,29 @@ function toggleDisplayMode() {
       </div>
 
       <!-- Sugar Bottom Micro Bar (if targets.sugar > 0) -->
-      <div v-if="targets.sugar > 0" class="mt-3 pt-2.5 border-t flex items-center justify-between text-xs" style="border-color: var(--glass-border);">
-        <div class="flex items-center gap-1.5 text-slate-400 dark:text-zinc-400 text-[11px]">
-          <span>Azúcar:</span>
-          <span class="font-bold text-slate-700 dark:text-zinc-200">{{ current.sugar }}g / {{ targets.sugar }}g</span>
-          <span v-if="current.sugar > targets.sugar" class="inline-flex items-center text-rose-500 text-[10px] font-bold gap-0.5">
-            <AlertCircle class="w-3 h-3" /> Límite excedido
+      <div v-if="targets.sugar > 0" class="mt-3.5 pt-2.5 border-t space-y-1.5" style="border-color: var(--glass-border);">
+        <div class="flex items-center justify-between text-xs">
+          <div class="flex items-center gap-1.5 text-slate-400 dark:text-zinc-400 text-[11px]">
+            <span class="font-bold">Azúcar:</span>
+            <span class="font-bold text-slate-700 dark:text-zinc-200 tabular-nums">{{ current.sugar }}g / {{ targets.sugar }}g</span>
+            <span v-if="current.sugar > targets.sugar" class="inline-flex items-center text-rose-500 text-[10px] font-bold gap-0.5">
+              <AlertCircle class="w-3 h-3" /> Límite excedido
+            </span>
+          </div>
+          <span 
+            class="text-[10px] font-black px-1.5 py-0.2 rounded-md"
+            :class="current.sugar > targets.sugar ? 'bg-rose-500/15 text-rose-500' : 'bg-white/5 text-slate-400 dark:text-zinc-400'"
+          >
+            {{ sugarPct }}%
           </span>
         </div>
-        <span class="text-[10px] font-bold text-slate-400 dark:text-zinc-400">
-          {{ sugarPct }}%
-        </span>
+        <div class="w-full h-1 rounded-full bg-black/20 dark:bg-white/10 overflow-hidden">
+          <div 
+            class="h-full rounded-full transition-all duration-700 ease-out" 
+            :class="current.sugar > targets.sugar ? 'bg-rose-500' : 'bg-cyan-500'"
+            :style="{ width: `${Math.min(sugarPct, 100)}%` }"
+          ></div>
+        </div>
       </div>
 
     </div>

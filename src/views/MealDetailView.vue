@@ -480,53 +480,18 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
       
       <!-- Meal Info Card -->
       <div class="glass-card p-5 mb-6">
-        <div class="flex justify-between items-start mb-4">
-          <div class="flex-1 min-w-0">
-            <span v-if="plannedMeal.mealType" class="inline-block text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-lg mb-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+        <!-- Header row: Type badge & Date on left, Complete button on right -->
+        <div class="flex items-center justify-between gap-3 mb-3">
+          <div class="flex items-center gap-2 flex-wrap min-w-0">
+            <span v-if="plannedMeal.mealType" class="inline-block text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
               {{ plannedMeal.mealType }}
             </span>
-            <h2 class="text-xl sm:text-2xl font-bold leading-tight" style="font-family: var(--font-display); color: var(--on-surface);">{{ plannedMeal.name }}</h2>
-            <p class="text-xs font-semibold mt-1" style="color: var(--on-surface-muted);">{{ date }}</p>
-            
-            <div v-if="plannedMeal.items && plannedMeal.items.length > 0" class="mt-5">
-              <h3 class="text-[10px] font-bold uppercase tracking-wider mb-2" style="color: var(--on-surface-muted);">Ingredientes planificados</h3>
-              <p class="text-[9px] mb-2.5" style="color: var(--on-surface-muted);">Presiona un ingrediente para omitirlo o usa la IA para sustituirlo.</p>
-              <ul class="space-y-2 text-sm">
-                <li 
-                  v-for="(item, idx) in plannedMeal.items" 
-                  :key="idx" 
-                  class="transition-all flex items-center justify-between gap-2 p-2 rounded-xl"
-                  style="background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border);"
-                  :style="{ opacity: isSubstituted(idx) ? 0.5 : 1 }"
-                >
-                  <div @click="toggleIngredient(idx)" class="cursor-pointer flex items-center gap-2 flex-1 min-w-0">
-                    <div class="w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors"
-                         :style="{
-                           borderColor: isSubstituted(idx) ? 'var(--primary-container)' : 'var(--outline)',
-                           backgroundColor: isSubstituted(idx) ? 'var(--primary-container)' : 'transparent'
-                         }">
-                      <CheckCircle v-if="isSubstituted(idx)" class="w-3 h-3" style="color: var(--on-primary);" />
-                    </div>
-                    <span :class="{'line-through': isSubstituted(idx)}" class="truncate text-xs font-medium" :style="{ color: isSubstituted(idx) ? 'var(--on-surface-muted)' : 'var(--on-surface)' }">{{ item }}</span>
-                  </div>
-
-                  <button 
-                    @click.stop="openSingleItemAiSubstitution(item, idx)"
-                    class="px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 shrink-0 border transition-all hover:scale-105"
-                    style="background: rgba(25, 232, 13, 0.12); color: var(--primary); border-color: rgba(25, 232, 13, 0.25);"
-                    title="Sustituir este ingrediente con IA"
-                  >
-                    <Sparkles class="w-3 h-3" />
-                    Sustituir
-                  </button>
-                </li>
-              </ul>
-            </div>
+            <span class="text-xs font-semibold" style="color: var(--on-surface-muted);">{{ date }}</span>
           </div>
-          
+
           <button 
             @click="toggleCompletion"
-            class="flex items-center gap-2 px-3.5 py-2 rounded-full border transition-colors text-xs font-bold shrink-0 ml-3"
+            class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border transition-all text-xs font-bold shrink-0 cursor-pointer shadow-2xs hover:scale-102 active:scale-98"
             :style="isCompleted ? {
               background: 'rgba(25, 232, 13, 0.15)',
               color: 'var(--primary)',
@@ -537,10 +502,56 @@ function isMacroExceeded(type: 'calories'|'protein'|'carbs'|'fat') {
               borderColor: 'var(--glass-border)'
             }"
           >
-            <CheckCircle v-if="isCompleted" class="w-4 h-4" />
-            <div v-else class="w-4 h-4 rounded-full border" style="border-color: var(--outline);"></div>
-            {{ isCompleted ? 'Completado' : 'Completar' }}
+            <CheckCircle v-if="isCompleted" class="w-3.5 h-3.5" style="color: var(--primary);" />
+            <div v-else class="w-3.5 h-3.5 rounded-full border" style="border-color: var(--outline);"></div>
+            <span>{{ isCompleted ? 'Completado' : 'Completar' }}</span>
           </button>
+        </div>
+
+        <!-- Full-width Dish Title: NEVER covered or squeezed by the button -->
+        <h2 class="text-xl sm:text-2xl font-bold leading-tight break-words mb-4" style="font-family: var(--font-display); color: var(--on-surface);">
+          {{ plannedMeal.name }}
+        </h2>
+
+        <!-- Ingredients Section: Full Width in Card -->
+        <div v-if="plannedMeal.items && plannedMeal.items.length > 0" class="mb-5">
+          <div class="flex items-center justify-between mb-1">
+            <h3 class="text-[10px] font-bold uppercase tracking-wider" style="color: var(--on-surface-muted);">Ingredientes planificados</h3>
+            <span class="text-[9px] font-semibold" style="color: var(--on-surface-muted);">{{ plannedMeal.items.length }} {{ plannedMeal.items.length === 1 ? 'ingrediente' : 'ingredientes' }}</span>
+          </div>
+          <p class="text-[9px] mb-2.5" style="color: var(--on-surface-muted);">Presiona un ingrediente para omitirlo o usa la IA para sustituirlo.</p>
+          <ul class="space-y-2 text-sm">
+            <li 
+              v-for="(item, idx) in plannedMeal.items" 
+              :key="idx" 
+              class="transition-all flex items-center justify-between gap-2.5 p-2.5 rounded-xl border"
+              style="background: rgba(255,255,255,0.02); border-color: var(--glass-border);"
+              :style="{ opacity: isSubstituted(idx) ? 0.5 : 1 }"
+            >
+              <div @click="toggleIngredient(idx)" class="cursor-pointer flex items-center gap-2.5 flex-1 min-w-0">
+                <div class="w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors"
+                     :style="{
+                       borderColor: isSubstituted(idx) ? 'var(--primary-container)' : 'var(--outline)',
+                       backgroundColor: isSubstituted(idx) ? 'var(--primary-container)' : 'transparent'
+                     }">
+                  <CheckCircle v-if="isSubstituted(idx)" class="w-3 h-3" style="color: var(--on-primary);" />
+                </div>
+                <span :class="{'line-through': isSubstituted(idx)}" class="text-xs font-medium leading-snug break-words flex-1 min-w-0" :style="{ color: isSubstituted(idx) ? 'var(--on-surface-muted)' : 'var(--on-surface)' }">
+                  {{ item }}
+                </span>
+              </div>
+
+              <button 
+                @click.stop="openSingleItemAiSubstitution(item, idx)"
+                class="px-2.5 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-1 shrink-0 border transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xs"
+                style="background: rgba(25, 232, 13, 0.12); color: var(--primary); border-color: rgba(25, 232, 13, 0.25);"
+                title="Sustituir este ingrediente con IA"
+              >
+                <Sparkles class="w-3 h-3" />
+                <span>Sustituir</span>
+              </button>
+            </li>
+          </ul>
         </div>
 
         <div v-if="plannedMeal.plannedMacros" class="pt-4 border-t" style="border-color: var(--glass-border);">
