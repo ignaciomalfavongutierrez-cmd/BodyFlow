@@ -128,7 +128,7 @@ export class PersonalTrackingService {
    * Mapea mediciones personales a formato ClinicalRecord para que las gráficas y KPIs funcionen transparentemente
    */
   public static toClinicalRecords(items: PersonalMeasurement[], userHeight = 170, userAge = 28): ClinicalRecord[] {
-    return items.map(item => {
+    const mapped: ClinicalRecord[] = items.map(item => {
       const peso = Number(item.peso) || 0;
       const talla = Number(item.talla || userHeight) || 170;
       const tallaM = talla / 100;
@@ -162,5 +162,7 @@ export class PersonalTrackingService {
         ICC: icc
       };
     });
+
+    return ProgressCalculationService.sortByDateChronological(mapped);
   }
 }

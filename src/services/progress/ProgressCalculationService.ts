@@ -285,4 +285,134 @@ export class ProgressCalculationService {
 
     return { badges, streakText };
   }
+
+  /**
+   * Parses various clinical date formats into a timestamp (milliseconds).
+   * Supports:
+   * - Numbers (timestamps or Excel serial dates)
+   * - Date objects
+   * - ISO formats (YYYY-MM-DD, YYYY/MM/DD)
+   * - DMY formats (DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY)
+   * - Spanish textual dates ("12 de Enero de 2026", "29 de agosto del 2026", "02 de Feb 2026", "12-ene-2026")
+   * - Numbered consultations ("Consulta 1", "Consulta 2", "Visita 1")
+   * Returns 0 if unrecognized.
+   */
+  public static parseClinicalDate(rawDate?: string | number | Date | null): number {
+    if (rawDate === undefined || rawDate === null || rawDate === '') return 0;
+
+    if (rawDate instanceof Date) {
+      const t = rawDate.getTime();
+      return isNaN(t) ? 0 : t;
+    }
+
+    if (typeof rawDate === 'number') {
+      if (rawDate > 10000000000) return rawDate; // ms timestamp
+      if (rawDate > 10000 && rawDate < 100000) {
+        // Excel serial date to Unix timestamp (days since 1899-12-30)
+        return (rawDate - 25569) * 86400 * 1000;
+      }
+      return rawDate;
+    }
+
+    const str = String(rawDate).trim();
+    if (!str) return 0;
+
+    // Normalize accents and lower-case
+    const normStr = str
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+
+    // 1. ISO format (YYYY-MM-DD or YYYY/MM/DD or YYYY.MM.DD)
+    const isoMatch = normStr.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+    if (isoMatch) {
+      const year = parseInt(isoMatch[1], 10);
+      const month = parseInt(isoMatch[2], 10) - 1;
+      const day = parseInt(isoMatch[3], 10);
+      const d = new Date(year, month, day);
+      if (!isNaN(d.getTime())) return d.getTime();
+    }
+
+    // 2. DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
+    const dmyMatch = normStr.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.]([0-9]{2,4})$/);
+    if (dmyMatch) {
+      const day = parseInt(dmyMatch[1], 10);
+      const month = parseInt(dmyMatch[2], 10) - 1;
+      let year = parseInt(dmyMatch[3], 10);
+      if (year < 100) year += year < 50 ? 2000 : 1900;
+      const d = new Date(year, month, day);
+      if (!isNaN(d.getTime())) return d.getTime();
+    }
+
+    // 3. Spanish textual dates: e.g. "12 de enero de 2026", "29 de agosto del 2026", "02 de febrero 2026", "15 de mayo"
+    const spanishMonths: Record<string, number> = {
+      ene: 0, enero: 0,
+      feb: 1, febrero: 1,
+      mar: 2, marzo: 2,
+      abr: 3, abril: 3,
+      may: 4, mayo: 4,
+      jun: 5, junio: 5,
+      jul: 6, julio: 6,
+      ago: 7, agosto: 7,
+      sep: 8, sept: 8, septiembre: 8, setiembre: 8,
+      oct: 9, octubre: 9,
+      nov: 10, noviembre: 10,
+      dic: 11, diciembre: 11
+    };
+
+    const textMatch = normStr.match(/(\d{1,2})(?:\s+de\s+|\s+|[-/.])([a-z]+)(?:\s+(?:de|del)\s+|\s+|[-/.])?(\d{2,4})?/i);
+    if (textMatch) {
+      const day = parseInt(textMatch[1], 10);
+      const monthStr = textMatch[2];
+      let year = textMatch[3] ? parseInt(textMatch[3], 10) : new Date().getFullYear();
+      if (year < 100) year += year < 50 ? 2000 : 1900;
+
+      const monthKey = Object.keys(spanishMonths).find(m => monthStr.startsWith(m));
+      if (monthKey !== undefined) {
+        const month = spanishMonths[monthKey];
+        const d = new Date(year, month, day);
+        if (!isNaN(d.getTime())) return d.getTime();
+      }
+    }
+
+    // 4. Numbered consultations: "Consulta 1", "Consulta 2", "Visita 3", "Evaluación 1", "Seguimiento 2"
+    const consultMatch = normStr.match(/(?:consulta|visita|cita|evaluacion|seguimiento)\s*(\d+)/i);
+    if (consultMatch) {
+      return parseInt(consultMatch[1], 10);
+    }
+
+    // 5. Fallback Date.parse
+    const ts = Date.parse(str);
+    return isNaN(ts) ? 0 : ts;
+  }
+
+  /**
+   * Sorts records chronologically from oldest (index 0 / left of charts)
+   * to newest (index length - 1 / right of charts).
+   */
+  public static sortByDateChronological<T extends { Fecha?: string }>(records: T[]): T[] {
+    if (!records || records.length <= 1) return [...(records || [])];
+
+    const indexed = records.map((record, originalIndex) => ({
+      record,
+      originalIndex,
+      time: this.parseClinicalDate(record.Fecha)
+    }));
+
+    const anyHaveTime = indexed.some(i => i.time > 0);
+    if (!anyHaveTime) return [...records];
+
+    indexed.sort((a, b) => {
+      if (a.time > 0 && b.time > 0) {
+        if (a.time !== b.time) return a.time - b.time;
+        return a.originalIndex - b.originalIndex;
+      }
+      if (a.time > 0) return -1;
+      if (b.time > 0) return 1;
+      return a.originalIndex - b.originalIndex;
+    });
+
+    return indexed.map(i => i.record);
+  }
 }

@@ -477,12 +477,15 @@ export class ProgressFileParserService {
       }
     });
 
+    // Ensure chronological order (oldest consultation first, newest last)
+    const sortedRecords = ProgressCalculationService.sortByDateChronological(validRecords);
+
     // Run clinical calculations across all records (Durnin & Womersley, Siri, IMC, ICC, etc.)
-    ProgressCalculationService.recalculateFormulas(validRecords, detectedSex || 'H');
+    ProgressCalculationService.recalculateFormulas(sortedRecords, detectedSex || 'H');
 
     return {
       patientName: detectedName,
-      records: validRecords,
+      records: sortedRecords,
       sex: detectedSex,
       age: detectedAge,
       ocupacion: detectedOccupation,
@@ -575,12 +578,15 @@ export class ProgressFileParserService {
       return ProgressCalculationService.normalizeRecord(reg);
     });
 
+    // Ensure chronological order (oldest consultation first, newest last)
+    const sortedRecords = ProgressCalculationService.sortByDateChronological(records);
+
     // Run clinical calculations across all records (Durnin & Womersley, Siri, IMC, ICC, Masa Muscular)
-    ProgressCalculationService.recalculateFormulas(records, 'H');
+    ProgressCalculationService.recalculateFormulas(sortedRecords, 'H');
 
     return {
       patientName: fallbackName,
-      records,
+      records: sortedRecords,
     };
   }
 

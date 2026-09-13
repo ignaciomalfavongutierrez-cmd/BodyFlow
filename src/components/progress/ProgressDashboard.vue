@@ -102,12 +102,12 @@
                 <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400 print:!text-slate-600 pt-0.5">
                   <span>Sexo: <strong class="text-slate-800 dark:text-slate-200 print:!text-slate-900">{{ sex === 'H' ? 'Hombre' : 'Mujer' }}</strong></span>
                   <span>•</span>
-                  <span v-if="records.length">Periodo: <strong class="text-slate-800 dark:text-slate-200 print:!text-slate-900">{{ records[0].Fecha }}</strong> al <strong class="text-slate-800 dark:text-slate-200 print:!text-slate-900">{{ records[records.length - 1].Fecha }}</strong></span>
+                  <span v-if="chronologicalRecords.length">Periodo: <strong class="text-slate-800 dark:text-slate-200 print:!text-slate-900">{{ chronologicalRecords[0].Fecha }}</strong> al <strong class="text-slate-800 dark:text-slate-200 print:!text-slate-900">{{ chronologicalRecords[chronologicalRecords.length - 1].Fecha }}</strong></span>
                 </div>
               </div>
 
               <div class="text-right text-xs text-slate-500 dark:text-slate-400 print:!text-slate-600 font-mono shrink-0">
-                <div>Evaluaciones: <strong class="text-slate-800 dark:text-slate-200 print:!text-slate-900">{{ records.length }}</strong></div>
+                <div>Evaluaciones: <strong class="text-slate-800 dark:text-slate-200 print:!text-slate-900">{{ chronologicalRecords.length }}</strong></div>
                 <div>Fecha: <strong class="text-slate-800 dark:text-slate-200 print:!text-slate-900">{{ currentDate }}</strong></div>
               </div>
             </div>
@@ -704,12 +704,16 @@ const currentDate = computed(() =>
   new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
 );
 
-const summaryMetrics = computed(() => ProgressCalculationService.buildSummary(props.records));
+const chronologicalRecords = computed(() =>
+  ProgressCalculationService.sortByDateChronological(props.records)
+);
+
+const summaryMetrics = computed(() => ProgressCalculationService.buildSummary(chronologicalRecords.value));
 
 const patientClinicalStatus = computed(() => {
-  if (!props.records || props.records.length === 0) return null;
-  const initial = props.records[0];
-  const latest = props.records[props.records.length - 1];
+  if (!chronologicalRecords.value || chronologicalRecords.value.length === 0) return null;
+  const initial = chronologicalRecords.value[0];
+  const latest = chronologicalRecords.value[chronologicalRecords.value.length - 1];
 
   const initialPeso = parseFloat(String(initial.Peso)) || 0;
   const latestPeso = parseFloat(String(latest.Peso)) || 0;
@@ -803,7 +807,7 @@ const patientClinicalStatus = computed(() => {
 
 const achievements = computed(() =>
   ProgressCalculationService.buildAchievements(
-    props.records,
+    chronologicalRecords.value,
     props.goals.metaPeso,
     props.goals.metaGrasa
   )
@@ -848,7 +852,7 @@ function createGradient(ctx: CanvasRenderingContext2D, chartArea: any, color: st
 
 function renderCircunferenciasChart() {
   if (!chartCircunferenciasRef.value || !visibleCharts.value.circunferencias) return;
-  const data = props.records;
+  const data = chronologicalRecords.value;
   if (!data || data.length === 0) return;
 
   const ctx = chartCircunferenciasRef.value.getContext('2d');
@@ -948,7 +952,7 @@ function renderCircunferenciasChart() {
 }
 
 function renderAllCharts() {
-  const data = props.records;
+  const data = chronologicalRecords.value;
   if (!data || data.length === 0) return;
 
   const labels = data.map((d) => d.Fecha || 'Sin fecha');
@@ -1358,7 +1362,7 @@ function destroyAllCharts() {
 }
 
 function exportExcel() {
-  ProgressFileParserService.exportToExcel(props.records, props.patientName);
+  ProgressFileParserService.exportToExcel(chronologicalRecords.value, props.patientName);
 }
 
 function triggerPrint() {
@@ -1564,7 +1568,7 @@ onMounted(() => {
 });
 
 watch(
-  () => [props.records, props.goals, props.sex],
+  () => [chronologicalRecords.value, props.goals, props.sex],
   () => {
     nextTick(() => {
       renderAllCharts();

@@ -264,7 +264,7 @@ const localEditingRecords = ref<ClinicalRecord[]>([]);
 
 function mapMeasurementsToRecords(measList?: PatientMeasurement[]): ClinicalRecord[] {
   if (!measList || measList.length === 0) return [];
-  return measList.map(m => {
+  const mapped = measList.map(m => {
     let musculo = m.Musculo_Kg;
     const peso = Number(m.Peso) || 0;
     const grasaPct = Number(m.Grasa_Porcentaje ?? (m.Grasa_Fuente === 'bascula' ? m.Grasa_Bascula : m.Grasa_Formula)) || 0;
@@ -299,6 +299,8 @@ function mapMeasurementsToRecords(measList?: PatientMeasurement[]): ClinicalReco
       ICC: m.ICC || 0
     };
   });
+
+  return ProgressCalculationService.sortByDateChronological(mapped);
 }
 
 onMounted(() => {

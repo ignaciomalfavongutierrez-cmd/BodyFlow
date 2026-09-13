@@ -678,6 +678,7 @@ import { useAuthStore } from '../stores/auth';
 import { useUserStore } from '../stores/user';
 import { PatientsService } from '../services/patients/patients.service';
 import { PersonalTrackingService } from '../services/progress/PersonalTrackingService';
+import { ProgressCalculationService } from '../services/progress/ProgressCalculationService';
 import type { Patient, PatientAppointment, AppointmentStatus } from '../types/patient';
 import type { ClinicalRecord } from '../types/patientProgress';
 
@@ -746,7 +747,7 @@ const latestAppointmentWithNotes = computed(() => {
 });
 
 const reversedRecords = computed(() => {
-  return [...records.value].sort((a, b) => (b.Fecha || '').localeCompare(a.Fecha || ''));
+  return [...records.value].reverse();
 });
 
 // WhatsApp contact URLs
@@ -891,7 +892,7 @@ async function loadData() {
       appointments.value = aptList || [];
 
       if (measList && measList.length > 0) {
-        records.value = [...measList].sort((a, b) => (a.Fecha || '').localeCompare(b.Fecha || ''));
+        records.value = ProgressCalculationService.sortByDateChronological(measList);
       }
     } else {
       // Independent user mode: load personal measurements
@@ -899,7 +900,9 @@ async function loadData() {
       const pMeas = await PersonalTrackingService.getMeasurements(uid);
       const userHeight = userStore.profile.height || 170;
       const userAge = userStore.profile.age || 28;
-      records.value = PersonalTrackingService.toClinicalRecords(pMeas, userHeight, userAge);
+      records.value = ProgressCalculationService.sortByDateChronological(
+        PersonalTrackingService.toClinicalRecords(pMeas, userHeight, userAge)
+      );
     }
   } catch (err) {
     console.error('[PATIENT PROGRESS] Error loading progress data:', err);
