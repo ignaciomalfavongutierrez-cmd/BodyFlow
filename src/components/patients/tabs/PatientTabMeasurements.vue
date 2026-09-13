@@ -42,6 +42,17 @@
           </button>
         </div>
 
+        <!-- Calculate Muscle Mass Button for Existing Records -->
+        <button
+          @click="handleCalculateMuscle"
+          type="button"
+          class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-xs font-bold border border-emerald-200 dark:border-emerald-800/40 transition-all cursor-pointer"
+          title="Calcula automáticamente la masa muscular en base al % de grasa y peso para los registros existentes"
+        >
+          <Sparkles class="w-4 h-4" />
+          <span>Calcular Músculo</span>
+        </button>
+
         <!-- Add Manual Measurement Button -->
         <button
           @click="$emit('newMeasurement')"
@@ -101,6 +112,7 @@
         :goals="{ metaPeso: patient.metas?.metaPeso || '', metaGrasa: patient.metas?.metaGrasa || '' }"
         @edit="activeView = 'table'"
         @newPatient="$emit('newMeasurement')"
+        @calculateMuscle="handleCalculateMuscle"
       />
     </div>
 
@@ -219,12 +231,14 @@ import {
   Table, 
   Plus, 
   UploadCloud, 
-  X 
+  X,
+  Sparkles 
 } from 'lucide-vue-next';
 import type { Patient, PatientMeasurement } from '../../../types/patient';
 import type { ClinicalRecord } from '../../../types/patientProgress';
 import ProgressDashboard from '../../progress/ProgressDashboard.vue';
 import ProgressReviewTable from '../../progress/ProgressReviewTable.vue';
+import { ProgressCalculationService } from '../../../services/progress/ProgressCalculationService';
 import { ProgressFileParserService } from '../../../services/progress/ProgressFileParserService';
 import { PatientsService } from '../../../services/patients/patients.service';
 
@@ -250,29 +264,41 @@ const localEditingRecords = ref<ClinicalRecord[]>([]);
 
 function mapMeasurementsToRecords(measList?: PatientMeasurement[]): ClinicalRecord[] {
   if (!measList || measList.length === 0) return [];
-  return measList.map(m => ({
-    ...m,
-    id: m.id || `rec_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
-    Fecha: m.Fecha || '',
-    Edad: m.Edad || props.patient.edad || 28,
-    Peso: m.Peso || 0,
-    Talla: m.Talla || 165,
-    Cintura: m.Cintura || 0,
-    Cadera: m.Cadera || 0,
-    Pecho: m.Pecho,
-    Brazo: m.Brazo,
-    Muslo: m.Muslo,
-    Pantorrilla: m.Pantorrilla,
-    Pliegues: m.Pliegues || { tricep: null, bicep: null, subescapular: null, cresta: null },
-    Suma_Pliegues: m.Suma_Pliegues || 0,
-    Grasa_Bascula: m.Grasa_Bascula || 0,
-    Grasa_Formula: m.Grasa_Formula || 0,
-    Grasa_Fuente: m.Grasa_Fuente || 'formula',
-    Grasa_Porcentaje: m.Grasa_Porcentaje ?? null,
-    Musculo_Kg: m.Musculo_Kg || 0,
-    IMC: m.IMC || 0,
-    ICC: m.ICC || 0
-  }));
+  return measList.map(m => {
+    let musculo = m.Musculo_Kg;
+    const peso = Number(m.Peso) || 0;
+    const grasaPct = Number(m.Grasa_Porcentaje ?? (m.Grasa_Fuente === 'bascula' ? m.Grasa_Bascula : m.Grasa_Formula)) || 0;
+    if ((!musculo || Number(musculo) === 0) && peso > 0 && grasaPct > 0) {
+      const calc = ProgressCalculationService.calculateMuscleKg(peso, grasaPct);
+      if (calc !== null) {
+        musculo = calc;
+      }
+    }
+
+    return {
+      ...m,
+      id: m.id || `rec_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+      Fecha: m.Fecha || '',
+      Edad: m.Edad || props.patient.edad || 28,
+      Peso: m.Peso || 0,
+      Talla: m.Talla || 165,
+      Cintura: m.Cintura || 0,
+      Cadera: m.Cadera || 0,
+      Pecho: m.Pecho,
+      Brazo: m.Brazo,
+      Muslo: m.Muslo,
+      Pantorrilla: m.Pantorrilla,
+      Pliegues: m.Pliegues || { tricep: null, bicep: null, subescapular: null, cresta: null },
+      Suma_Pliegues: m.Suma_Pliegues || 0,
+      Grasa_Bascula: m.Grasa_Bascula || 0,
+      Grasa_Formula: m.Grasa_Formula || 0,
+      Grasa_Fuente: m.Grasa_Fuente || 'formula',
+      Grasa_Porcentaje: m.Grasa_Porcentaje ?? null,
+      Musculo_Kg: musculo || 0,
+      IMC: m.IMC || 0,
+      ICC: m.ICC || 0
+    };
+  });
 }
 
 onMounted(() => {
@@ -302,6 +328,24 @@ async function handleSaveAndShowDashboard(records: ClinicalRecord[]) {
   importNotice.value = '';
   activeView.value = 'dashboard';
   emit('refresh');
+}
+
+async function handleCalculateMuscle() {
+  const current = [...displayRecords.value];
+  if (!current || current.length === 0) {
+    alert('No hay mediciones registradas en el expediente para calcular masa muscular.');
+    return;
+  }
+
+  const updated = ProgressCalculationService.backfillMuscleMass(current, true);
+  if (updated) {
+    localEditingRecords.value = current;
+    await PatientsService.batchImportMeasurements(props.patient.id, current);
+    importNotice.value = 'Masa muscular (kg) calculada y guardada exitosamente para las mediciones del expediente.';
+    emit('refresh');
+  } else {
+    alert('No se encontraron mediciones con peso y % de grasa válidos para calcular la masa muscular.');
+  }
 }
 
 function triggerFileInput() {

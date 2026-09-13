@@ -228,7 +228,14 @@
               <td class="py-2.5 px-3 text-emerald-600 dark:text-emerald-400 font-bold">
                 {{ m.Grasa_Porcentaje || m.Grasa_Formula || '--' }}%
               </td>
-              <td class="py-2.5 px-3">{{ m.Musculo_Kg || '--' }} kg</td>
+              <td class="py-2.5 px-3">
+                <span v-if="m.Musculo_Kg && Number(m.Musculo_Kg) > 0">{{ m.Musculo_Kg }} kg</span>
+                <span v-else-if="getCalculatedMuscle(m)" class="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                  {{ getCalculatedMuscle(m) }} kg
+                  <span class="text-[9px] text-slate-400 font-normal" title="Calculado en base a fórmula de % de grasa y peso">(auto)</span>
+                </span>
+                <span v-else class="text-slate-400">--</span>
+              </td>
               <td class="py-2.5 px-3">{{ m.IMC || '--' }}</td>
             </tr>
           </tbody>
@@ -252,6 +259,7 @@ import {
   ClipboardList 
 } from 'lucide-vue-next';
 import type { Patient, PatientMeasurement, PatientAppointment } from '../../../types/patient';
+import { ProgressCalculationService } from '../../../services/progress/ProgressCalculationService';
 
 const props = defineProps<{
   patient: Patient;
@@ -272,6 +280,15 @@ const nextAppointment = computed(() => {
   if (!props.appointments || props.appointments.length === 0) return null;
   return props.appointments.find(a => a.status === 'programada') || null;
 });
+
+function getCalculatedMuscle(m: PatientMeasurement): number | null {
+  const peso = Number(m.Peso) || 0;
+  const fatPct = Number(m.Grasa_Porcentaje ?? (m.Grasa_Fuente === 'bascula' ? m.Grasa_Bascula : m.Grasa_Formula)) || 0;
+  if (peso > 0 && fatPct > 0) {
+    return ProgressCalculationService.calculateMuscleKg(peso, fatPct);
+  }
+  return null;
+}
 
 const initialWeight = computed(() => {
   if (!props.measurements || props.measurements.length === 0) return null;

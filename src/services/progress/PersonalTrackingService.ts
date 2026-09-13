@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../firebase';
 import type { ClinicalRecord } from '../../types/patientProgress';
+import { ProgressCalculationService } from './ProgressCalculationService';
 
 export interface PersonalMeasurement {
   id: string;
@@ -134,8 +135,7 @@ export class PersonalTrackingService {
       const imc = tallaM > 0 && peso > 0 ? Number((peso / (tallaM * tallaM)).toFixed(1)) : 0;
 
       const grasaPct = Number(item.grasaPorcentaje) || 0;
-      const grasaKg = grasaPct > 0 && peso > 0 ? Number(((grasaPct / 100) * peso).toFixed(1)) : 0;
-      const musculoKg = Number(item.musculoKg) || (peso > 0 && grasaKg > 0 ? Number((peso * 0.45).toFixed(1)) : 0);
+      const musculoKg = Number(item.musculoKg) || (peso > 0 && grasaPct > 0 ? ProgressCalculationService.calculateMuscleKg(peso, grasaPct) || 0 : 0);
 
       const cintura = Number(item.cintura) || 0;
       const cadera = Number(item.cadera) || 0;

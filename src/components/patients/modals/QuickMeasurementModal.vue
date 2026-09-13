@@ -202,7 +202,17 @@
             <p class="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">{{ form.Grasa_Formula || '--' }}%</p>
           </div>
           <div>
-            <p class="text-[10px] uppercase font-bold text-slate-500">Masa Muscular</p>
+            <div class="flex items-center justify-center gap-1">
+              <p class="text-[10px] uppercase font-bold text-slate-500">Masa Muscular</p>
+              <button
+                type="button"
+                @click="recalculate"
+                title="Calcular masa muscular en base al % de grasa y peso"
+                class="text-[9px] text-emerald-600 dark:text-emerald-400 font-extrabold px-1 rounded hover:bg-emerald-500/10 cursor-pointer"
+              >
+                ⚡
+              </button>
+            </div>
             <p class="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">{{ form.Musculo_Kg || '--' }} kg</p>
           </div>
           <div>
@@ -315,10 +325,12 @@ function recalculate() {
 
   // Muscle Kg (Lean Mass)
   const weight = Number(form.Peso) || 0;
-  const fatPct = Number(form.Grasa_Porcentaje || form.Grasa_Formula) || 0;
+  const fatPct = Number(form.Grasa_Porcentaje || form.Grasa_Formula || form.Grasa_Bascula) || 0;
   if (weight > 0 && fatPct > 0) {
-    const fatKg = (weight * fatPct) / 100;
-    form.Musculo_Kg = Number((weight - fatKg).toFixed(1));
+    const calc = ProgressCalculationService.calculateMuscleKg(weight, fatPct);
+    if (calc !== null) {
+      form.Musculo_Kg = calc;
+    }
   }
 }
 

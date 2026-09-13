@@ -158,6 +158,15 @@ export class ProgressFileParserService {
           currentRecord.Musculo_Kg = tempMusculoPct;
         }
         tempMusculoPct = null;
+      } else if (!currentRecord.Musculo_Kg || Number(currentRecord.Musculo_Kg) === 0) {
+        // If muscle mass kg was not explicitly present, calculate it using weight and body fat %
+        const fatPct = currentRecord.Grasa_Porcentaje ?? (currentRecord.Grasa_Fuente === 'bascula' ? currentRecord.Grasa_Bascula : currentRecord.Grasa_Formula);
+        if (currentRecord.Peso && Number(currentRecord.Peso) > 0 && fatPct && Number(fatPct) > 0) {
+          const calcMuscle = ProgressCalculationService.calculateMuscleKg(currentRecord.Peso, fatPct);
+          if (calcMuscle !== null) {
+            currentRecord.Musculo_Kg = calcMuscle;
+          }
+        }
       }
 
       // Check if current record has actual numeric body data
@@ -565,6 +574,9 @@ export class ProgressFileParserService {
 
       return ProgressCalculationService.normalizeRecord(reg);
     });
+
+    // Run clinical calculations across all records (Durnin & Womersley, Siri, IMC, ICC, Masa Muscular)
+    ProgressCalculationService.recalculateFormulas(records, 'H');
 
     return {
       patientName: fallbackName,

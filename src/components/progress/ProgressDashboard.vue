@@ -12,6 +12,14 @@
 
       <div class="flex items-center flex-wrap gap-2">
         <button
+          @click="$emit('calculateMuscle')"
+          type="button"
+          class="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 rounded-xl text-xs font-bold transition-all border border-emerald-200 dark:border-emerald-800/40 flex items-center space-x-1.5 cursor-pointer"
+          title="Calcula automáticamente la masa muscular en base al % de grasa y peso"
+        >
+          <span>⚡ Calcular Músculo</span>
+        </button>
+        <button
           @click="$emit('edit')"
           class="px-3 py-1.5 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-bold transition-all border border-slate-200 dark:border-white/10 flex items-center space-x-1.5 cursor-pointer"
         >
@@ -162,7 +170,17 @@
                     </div>
                     <div class="text-right">
                       <span class="text-slate-400 text-[9px] block">Masa Muscular:</span>
-                      <strong class="text-emerald-600 dark:text-emerald-400 font-extrabold">{{ patientClinicalStatus.latestMusculo ? `${patientClinicalStatus.latestMusculo} kg` : 'N/D' }}</strong>
+                      <div class="flex items-center gap-1.5 justify-end">
+                        <strong class="text-emerald-600 dark:text-emerald-400 font-extrabold">{{ patientClinicalStatus.latestMusculo ? `${patientClinicalStatus.latestMusculo} kg` : 'N/D' }}</strong>
+                        <button
+                          type="button"
+                          @click="$emit('calculateMuscle')"
+                          class="px-1.5 py-0.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[9px] font-bold transition-colors cursor-pointer flex items-center gap-0.5 no-print"
+                          title="Calcular masa muscular según fórmula: Peso * (1 - %Grasa / 100)"
+                        >
+                          <span>⚡ Calcular</span>
+                        </button>
+                      </div>
                       <span v-if="patientClinicalStatus.latestMusculo" class="text-[9px] text-slate-400 block font-normal">({{ patientClinicalStatus.deltaMusculo > 0 ? '+' : '' }}{{ patientClinicalStatus.deltaMusculo }} kg)</span>
                     </div>
                   </div>
@@ -213,7 +231,18 @@
                   >
                     {{ m.label }}
                   </span>
-                  <span class="text-xs">{{ m.icon }}</span>
+                  <div class="flex items-center gap-1">
+                    <button
+                      v-if="m.label === 'Masa Muscular'"
+                      type="button"
+                      @click.stop="$emit('calculateMuscle')"
+                      title="Calcular masa muscular para los registros del paciente"
+                      class="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 no-print cursor-pointer transition-colors"
+                    >
+                      ⚡ Calcular
+                    </button>
+                    <span class="text-xs">{{ m.icon }}</span>
+                  </div>
                 </div>
 
                 <div class="mt-0.5 flex items-baseline gap-1">
@@ -625,6 +654,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'edit'): void;
   (e: 'newPatient'): void;
+  (e: 'calculateMuscle'): void;
 }>();
 
 const chartComposicionRef = ref<HTMLCanvasElement | null>(null);

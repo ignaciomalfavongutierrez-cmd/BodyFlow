@@ -61,7 +61,44 @@ export class ProgressCalculationService {
   }
 
   /**
-   * Recalculates sum of skinfolds, Durnin-Womersley density, Siri % Fat, IMC, ICC
+   * Calculates Muscle Mass / Lean Mass in kg from total weight (kg) and body fat percentage (%)
+   * Formula: Masa Magra / Muscular = Peso * (1 - %Grasa / 100) = Peso - (Peso * %Grasa / 100)
+   */
+  public static calculateMuscleKg(peso: number | string, grasaPorcentaje: number | string): number | null {
+    const p = parseFloat(String(peso));
+    const g = parseFloat(String(grasaPorcentaje));
+    if (Number.isFinite(p) && p > 0 && Number.isFinite(g) && g > 0 && g < 100) {
+      const fatKg = (p * g) / 100;
+      return Number((p - fatKg).toFixed(1));
+    }
+    return null;
+  }
+
+  /**
+   * Backfills or recalculates muscle mass (kg) for an array of clinical records
+   * If overwrite is false, only updates records missing Musculo_Kg or with 0.
+   */
+  public static backfillMuscleMass(records: ClinicalRecord[], overwrite = false): boolean {
+    let updated = false;
+    records.forEach((reg) => {
+      const current = parseFloat(String(reg.Musculo_Kg));
+      const isMissing = !Number.isFinite(current) || current <= 0 || reg.Musculo_Kg === '';
+      if (overwrite || isMissing) {
+        const fatPct = typeof reg.Grasa_Porcentaje === 'number' && reg.Grasa_Porcentaje > 0
+          ? reg.Grasa_Porcentaje
+          : parseFloat(String(reg.Grasa_Fuente === 'bascula' ? reg.Grasa_Bascula : reg.Grasa_Formula));
+        const calc = this.calculateMuscleKg(reg.Peso, fatPct);
+        if (calc !== null && calc !== reg.Musculo_Kg) {
+          reg.Musculo_Kg = calc;
+          updated = true;
+        }
+      }
+    });
+    return updated;
+  }
+
+  /**
+   * Recalculates sum of skinfolds, Durnin-Womersley density, Siri % Fat, IMC, ICC and Muscle Mass (kg)
    */
   public static recalculateFormulas(records: ClinicalRecord[], sex: BiologicalSex): void {
     records.forEach((reg) => {
@@ -110,6 +147,18 @@ export class ProgressCalculationService {
       }
 
       this.updateDisplayedFat(reg);
+
+      // Auto-calculate muscle mass (kg) if not provided or 0
+      const currentMusculo = parseFloat(String(reg.Musculo_Kg));
+      if (!Number.isFinite(currentMusculo) || currentMusculo <= 0 || reg.Musculo_Kg === '') {
+        const fatPct = typeof reg.Grasa_Porcentaje === 'number' && reg.Grasa_Porcentaje > 0
+          ? reg.Grasa_Porcentaje
+          : parseFloat(String(reg.Grasa_Fuente === 'bascula' ? reg.Grasa_Bascula : reg.Grasa_Formula));
+        const calcMuscle = this.calculateMuscleKg(reg.Peso, fatPct);
+        if (calcMuscle !== null) {
+          reg.Musculo_Kg = calcMuscle;
+        }
+      }
 
       // IMC = Peso(kg) / Talla(m)^2
       const talla = parseFloat(String(reg.Talla));

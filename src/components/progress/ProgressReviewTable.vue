@@ -26,6 +26,15 @@
         </div>
 
         <button
+          @click="calculateMuscleForAll"
+          type="button"
+          class="px-3 py-2 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-colors border border-emerald-200 dark:border-emerald-800/40 cursor-pointer"
+          title="Calcula automáticamente la masa muscular (kg) para todas las visitas en base al peso y % de grasa"
+        >
+          <span>⚡ Calcular Músculo (Todas)</span>
+        </button>
+
+        <button
           @click="onAddRow"
           class="px-3.5 py-2 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/15 text-slate-800 dark:text-slate-200 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors border border-slate-200 dark:border-white/10"
         >
@@ -320,8 +329,18 @@
                   <option value="bascula" class="bg-white dark:bg-[#1e1e24] text-slate-900 dark:text-white">Báscula (Bioimpedancia)</option>
                 </select>
               </div>
-              <div class="w-24">
-                <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase block mb-0.5">Músculo (kg)</label>
+              <div class="w-28 sm:w-32">
+                <div class="flex items-center justify-between mb-0.5">
+                  <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Músculo (kg)</label>
+                  <button
+                    type="button"
+                    @click="calculateMuscleForRecord(reg)"
+                    title="Calcular masa muscular en base al % de grasa y peso: Peso * (1 - %Grasa / 100)"
+                    class="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 flex items-center gap-0.5 px-1 py-0.5 rounded hover:bg-emerald-500/10 cursor-pointer transition-colors"
+                  >
+                    <span>⚡ Calc</span>
+                  </button>
+                </div>
                 <input
                   type="number"
                   step="0.1"
@@ -456,6 +475,28 @@ function onDeleteRow(index: number) {
 
 function exportExcel() {
   ProgressFileParserService.exportToExcel(props.records, props.patientName);
+}
+
+function calculateMuscleForRecord(reg: ClinicalRecord) {
+  const fatPct = typeof reg.Grasa_Porcentaje === 'number' && reg.Grasa_Porcentaje > 0
+    ? reg.Grasa_Porcentaje
+    : parseFloat(String(reg.Grasa_Fuente === 'bascula' ? reg.Grasa_Bascula : reg.Grasa_Formula));
+  const calc = ProgressCalculationService.calculateMuscleKg(reg.Peso, fatPct);
+  if (calc !== null) {
+    reg.Musculo_Kg = calc;
+    onRecordChange();
+  } else {
+    alert('Para calcular la masa muscular se requiere ingresar el Peso y el % de Grasa (o pliegues cutáneos) de la medición.');
+  }
+}
+
+function calculateMuscleForAll() {
+  const updated = ProgressCalculationService.backfillMuscleMass(props.records, true);
+  if (updated) {
+    onRecordChange();
+  } else {
+    alert('No se encontraron visitas con peso y % de grasa válidos para calcular masa muscular.');
+  }
 }
 
 function onConfirm() {
