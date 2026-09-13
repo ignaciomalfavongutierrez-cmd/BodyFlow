@@ -237,7 +237,7 @@ describe('ProgressCalculationService - Chronological Sorting (Oldest on Left, Ne
     // Delta should be negative (lost 7.4 kg)
     assert.equal(pesoSummary.delta, -7.4);
 
-    const grasaSummary = summaries.find(s => s.label === '% Grasa Corporal');
+    const grasaSummary = summaries.find(s => s.label === '% Grasa' || s.label === '% Grasa Corporal');
     assert.ok(grasaSummary);
     assert.equal(grasaSummary.inicio, '27.2');
     assert.equal(grasaSummary.actual, '20.0');

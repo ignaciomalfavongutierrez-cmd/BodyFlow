@@ -218,7 +218,7 @@ export class ProgressCalculationService {
 
     const summaries: (MetricSummary | null)[] = [
       createMetric('Peso Total', '⚖️', 'Peso', 'kg', null, 'indigo'),
-      createMetric('% Grasa Corporal', '🔥', 'Grasa_Porcentaje', '%', true, 'rose'),
+      createMetric('% Grasa', '🔥', 'Grasa_Porcentaje', '%', true, 'rose'),
       createMetric('Masa Muscular', '💪', 'Musculo_Kg', 'kg', false, 'emerald'),
       createMetric('IMC', '🩵', 'IMC', 'kg/m²', null, 'sky'),
       createMetric('Índice C-C', '📐', 'ICC', '', true, 'fuchsia', 2),

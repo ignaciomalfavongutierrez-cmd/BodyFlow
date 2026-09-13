@@ -89,6 +89,7 @@
       v-if="viewMode === 'stylized'"
       :result="result"
       :initialPatientName="globalPatientName"
+      :isExporting="isGeneratingPdf"
     />
 
     <!-- VIEW 2: Standard Detailed List -->
@@ -430,10 +431,10 @@ function toggleAllCheckboxes(purchased: boolean) {
 }
 
 function getStrategyLabel(strat: PurchaseStrategy): string {
-  if (strat === 'value') return 'Calidad / Precio';
-  if (strat === 'economic') return 'Económica';
-  if (strat === 'premium') return 'Premium';
-  return 'Sin preferencia';
+  if (strat === 'value') return 'Supermercado';
+  if (strat === 'economic') return 'Mercado y Tianguis';
+  if (strat === 'premium') return 'Seleccionadas';
+  return 'General';
 }
 
 function getCategoryEmoji(catName: string): string {
@@ -452,7 +453,7 @@ function getCategoryEmoji(catName: string): string {
 /* Page & Print Optimizations for Letter Size */
 @page {
   size: letter portrait;
-  margin: 10mm 12mm;
+  margin: 6mm 8mm;
 }
 
 .print-category-group {
@@ -473,7 +474,7 @@ function getCategoryEmoji(catName: string): string {
   .print-letter-card {
     box-shadow: none !important;
     border: none !important;
-    padding: 0 !important;
+    padding: 3mm 5mm !important;
     max-width: 100% !important;
     width: 100% !important;
     -webkit-print-color-adjust: exact !important;

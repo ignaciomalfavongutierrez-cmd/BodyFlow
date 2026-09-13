@@ -76,15 +76,21 @@ export class ShoppingListCalculatorService {
 
           // Convert culinary kitchen units, scoops, slices, pieces to canonical base unit
           if (effectiveQty !== null) {
-            const converted = UnitConversionService.convert(
-              effectiveQty,
-              normUnit,
-              targetBaseUnit,
-              normResult.ingredient
-            );
-            if (converted.converted) {
-              effectiveQty = converted.quantity;
-              normUnit = converted.unit;
+            if (normUnit === 'scoop') {
+              const scoopSize = item.scoop_grams && item.scoop_grams > 0 ? Number(item.scoop_grams) : 30;
+              effectiveQty = effectiveQty * scoopSize;
+              normUnit = 'g';
+            } else {
+              const converted = UnitConversionService.convert(
+                effectiveQty,
+                normUnit,
+                targetBaseUnit,
+                normResult.ingredient
+              );
+              if (converted.converted) {
+                effectiveQty = converted.quantity;
+                normUnit = converted.unit;
+              }
             }
           }
 

@@ -1,35 +1,34 @@
 <template>
-  <div class="stylized-shopping-container relative overflow-hidden bg-[#fbf8f3] p-5 sm:p-7 md:p-9 rounded-[32px] border border-amber-200/60 shadow-xl space-y-5 max-w-4xl mx-auto print-letter-card">
+  <div class="stylized-shopping-container relative overflow-hidden bg-[#fbf8f3] p-4 sm:p-5 md:p-6 rounded-[28px] border border-amber-200/60 shadow-xl space-y-3.5 max-w-4xl mx-auto print-letter-card">
     
     <!-- Watermark Official Logo Image Layer (Centered, Subtle & Clean) -->
     <div class="watermark-layer pointer-events-none absolute inset-0 flex items-center justify-center select-none overflow-hidden opacity-[0.045] z-0">
-      <div class="w-[340px] sm:w-[420px] md:w-[480px] h-[340px] sm:h-[420px] md:h-[480px]">
+      <div class="w-[300px] sm:w-[380px] md:w-[420px] h-[300px] sm:h-[380px] md:h-[420px]">
         <TaliaLogo :watermark="true" />
       </div>
     </div>
 
-    <!-- Top Patient Name Bar (Clean & Focused) -->
-    <div class="relative z-10 flex items-center bg-white/90 backdrop-blur-sm px-4 py-2.5 rounded-2xl border border-amber-200/60 shadow-xs">
+    <!-- Top Patient Name Bar (Hidden during PDF export or browser printing) -->
+    <div
+      v-if="!isExporting"
+      class="no-print relative z-10 flex items-center bg-white/90 backdrop-blur-sm px-3.5 py-1.5 rounded-xl border border-amber-200/60 shadow-xs"
+    >
       <div class="flex items-center space-x-2 w-full">
-        <span class="text-base flex-shrink-0">👤</span>
-        <label class="text-xs font-bold text-slate-700 whitespace-nowrap flex-shrink-0">Paciente:</label>
+        <span class="text-sm flex-shrink-0">👤</span>
+        <label class="text-[11px] font-bold text-slate-700 whitespace-nowrap flex-shrink-0">Paciente:</label>
         <input
           type="text"
           v-model="patientName"
-          placeholder="Escribe el nombre del paciente (ej: Adair Iguano)..."
-          class="no-print w-full text-xs font-semibold text-slate-800 bg-amber-50/40 border border-amber-200 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-nutrition-500 focus:bg-white transition-all"
+          placeholder="Escribe el nombre del paciente para personalizar la lista..."
+          class="w-full text-xs font-semibold text-slate-800 bg-amber-50/40 border border-amber-200 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-nutrition-500 focus:bg-white transition-all"
         />
-        <!-- Print-only patient name -->
-        <span class="hidden print-patient-name text-xs font-black text-slate-800 uppercase tracking-wide">
-          {{ patientName || 'Plan Personalizado' }}
-        </span>
       </div>
     </div>
 
     <!-- Header Section -->
-    <div class="relative z-10 flex items-center justify-between gap-4 border-b-2 border-slate-800/10 pb-3">
+    <div class="relative z-10 flex items-center justify-between gap-3 border-b-2 border-slate-800/10 pb-2">
       <div class="text-left">
-        <h1 class="text-2xl sm:text-3xl md:text-4xl font-black text-slate-800 tracking-tight font-sans">
+        <h1 class="text-xl sm:text-2xl font-black text-slate-800 tracking-tight font-sans">
           LISTA DE COMPRAS
         </h1>
         <div class="text-[11px] text-slate-600 font-medium">
@@ -39,8 +38,8 @@
       </div>
 
       <!-- Right: Modern unDraw-style Grocery Basket -->
-      <div class="flex items-center justify-end w-14 h-14 shrink-0">
-        <svg viewBox="0 0 100 100" class="w-12 h-12 drop-shadow-xs">
+      <div class="flex items-center justify-end w-10 h-10 shrink-0">
+        <svg viewBox="0 0 100 100" class="w-9 h-9 drop-shadow-xs">
           <!-- Paper Bag -->
           <path d="M24 38 L29 88 C29 91 32 93 35 93 L65 93 C68 93 71 91 71 88 L76 38 Z" fill="#dfa86c" />
           <path d="M29 38 L34 93 L66 93 L71 38 Z" fill="#cf9456" opacity="0.3" />
@@ -58,15 +57,15 @@
       </div>
     </div>
 
-    <!-- Standardized Clinical Contact & Official Logo Banner -->
+    <!-- Standardized Clinical Contact & Official Logo Banner (Compact) -->
     <div class="relative z-10">
-      <TaliaClinicalBanner :logoSize="90" />
+      <TaliaClinicalBanner :logoSize="55" />
     </div>
 
     <!-- Subheader / Date & Info Bar -->
-    <div class="relative z-10 flex flex-wrap items-center justify-between text-xs font-bold text-slate-700 bg-amber-100/40 px-4 py-2 rounded-2xl border border-amber-200/40">
+    <div class="relative z-10 flex flex-wrap items-center justify-between text-[11px] font-bold text-slate-700 bg-amber-100/40 px-3.5 py-1.5 rounded-xl border border-amber-200/40">
       <div class="flex items-center space-x-2">
-        <span class="text-slate-900 font-extrabold uppercase tracking-wider text-[11px]">DÍAS:</span>
+        <span class="text-slate-900 font-extrabold uppercase tracking-wider text-[10px]">DÍAS:</span>
         <span class="text-slate-800 font-bold uppercase tracking-wide text-xs">
           {{ formattedDayLabel }}
         </span>
@@ -78,14 +77,14 @@
     </div>
 
     <!-- Stylized Modern Organic Blobs Grid (2 Columns) -->
-    <div class="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 items-start">
+    <div class="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-3.5 items-start">
       
       <!-- Column 1 -->
-      <div class="space-y-4 sm:space-y-5">
+      <div class="space-y-3 sm:space-y-3.5">
         <template v-for="cat in column1Categories" :key="cat.slug">
           <div
             v-if="cat.items.length > 0"
-            class="category-blob-card p-4 sm:p-5 shadow-xs border transition-all duration-300 hover:shadow-md"
+            class="category-blob-card p-3 sm:p-3.5 shadow-xs border transition-all duration-300 hover:shadow-md"
             :style="{
               backgroundColor: cat.theme.bg,
               borderColor: cat.theme.border,
@@ -93,31 +92,31 @@
             }"
           >
             <!-- Category Title Pill with Organic Glow -->
-            <div class="flex items-center justify-between mb-2.5">
+            <div class="flex items-center justify-between mb-2">
               <div
-                class="px-4 py-1 rounded-full text-xs font-black tracking-wider uppercase text-center shadow-xs border border-white/40 flex items-center space-x-1.5"
+                class="px-2.5 py-0.5 rounded-full text-[10.5px] font-black tracking-wider uppercase text-center shadow-xs border border-white/40 flex items-center space-x-1.5"
                 :style="{ backgroundColor: cat.theme.pillBg, color: cat.theme.textColor }"
               >
                 <span>{{ cat.theme.emoji }}</span>
                 <span>{{ cat.name }}</span>
               </div>
-              <span class="text-[10px] font-bold opacity-60" :style="{ color: cat.theme.textColor }">
+              <span class="text-[9.5px] font-bold opacity-60" :style="{ color: cat.theme.textColor }">
                 {{ cat.items.length }} {{ cat.items.length === 1 ? 'ítem' : 'ítems' }}
               </span>
             </div>
 
             <!-- Items List with clean bullets -->
-            <ul class="space-y-1.5 text-xs sm:text-[13px] font-medium leading-snug" :style="{ color: cat.theme.textColor }">
+            <ul class="space-y-1 text-xs sm:text-[11.5px] font-medium leading-tight" :style="{ color: cat.theme.textColor }">
               <li
                 v-for="item in cat.items"
                 :key="item.id"
                 class="flex items-start"
               >
-                <span class="mr-1.5 select-none text-base leading-none opacity-70">•</span>
-                <span class="flex-1">
+                <span class="mr-1.5 select-none text-sm leading-none opacity-70">•</span>
+                <span class="flex-1 min-w-0">
                   <strong class="font-bold">{{ item.name }}:</strong>
-                  <span class="ml-1 opacity-90">{{ item.qtyText }}</span>
-                  <span v-if="item.notes" class="text-[10px] opacity-75 block italic leading-tight">({{ item.notes }})</span>
+                  <span class="ml-1 opacity-90 font-semibold">{{ item.qtyText }}</span>
+                  <span v-if="item.notes" class="text-[9.5px] opacity-75 inline-block italic ml-1 leading-none">({{ item.notes }})</span>
                 </span>
               </li>
             </ul>
@@ -126,11 +125,11 @@
       </div>
 
       <!-- Column 2 -->
-      <div class="space-y-4 sm:space-y-5">
+      <div class="space-y-3 sm:space-y-3.5">
         <template v-for="cat in column2Categories" :key="cat.slug">
           <div
             v-if="cat.items.length > 0"
-            class="category-blob-card p-4 sm:p-5 shadow-xs border transition-all duration-300 hover:shadow-md"
+            class="category-blob-card p-3 sm:p-3.5 shadow-xs border transition-all duration-300 hover:shadow-md"
             :style="{
               backgroundColor: cat.theme.bg,
               borderColor: cat.theme.border,
@@ -138,31 +137,31 @@
             }"
           >
             <!-- Category Title Pill with Organic Glow -->
-            <div class="flex items-center justify-between mb-2.5">
+            <div class="flex items-center justify-between mb-2">
               <div
-                class="px-4 py-1 rounded-full text-xs font-black tracking-wider uppercase text-center shadow-xs border border-white/40 flex items-center space-x-1.5"
+                class="px-2.5 py-0.5 rounded-full text-[10.5px] font-black tracking-wider uppercase text-center shadow-xs border border-white/40 flex items-center space-x-1.5"
                 :style="{ backgroundColor: cat.theme.pillBg, color: cat.theme.textColor }"
               >
                 <span>{{ cat.theme.emoji }}</span>
                 <span>{{ cat.name }}</span>
               </div>
-              <span class="text-[10px] font-bold opacity-60" :style="{ color: cat.theme.textColor }">
+              <span class="text-[9.5px] font-bold opacity-60" :style="{ color: cat.theme.textColor }">
                 {{ cat.items.length }} {{ cat.items.length === 1 ? 'ítem' : 'ítems' }}
               </span>
             </div>
 
             <!-- Items List with clean bullets -->
-            <ul class="space-y-1.5 text-xs sm:text-[13px] font-medium leading-snug" :style="{ color: cat.theme.textColor }">
+            <ul class="space-y-1 text-xs sm:text-[11.5px] font-medium leading-tight" :style="{ color: cat.theme.textColor }">
               <li
                 v-for="item in cat.items"
                 :key="item.id"
                 class="flex items-start"
               >
-                <span class="mr-1.5 select-none text-base leading-none opacity-70">•</span>
-                <span class="flex-1">
+                <span class="mr-1.5 select-none text-sm leading-none opacity-70">•</span>
+                <span class="flex-1 min-w-0">
                   <strong class="font-bold">{{ item.name }}:</strong>
-                  <span class="ml-1 opacity-90">{{ item.qtyText }}</span>
-                  <span v-if="item.notes" class="text-[10px] opacity-75 block italic leading-tight">({{ item.notes }})</span>
+                  <span class="ml-1 opacity-90 font-semibold">{{ item.qtyText }}</span>
+                  <span v-if="item.notes" class="text-[9.5px] opacity-75 inline-block italic ml-1 leading-none">({{ item.notes }})</span>
                 </span>
               </li>
             </ul>
@@ -171,61 +170,31 @@
       </div>
     </div>
 
-    <!-- Bottom Footer Section: unDraw Shopper & Personalized Motivational Quote -->
-    <div class="relative z-10 pt-3 border-t border-slate-800/10 flex flex-col sm:flex-row items-center justify-between gap-3 footer-seal-box">
-      <!-- Shopper Illustration & Professional Seal -->
-      <div class="flex items-center space-x-3 w-full sm:w-auto justify-center sm:justify-start">
-        <div class="w-13 h-13 flex-shrink-0">
-          <svg viewBox="0 0 100 100" class="w-full h-full">
-            <!-- Modern unDraw style shopping character -->
-            <!-- Wheels -->
-            <circle cx="58" cy="85" r="4.5" fill="#1e293b" />
-            <circle cx="82" cy="85" r="4.5" fill="#1e293b" />
-            <circle cx="58" cy="85" r="1.8" fill="#94a3b8" />
-            <circle cx="82" cy="85" r="1.8" fill="#94a3b8" />
-            <!-- Basket -->
-            <path d="M52 56 L88 56 L82 78 L56 78 Z" fill="#93c5fd" opacity="0.4" />
-            <path d="M52 56 L88 56 L82 78 L56 78 Z" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linejoin="round" />
-            <line x1="62" y1="56" x2="64" y2="78" stroke="#2563eb" stroke-width="1.2" />
-            <line x1="72" y1="56" x2="73" y2="78" stroke="#2563eb" stroke-width="1.2" />
-            <!-- Frame -->
-            <path d="M46 50 L52 56 L58 80 L84 80" fill="none" stroke="#1e293b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
-            <circle cx="45" cy="49" r="2.2" fill="#ef4444" />
-            <!-- Groceries -->
-            <circle cx="64" cy="52" r="4.5" fill="#ef4444" />
-            <path d="M72 46 L78 54 L70 54 Z" fill="#eab308" />
-            <rect x="76" y="48" width="6" height="8" rx="1.5" fill="#3b82f6" />
-            <!-- Character -->
-            <circle cx="28" cy="28" r="8.5" fill="#fed7aa" />
-            <path d="M22 28 C22 18 36 16 36 24 C34 22 26 22 24 28 Z" fill="#334155" />
-            <path d="M22 37 C22 37 28 35 34 37 L38 58 L18 58 Z" fill="#10b981" />
-            <path d="M30 42 L45 49" stroke="#fed7aa" stroke-width="3" stroke-linecap="round" />
-            <path d="M22 58 L16 88 M32 58 L38 88" stroke="#0284c7" stroke-width="3.5" stroke-linecap="round" />
-            <ellipse cx="14" cy="89" rx="4.5" ry="2" fill="#0f172a" />
-            <ellipse cx="40" cy="89" rx="4.5" ry="2" fill="#0f172a" />
-          </svg>
+    <!-- Bottom Footer Section: Professional Signature & Motivational Quote (Compact) -->
+    <div class="relative z-10 pt-2 border-t border-slate-800/10 flex flex-col sm:flex-row items-center justify-between gap-2.5 footer-seal-box">
+      <!-- Professional Seal -->
+      <div class="flex items-center space-x-2 w-full sm:w-auto justify-center sm:justify-start">
+        <div class="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+          <span class="text-sm">👩‍⚕️</span>
         </div>
-        <div class="text-[10px] text-slate-600 leading-tight">
+        <div class="text-[9.5px] text-slate-600 leading-tight">
           <span class="font-extrabold text-slate-800 uppercase tracking-wider block">Lic. N. Talia Tinoco Fabián</span>
-          <span class="text-nutrition-700 font-bold">Cédula Profesional: 11290678</span>
+          <span class="text-nutrition-700 font-bold">Cédula Profesional: 11290678 • Nutrición Clínica</span>
         </div>
       </div>
 
       <!-- Personalized Motivational Quote -->
-      <div class="flex items-center space-x-2.5 bg-white/90 backdrop-blur-sm px-4 py-2.5 rounded-2xl border border-amber-200/70 shadow-xs max-w-sm">
-        <span class="text-xl select-none">💪</span>
+      <div class="flex items-center space-x-2 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-amber-200/70 shadow-xs max-w-sm">
+        <span class="text-base select-none">💪</span>
         <div class="text-right sm:text-left">
-          <p class="text-xs font-black text-slate-800 italic tracking-tight">
+          <p class="text-[11px] font-black text-slate-800 italic tracking-tight">
             “{{ currentPersonalizedQuote }}”
           </p>
-          <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-            Mensaje de tu nutrióloga
-          </span>
         </div>
         <button
           @click="shuffleQuote"
           type="button"
-          class="no-print p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 text-xs transition-colors"
+          class="no-print p-0.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 text-xs transition-colors"
           title="Cambiar frase motivadora"
         >
           🔄
@@ -253,6 +222,7 @@ import BrandRecommendationsPage from './BrandRecommendationsPage.vue';
 const props = defineProps<{
   result: ShoppingListCalculationResult;
   initialPatientName?: string;
+  isExporting?: boolean;
 }>();
 
 const patientName = ref(props.initialPatientName || '');
@@ -502,7 +472,7 @@ const allCategorySlugs = computed(() =>
 /* Print & Letter Page Optimization */
 @page {
   size: letter portrait;
-  margin: 10mm 12mm;
+  margin: 6mm 8mm;
 }
 
 .category-blob-card {
@@ -515,25 +485,24 @@ const allCategorySlugs = computed(() =>
     display: none !important;
   }
 
-  .print-patient-name {
-    display: inline-block !important;
-  }
-
   .stylized-shopping-container {
     box-shadow: none !important;
     border: none !important;
-    padding: 0 !important;
+    padding: 3mm 5mm !important;
     max-width: 100% !important;
     width: 100% !important;
     background: #fbf8f3 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+    break-after: avoid !important;
+    page-break-after: avoid !important;
   }
 
   .category-blob-card {
     box-shadow: none !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
+    padding: 8px 10px !important;
   }
 
   .footer-seal-box {

@@ -93,6 +93,7 @@
                   <td class="py-2.5 px-4">
                     <select
                       v-model="item.category_id"
+                      @change="onCategoryChange(item)"
                       class="w-full px-2 py-1 border border-slate-200 dark:border-white/15 rounded text-xs bg-white dark:bg-[#201f22] dark:text-white focus:ring-1 focus:ring-emerald-500 outline-none font-medium"
                       :class="{
                         'text-emerald-700 dark:text-emerald-300 bg-emerald-50/60 dark:bg-emerald-950/40': item.category_id === 'cat-3',
@@ -125,12 +126,14 @@
                   <td class="py-2.5 px-4">
                     <select
                       v-model="item.unit"
+                      @change="onUnitChange(item)"
                       class="w-full px-2 py-1 border border-slate-200 dark:border-white/15 rounded text-xs bg-white dark:bg-[#201f22] dark:text-white focus:ring-1 focus:ring-emerald-500 outline-none"
                     >
                       <option value="g" class="dark:bg-[#18181b] dark:text-white">g</option>
                       <option value="kg" class="dark:bg-[#18181b] dark:text-white">kg</option>
                       <option value="ml" class="dark:bg-[#18181b] dark:text-white">ml</option>
                       <option value="L" class="dark:bg-[#18181b] dark:text-white">L</option>
+                      <option value="scoop" class="dark:bg-[#18181b] dark:text-white">scoop / medida</option>
                       <option value="pieza" class="dark:bg-[#18181b] dark:text-white">pieza / piezas</option>
                       <option value="rebanada" class="dark:bg-[#18181b] dark:text-white">rebanada / rebanadas</option>
                       <option value="tortilla" class="dark:bg-[#18181b] dark:text-white">tortilla / tortillas</option>
@@ -142,6 +145,22 @@
                       <option value="al gusto" class="dark:bg-[#18181b] dark:text-white">al gusto</option>
                       <option value="unspecified" class="dark:bg-[#18181b] dark:text-white">no especificada</option>
                     </select>
+
+                    <!-- Scoop size editor if unit is scoop -->
+                    <div v-if="item.unit === 'scoop'" class="mt-1 flex items-center space-x-1">
+                      <span class="text-[10px] text-slate-500 dark:text-slate-400 font-bold whitespace-nowrap">🥄 Scoop:</span>
+                      <input
+                        type="number"
+                        min="5"
+                        max="100"
+                        :value="item.scoop_grams || 30"
+                        @input="item.scoop_grams = Number(($event.target as HTMLInputElement).value) || 30"
+                        placeholder="30"
+                        class="w-12 px-1 py-0.5 border border-slate-300 dark:border-white/20 rounded text-[11px] font-bold text-center bg-white dark:bg-[#18181b] text-slate-800 dark:text-white focus:ring-1 focus:ring-emerald-500 outline-none"
+                        title="Tamaño en gramos del scoop de proteína"
+                      />
+                      <span class="text-[10px] text-slate-500 dark:text-slate-400 font-bold">g</span>
+                    </div>
                   </td>
                   <!-- State Select -->
                   <td class="py-2.5 px-4">
@@ -221,5 +240,30 @@ function addNewItem() {
   };
 
   targetMeal.items.push(newItem);
+}
+
+function onCategoryChange(item: DietItem) {
+  if (item.category_id === 'cat-1') {
+    const isPowder = item.normalized_name.toLowerCase().includes('proteína en polvo')
+      || item.normalized_name.toLowerCase().includes('proteina en polvo')
+      || item.original_name.toLowerCase().includes('scoop');
+    if (isPowder) {
+      item.unit = 'scoop';
+      item.scoop_grams = item.scoop_grams || 30;
+      item.state = 'raw';
+    } else {
+      // Regla de proteínas: siempre crudas en preparación
+      item.state = 'raw';
+    }
+  }
+}
+
+function onUnitChange(item: DietItem) {
+  if (item.unit === 'scoop') {
+    if (!item.scoop_grams || item.scoop_grams <= 0) {
+      item.scoop_grams = 30;
+    }
+    item.state = 'raw';
+  }
 }
 </script>

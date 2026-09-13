@@ -112,6 +112,29 @@ export class DietExtractionService {
               : `Opción alternativa: ${normResult.alternative_option}`;
           }
 
+          // Regla clínica de proteínas solicitada por el usuario:
+          // "las proteinas todas en preparacion deben ser crudas, a excepcion de la 'proteina en polvo' la cual debe ser en scoop y me debe dejar editar el tamano en gr del scoop."
+          const isProtein = categoryId === 'cat-1' || categoryName.toLowerCase().includes('proteína');
+          const isProteinPowder = normResult.normalized_name.toLowerCase().includes('proteína en polvo')
+            || normResult.normalized_name.toLowerCase().includes('proteina en polvo')
+            || origName.toLowerCase().includes('proteina en polvo')
+            || origName.toLowerCase().includes('proteína en polvo')
+            || origName.toLowerCase().includes('scoop')
+            || origName.toLowerCase().includes('whey');
+
+          let scoopGrams: number | undefined = undefined;
+
+          if (isProteinPowder) {
+            unit = 'scoop';
+            state = 'raw';
+            scoopGrams = item.scoop_grams !== undefined && item.scoop_grams !== null && !isNaN(Number(item.scoop_grams))
+              ? Number(item.scoop_grams)
+              : 30;
+          } else if (isProtein) {
+            // Todas las proteínas animales/vegetales en preparación deben ser crudas para cálculo de compra
+            state = 'raw';
+          }
+
           return {
             id,
             original_name: origName,
@@ -124,6 +147,7 @@ export class DietExtractionService {
             notes,
             source_day: dayNum,
             source_meal: mealName,
+            scoop_grams: scoopGrams,
           };
         });
 

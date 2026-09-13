@@ -14,6 +14,7 @@ export interface DietItem {
   notes: string | null;
   source_day: number;
   source_meal: string;
+  scoop_grams?: number;
 }
 
 export interface DietMeal {

@@ -117,11 +117,11 @@
               <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-slate-100 dark:border-white/5 pb-2 mb-2">
                 <div class="flex items-center gap-2">
                   <span class="text-base shrink-0">🩺</span>
-                  <div>
-                    <h3 class="text-xs sm:text-sm font-black text-slate-900 dark:text-white print:!text-slate-900 leading-snug">
+                  <div class="chart-title-group min-w-0">
+                    <h3 class="text-xs sm:text-sm font-black text-slate-900 dark:text-white print:!text-slate-900 leading-tight mb-0.5">
                       Estado Actual & Diagnóstico Nutricional
                     </h3>
-                    <p class="text-[9.5px] text-slate-500 dark:text-slate-400 print:!text-slate-600 leading-normal">
+                    <p class="text-[9.5px] text-slate-500 dark:text-slate-400 print:!text-slate-600 leading-normal mt-0">
                       Evaluación clínica de la última consulta ({{ patientClinicalStatus.latestDate }})
                     </p>
                   </div>
@@ -209,7 +209,7 @@
               <div
                 v-for="m in summaryMetrics"
                 :key="m.label"
-                class="metric-box bg-white dark:bg-[#18181b] rounded-xl border border-slate-200 dark:border-white/10 p-2.5 shadow-sm transition-colors"
+                class="metric-box bg-white dark:bg-[#18181b] rounded-xl border border-slate-200 dark:border-white/10 p-2 sm:p-2.5 shadow-sm transition-colors min-w-0"
                 :class="[
                   m.theme === 'indigo' ? 'border-l-4 border-l-indigo-500' :
                   m.theme === 'rose' ? 'border-l-4 border-l-rose-500' :
@@ -218,9 +218,9 @@
                   'border-l-4 border-l-fuchsia-500'
                 ]"
               >
-                <div class="flex items-center justify-between gap-1">
+                <div class="flex items-center justify-between gap-1 min-w-0">
                   <span
-                    class="text-[9px] font-bold uppercase tracking-wide"
+                    class="metric-title text-[8.5px] sm:text-[9px] font-bold uppercase tracking-tight truncate whitespace-nowrap"
                     :class="[
                       m.theme === 'indigo' ? 'text-indigo-600 dark:text-indigo-400 print:!text-indigo-700' :
                       m.theme === 'rose' ? 'text-rose-600 dark:text-rose-400 print:!text-rose-700' :
@@ -228,10 +228,11 @@
                       m.theme === 'sky' ? 'text-sky-600 dark:text-sky-400 print:!text-sky-700' :
                       'text-fuchsia-600 dark:text-fuchsia-400 print:!text-fuchsia-700'
                     ]"
+                    :title="m.label"
                   >
-                    {{ m.label }}
+                    {{ m.label === '% Grasa Corporal' ? '% Grasa' : m.label }}
                   </span>
-                  <div class="flex items-center gap-1">
+                  <div class="flex items-center gap-1 shrink-0">
                     <button
                       v-if="m.label === 'Masa Muscular'"
                       type="button"
@@ -241,21 +242,21 @@
                     >
                       ⚡ Calcular
                     </button>
-                    <span class="text-xs">{{ m.icon }}</span>
+                    <span class="text-xs shrink-0">{{ m.icon }}</span>
                   </div>
                 </div>
 
-                <div class="mt-0.5 flex items-baseline gap-1">
-                  <span class="text-lg font-extrabold text-slate-900 dark:text-white print:!text-slate-900">{{ m.actual }}</span>
-                  <span class="text-[10px] text-slate-500 dark:text-slate-400 print:!text-slate-600 font-semibold">{{ m.unidad }}</span>
+                <div class="mt-0.5 flex items-baseline gap-1 whitespace-nowrap">
+                  <span class="metric-actual text-base sm:text-lg font-extrabold text-slate-900 dark:text-white print:!text-slate-900 leading-tight">{{ m.actual }}</span>
+                  <span class="metric-unit text-[9.5px] sm:text-[10px] text-slate-500 dark:text-slate-400 print:!text-slate-600 font-semibold">{{ m.unidad }}</span>
                 </div>
 
-                <div class="text-[9px] text-slate-400 dark:text-slate-500 print:!text-slate-600">
+                <div class="metric-initial text-[8.5px] sm:text-[9px] text-slate-400 dark:text-slate-500 print:!text-slate-600 whitespace-nowrap leading-tight truncate">
                   Inicio: {{ m.inicio }} {{ m.unidad }}
                 </div>
 
                 <div
-                  class="mt-1 inline-flex items-center gap-1 text-[8.5px] font-bold px-1.5 py-0.5 rounded-full border"
+                  class="metric-delta mt-1 inline-flex items-center gap-1 text-[8px] sm:text-[8.5px] font-bold px-1.5 py-0.5 rounded-full border whitespace-nowrap max-w-full"
                   :class="[
                     m.sinCambio
                       ? 'bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-white/10'
@@ -266,8 +267,8 @@
                       : 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/40'
                   ]"
                 >
-                  <span>{{ m.sinCambio ? '→' : m.delta > 0 ? '↑' : '↓' }}</span>
-                  <span>{{ m.sinCambio ? 'Sin cambio' : `${Math.abs(m.delta)} ${m.unidad}` }}</span>
+                  <span class="shrink-0">{{ m.sinCambio ? '→' : m.delta > 0 ? '↑' : '↓' }}</span>
+                  <span class="truncate">{{ m.sinCambio ? 'Sin cambio' : `${Math.abs(m.delta)} ${m.unidad}` }}</span>
                 </div>
               </div>
             </div>
@@ -275,21 +276,21 @@
 
           <!-- BLOCK 2: Banner de Progreso / Logros Antropométricos (Bar de Progreso) -->
           <div v-if="achievements.badges.length" class="achievements-banner bg-white dark:bg-[#18181b] rounded-2xl border border-slate-200 dark:border-white/10 p-3 shadow-sm print-card transition-colors print-block-middle">
-            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 mb-1.5">
-              <h3 class="text-xs sm:text-sm font-bold flex items-center gap-1.5 text-slate-900 dark:text-white print:!text-slate-900 leading-snug">
+            <div class="achievements-header flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5 mb-2 pb-1.5 border-b border-slate-100 dark:border-white/5 print:!border-slate-200">
+              <h3 class="text-xs sm:text-sm font-bold flex items-center gap-1.5 text-slate-900 dark:text-white print:!text-slate-900 leading-tight m-0">
                 <span>🎉</span>
                 <span>Logros y Evolución Antropométrica</span>
               </h3>
-              <span class="text-[9px] font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 print:!bg-slate-100 print:!text-slate-700 px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800/40">
+              <span class="streak-badge text-[9px] font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 print:!bg-slate-100 print:!text-slate-700 px-2.5 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800/40 whitespace-nowrap shrink-0">
                 {{ achievements.streakText }}
               </span>
             </div>
 
-            <div class="flex flex-wrap gap-1">
+            <div class="achievements-list flex flex-wrap gap-1.5 items-center">
               <span
                 v-for="(b, idx) in achievements.badges"
                 :key="idx"
-                class="achievement-pill inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9.5px] font-bold border transition-colors"
+                class="achievement-pill inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] sm:text-[9.5px] font-bold border transition-colors whitespace-nowrap leading-none"
                 :class="[
                   b.category === 'peso' ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-800 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/40 print:!bg-indigo-50/70 print:!text-indigo-900 print:!border-indigo-200' :
                   b.category === 'grasa' ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-800 dark:text-rose-300 border-rose-200 dark:border-rose-800/40 print:!bg-rose-50/70 print:!text-rose-900 print:!border-rose-200' :
@@ -312,11 +313,11 @@
             <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-2">
               <div class="flex items-start space-x-2 min-w-0">
                 <span class="text-base shrink-0 mt-0.5">📈</span>
-                <div class="min-w-0">
-                  <h3 class="chart-heading text-xs sm:text-sm font-bold text-slate-900 dark:text-white print:!text-slate-900 leading-snug">
+                <div class="chart-title-group min-w-0">
+                  <h3 class="chart-heading text-xs sm:text-sm font-bold text-slate-900 dark:text-white print:!text-slate-900 leading-tight mb-1">
                     1. Evolución de Composición Corporal
                   </h3>
-                  <p class="text-[10px] text-slate-500 dark:text-slate-400 print:!text-slate-600 leading-normal mt-0.5">
+                  <p class="chart-subheading text-[10px] text-slate-500 dark:text-slate-400 print:!text-slate-600 leading-normal mt-0">
                     Peso total (kg), Porcentaje de grasa (%) y Masa muscular (kg) con líneas de meta
                   </p>
                 </div>
@@ -357,6 +358,7 @@
 
             <div class="chart-container-main relative w-full">
               <canvas ref="chartComposicionRef"></canvas>
+              <img ref="printImgComposicionRef" class="print-chart-img" alt="Evolución de Composición Corporal" />
             </div>
           </div>
         </div>
@@ -411,11 +413,11 @@
             <div class="flex items-start justify-between gap-2 mb-1.5">
               <div class="flex items-start gap-1.5 min-w-0">
                 <span class="text-sm shrink-0 mt-0.5">🍩</span>
-                <div class="min-w-0">
-                  <h3 class="chart-heading text-xs sm:text-sm font-bold text-slate-900 dark:text-white print:!text-slate-900 leading-snug break-words">
+                <div class="chart-title-group min-w-0">
+                  <h3 class="chart-heading text-xs sm:text-sm font-bold text-slate-900 dark:text-white print:!text-slate-900 leading-tight mb-1 break-words">
                     2. Composición Actual — Última Consulta
                   </h3>
-                  <p class="text-[9.5px] text-slate-500 dark:text-slate-400 print:!text-slate-600 leading-normal mt-0.5">
+                  <p class="chart-subheading text-[9.5px] text-slate-500 dark:text-slate-400 print:!text-slate-600 leading-normal mt-0">
                     Masa Grasa vs. Masa Magra
                   </p>
                 </div>
@@ -430,6 +432,7 @@
             </div>
             <div class="chart-container-2x2 relative w-full flex items-center justify-center">
               <canvas ref="chartDonaRef"></canvas>
+              <img ref="printImgDonaRef" class="print-chart-img" alt="Composición Actual" />
             </div>
           </div>
 
@@ -441,11 +444,11 @@
             <div class="flex items-start justify-between gap-2 mb-1.5">
               <div class="flex items-start gap-1.5 min-w-0">
                 <span class="text-sm shrink-0 mt-0.5">📏</span>
-                <div class="min-w-0">
-                  <h3 class="chart-heading text-xs sm:text-sm font-bold text-slate-900 dark:text-white print:!text-slate-900 leading-snug break-words">
+                <div class="chart-title-group min-w-0">
+                  <h3 class="chart-heading text-xs sm:text-sm font-bold text-slate-900 dark:text-white print:!text-slate-900 leading-tight mb-1 break-words">
                     3. Sumatoria de Pliegues Cutáneos (mm)
                   </h3>
-                  <p class="text-[9.5px] text-slate-500 dark:text-slate-400 print:!text-slate-600 leading-normal mt-0.5">
+                  <p class="chart-subheading text-[9.5px] text-slate-500 dark:text-slate-400 print:!text-slate-600 leading-normal mt-0">
                     Tríceps, Bíceps, Subescapular y Cresta
                   </p>
                 </div>
@@ -460,6 +463,7 @@
             </div>
             <div class="chart-container-2x2 relative w-full">
               <canvas ref="chartPlieguesRef"></canvas>
+              <img ref="printImgPlieguesRef" class="print-chart-img" alt="Sumatoria de Pliegues" />
             </div>
           </div>
 
@@ -471,11 +475,11 @@
             <div class="flex items-start justify-between gap-2 mb-1.5">
               <div class="flex items-start gap-1.5 min-w-0">
                 <span class="text-sm shrink-0 mt-0.5">📐</span>
-                <div class="min-w-0">
-                  <h3 class="chart-heading text-xs sm:text-sm font-bold text-slate-900 dark:text-white print:!text-slate-900 leading-snug break-words">
+                <div class="chart-title-group min-w-0">
+                  <h3 class="chart-heading text-xs sm:text-sm font-bold text-slate-900 dark:text-white print:!text-slate-900 leading-tight mb-1 break-words">
                     4. Circunferencias Corporales (cm)
                   </h3>
-                  <p class="text-[9.5px] text-slate-500 dark:text-slate-400 print:!text-slate-600 leading-normal mt-0.5">
+                  <p class="chart-subheading text-[9.5px] text-slate-500 dark:text-slate-400 print:!text-slate-600 leading-normal mt-0">
                     Cadera/Pompa, Cintura, Pecho, Brazo, Muslo
                   </p>
                 </div>
@@ -509,6 +513,7 @@
 
             <div class="chart-container-2x2 relative w-full">
               <canvas ref="chartCircunferenciasRef"></canvas>
+              <img ref="printImgCircunferenciasRef" class="print-chart-img" alt="Circunferencias Corporales" />
             </div>
           </div>
 
@@ -520,11 +525,11 @@
             <div class="flex items-start justify-between gap-2 mb-1.5">
               <div class="flex items-start gap-1.5 min-w-0">
                 <span class="text-sm shrink-0 mt-0.5">🧮</span>
-                <div class="min-w-0">
-                  <h3 class="chart-heading text-xs sm:text-sm font-bold text-slate-900 dark:text-white print:!text-slate-900 leading-snug break-words">
+                <div class="chart-title-group min-w-0">
+                  <h3 class="chart-heading text-xs sm:text-sm font-bold text-slate-900 dark:text-white print:!text-slate-900 leading-tight mb-1 break-words">
                     5. Indicadores Antropométricos
                   </h3>
-                  <p class="text-[9.5px] text-slate-500 dark:text-slate-400 print:!text-slate-600 leading-normal mt-0.5">
+                  <p class="chart-subheading text-[9.5px] text-slate-500 dark:text-slate-400 print:!text-slate-600 leading-normal mt-0">
                     IMC (izq) e Índice Cintura-Cadera (der)
                   </p>
                 </div>
@@ -539,6 +544,7 @@
             </div>
             <div class="chart-container-2x2 relative w-full">
               <canvas ref="chartIndicadoresRef"></canvas>
+              <img ref="printImgIndicadoresRef" class="print-chart-img" alt="Indicadores Antropométricos" />
             </div>
           </div>
 
@@ -662,6 +668,12 @@ const chartDonaRef = ref<HTMLCanvasElement | null>(null);
 const chartPlieguesRef = ref<HTMLCanvasElement | null>(null);
 const chartCircunferenciasRef = ref<HTMLCanvasElement | null>(null);
 const chartIndicadoresRef = ref<HTMLCanvasElement | null>(null);
+
+const printImgComposicionRef = ref<HTMLImageElement | null>(null);
+const printImgDonaRef = ref<HTMLImageElement | null>(null);
+const printImgPlieguesRef = ref<HTMLImageElement | null>(null);
+const printImgCircunferenciasRef = ref<HTMLImageElement | null>(null);
+const printImgIndicadoresRef = ref<HTMLImageElement | null>(null);
 
 const isGeneratingPdf = ref<boolean>(false);
 
@@ -1365,7 +1377,33 @@ function exportExcel() {
   ProgressFileParserService.exportToExcel(chronologicalRecords.value, props.patientName);
 }
 
-function triggerPrint() {
+function syncPrintImages() {
+  const syncImg = (canvas: HTMLCanvasElement | null, img: HTMLImageElement | null) => {
+    if (!canvas || !img) return;
+    try {
+      if (canvas.width > 0 && canvas.height > 0) {
+        const dataUrl = canvas.toDataURL('image/png');
+        if (dataUrl && dataUrl.length > 50) {
+          img.src = dataUrl;
+        }
+      }
+    } catch (e) {
+      console.warn('[PROGRESS] Error syncing print chart image:', e);
+    }
+  };
+
+  syncImg(chartComposicionRef.value, printImgComposicionRef.value);
+  syncImg(chartDonaRef.value, printImgDonaRef.value);
+  syncImg(chartPlieguesRef.value, printImgPlieguesRef.value);
+  syncImg(chartCircunferenciasRef.value, printImgCircunferenciasRef.value);
+  syncImg(chartIndicadoresRef.value, printImgIndicadoresRef.value);
+}
+
+async function triggerPrint() {
+  renderAllCharts();
+  await nextTick();
+  syncPrintImages();
+  await new Promise((r) => setTimeout(r, 100));
   window.print();
 }
 
@@ -1381,7 +1419,7 @@ async function capturePageForPdf(sourceElement: HTMLElement): Promise<{ dataUrl:
   sandbox.style.backgroundColor = '#ffffff';
   sandbox.style.color = '#0f172a';
   sandbox.style.zIndex = '-9999';
-  sandbox.className = 'light bg-white text-slate-900';
+  sandbox.className = 'light bg-white text-slate-900 is-pdf-export';
 
   // 2. Clone the page element
   const clone = sourceElement.cloneNode(true) as HTMLElement;
@@ -1390,27 +1428,62 @@ async function capturePageForPdf(sourceElement: HTMLElement): Promise<{ dataUrl:
   clone.style.backgroundColor = '#ffffff';
   clone.style.color = '#0f172a';
   clone.style.boxSizing = 'border-box';
+  clone.classList.add('is-pdf-export');
 
   // 3. Convert all source canvases directly to <img> in clone (100% sharp Chart.js images)
   const sourceCanvases = sourceElement.querySelectorAll<HTMLCanvasElement>('canvas');
   const clonedCanvases = clone.querySelectorAll<HTMLCanvasElement>('canvas');
+  const imgLoadPromises: Promise<void>[] = [];
+
   sourceCanvases.forEach((src, i) => {
     const dest = clonedCanvases[i];
     if (dest) {
+      let dataUrl = '';
+      try {
+        if (src.width > 0 && src.height > 0) {
+          dataUrl = src.toDataURL('image/png');
+        }
+      } catch (err) {
+        console.warn('[PDF] Error extracting canvas dataURL:', err);
+      }
+
       const img = document.createElement('img');
-      img.src = src.toDataURL('image/png');
       img.style.width = '100%';
       img.style.height = '100%';
       img.style.display = 'block';
       img.style.objectFit = 'contain';
+
+      if (dataUrl) {
+        const p = new Promise<void>((resolve) => {
+          img.onload = () => {
+            if (typeof img.decode === 'function') {
+              img.decode().then(resolve).catch(resolve);
+            } else {
+              resolve();
+            }
+          };
+          img.onerror = () => resolve();
+          img.src = dataUrl;
+          if (img.complete) {
+            if (typeof img.decode === 'function') {
+              img.decode().then(resolve).catch(resolve);
+            } else {
+              resolve();
+            }
+          }
+        });
+        imgLoadPromises.push(p);
+      }
+
       dest.parentNode?.replaceChild(img, dest);
     }
   });
 
-  // 4. Remove all no-print elements from clone
+  // Remove duplicate print-only images and no-print elements from clone
+  clone.querySelectorAll('.print-chart-img').forEach((el) => el.remove());
   clone.querySelectorAll('.no-print').forEach((el) => el.remove());
 
-  // 5. Remove dark classes & force clean light colors
+  // 4. Remove dark classes & force clean light colors
   clone.querySelectorAll<HTMLElement>('*').forEach((el) => {
     const classesToRemove: string[] = [];
     el.classList.forEach((cls) => {
@@ -1433,15 +1506,15 @@ async function capturePageForPdf(sourceElement: HTMLElement): Promise<{ dataUrl:
     }
   });
 
-  // 6. Force 5-column grid on summary cards in clone
+  // 5. Force 5-column grid on summary cards in clone
   const gridContainer = clone.querySelector<HTMLElement>('.print-card-grid');
   if (gridContainer) {
     gridContainer.style.display = 'grid';
     gridContainer.style.gridTemplateColumns = 'repeat(5, minmax(0, 1fr))';
-    gridContainer.style.gap = '8px';
+    gridContainer.style.gap = '6px';
   }
 
-  // 7. Force 2x2 grid on secondary charts in clone
+  // 6. Force 2x2 grid on secondary charts in clone
   const secondaryGrid = clone.querySelector<HTMLElement>('.secondary-charts-grid');
   if (secondaryGrid) {
     secondaryGrid.style.display = 'grid';
@@ -1449,7 +1522,7 @@ async function capturePageForPdf(sourceElement: HTMLElement): Promise<{ dataUrl:
     secondaryGrid.style.gap = '10px';
   }
 
-  // 8. Ensure standardized clinical footer is styled with exact sage green theme in clone
+  // 7. Ensure standardized clinical footer is styled with exact sage green theme in clone
   const footer = clone.querySelector<HTMLElement>('.sheet-footer');
   if (footer) {
     footer.style.display = 'flex';
@@ -1478,9 +1551,12 @@ async function capturePageForPdf(sourceElement: HTMLElement): Promise<{ dataUrl:
     contactGrid.style.color = '#43512b';
   }
 
-
   sandbox.appendChild(clone);
   document.body.appendChild(sandbox);
+
+  // Wait for all canvas images in clone to be completely decoded
+  await Promise.all(imgLoadPromises);
+  await new Promise((r) => setTimeout(r, 60));
 
   try {
     const dataUrl = await toJpeg(clone, {
@@ -1512,6 +1588,13 @@ async function downloadPDF() {
   isGeneratingPdf.value = true;
 
   try {
+    // 0. Ensure all active charts are completely rendered and updated
+    renderAllCharts();
+    await nextTick();
+    await new Promise((r) => setTimeout(r, 120));
+    syncPrintImages();
+    await nextTick();
+
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -1564,7 +1647,9 @@ async function downloadPDF() {
 onMounted(() => {
   nextTick(() => {
     renderAllCharts();
+    setTimeout(syncPrintImages, 300);
   });
+  window.addEventListener('beforeprint', syncPrintImages);
 });
 
 watch(
@@ -1572,12 +1657,14 @@ watch(
   () => {
     nextTick(() => {
       renderAllCharts();
+      setTimeout(syncPrintImages, 300);
     });
   },
   { deep: true }
 );
 
 onBeforeUnmount(() => {
+  window.removeEventListener('beforeprint', syncPrintImages);
   destroyAllCharts();
 });
 </script>
@@ -1590,6 +1677,33 @@ onBeforeUnmount(() => {
 .chart-container-2x2 {
   height: 230px;
   position: relative;
+}
+
+.chart-title-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.chart-heading {
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+  margin-top: 0;
+  margin-bottom: 2px;
+  display: block;
+}
+
+.chart-subheading {
+  font-size: 9.5px;
+  line-height: 1.35;
+  margin-top: 0;
+  margin-bottom: 0;
+  display: block;
+}
+
+.print-chart-img {
+  display: none !important;
 }
 
 @page {
@@ -1686,12 +1800,42 @@ onBeforeUnmount(() => {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
     margin-bottom: 0 !important;
-    padding: 8px 10px !important;
+    padding: 6px 7px !important;
     box-sizing: border-box !important;
+    min-width: 0 !important;
   }
 
-  .chart-heading, h1, h2, h3, h4, p, span, strong {
-    color: #0f172a !important;
+  .metric-title {
+    font-size: 8.5px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    letter-spacing: -0.02em !important;
+    line-height: 1.15 !important;
+  }
+
+  .metric-actual {
+    font-size: 15px !important;
+    line-height: 1.1 !important;
+    white-space: nowrap !important;
+  }
+
+  .metric-unit {
+    font-size: 8.5px !important;
+    white-space: nowrap !important;
+  }
+
+  .metric-initial {
+    font-size: 8px !important;
+    white-space: nowrap !important;
+    line-height: 1.1 !important;
+  }
+
+  .metric-delta {
+    font-size: 7.5px !important;
+    padding: 1.5px 5px !important;
+    white-space: nowrap !important;
+    line-height: 1.1 !important;
   }
 
   .achievements-banner {
@@ -1701,16 +1845,83 @@ onBeforeUnmount(() => {
     border: 1px solid #cbd5e1 !important;
     border-radius: 12px !important;
     box-shadow: none !important;
-    padding: 7px 10px !important;
+    padding: 8px 10px !important;
     margin-bottom: 0 !important;
     box-sizing: border-box !important;
   }
 
+  .achievements-header {
+    margin-bottom: 5px !important;
+    padding-bottom: 3px !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 6px !important;
+  }
+
+  .achievements-header h3 {
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    line-height: 1.2 !important;
+    margin: 0 !important;
+    color: #0f172a !important;
+  }
+
+  .streak-badge {
+    font-size: 8px !important;
+    padding: 1.5px 6px !important;
+    white-space: nowrap !important;
+  }
+
+  .achievements-list {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 4px 6px !important;
+  }
+
   .achievement-pill {
-    padding: 2px 7px !important;
-    font-size: 9px !important;
+    padding: 2.5px 7px !important;
+    font-size: 8.5px !important;
+    line-height: 1.15 !important;
     border: 1px solid #cbd5e1 !important;
-    border-radius: 8px !important;
+    border-radius: 6px !important;
+    white-space: nowrap !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+  }
+
+  .chart-title-group {
+    display: flex !important;
+    flex-direction: column !important;
+    min-width: 0 !important;
+    margin-bottom: 2px !important;
+  }
+
+  .chart-heading {
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    line-height: 1.25 !important;
+    margin-top: 0 !important;
+    margin-bottom: 2px !important;
+    display: block !important;
+    color: #0f172a !important;
+  }
+
+  .chart-subheading {
+    font-size: 8.5px !important;
+    font-weight: 500 !important;
+    line-height: 1.35 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    display: block !important;
+    color: #475569 !important;
+  }
+
+  .chart-heading, h1, h2, h3, h4, p, span, strong {
+    color: #0f172a !important;
   }
 
   .chart-container-main {
@@ -1771,11 +1982,17 @@ onBeforeUnmount(() => {
     object-fit: contain !important;
   }
 
+  /* In print mode, hide canvas and display the synchronized static image */
   canvas {
-    max-width: 100% !important;
+    display: none !important;
+  }
+
+  .print-chart-img {
+    display: block !important;
     width: 100% !important;
     height: 100% !important;
-    display: block !important;
+    object-fit: contain !important;
+    max-height: 100% !important;
   }
 }
 
@@ -1892,6 +2109,122 @@ onBeforeUnmount(() => {
   background-color: #ffffff !important;
   border-color: #cbd5e1 !important;
   box-shadow: none !important;
+}
+
+/* Metric boxes in PDF Export */
+.is-pdf-export .metric-box {
+  padding: 6px 7px !important;
+  min-width: 0 !important;
+}
+
+.is-pdf-export .metric-title {
+  font-size: 8.5px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.15 !important;
+}
+
+.is-pdf-export .metric-actual {
+  font-size: 15px !important;
+  line-height: 1.1 !important;
+  white-space: nowrap !important;
+}
+
+.is-pdf-export .metric-unit {
+  font-size: 8.5px !important;
+  white-space: nowrap !important;
+}
+
+.is-pdf-export .metric-initial {
+  font-size: 8px !important;
+  white-space: nowrap !important;
+  line-height: 1.1 !important;
+}
+
+.is-pdf-export .metric-delta {
+  font-size: 7.5px !important;
+  padding: 1.5px 5px !important;
+  white-space: nowrap !important;
+  line-height: 1.1 !important;
+}
+
+/* Achievements Banner in PDF Export */
+.is-pdf-export .achievements-banner {
+  padding: 8px 12px !important;
+  margin-bottom: 0 !important;
+}
+
+.is-pdf-export .achievements-header {
+  margin-bottom: 6px !important;
+  padding-bottom: 4px !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+}
+
+.is-pdf-export .achievements-header h3 {
+  font-size: 11.5px !important;
+  font-weight: 800 !important;
+  line-height: 1.25 !important;
+  margin: 0 !important;
+  color: #0f172a !important;
+}
+
+.is-pdf-export .streak-badge {
+  font-size: 8.5px !important;
+  padding: 2px 7px !important;
+  white-space: nowrap !important;
+}
+
+.is-pdf-export .achievements-list {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 5px 7px !important;
+}
+
+.is-pdf-export .achievement-pill {
+  padding: 3px 8px !important;
+  font-size: 8.5px !important;
+  line-height: 1.2 !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 6px !important;
+  white-space: nowrap !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+/* Chart Title and Subtitle in PDF Export */
+.is-pdf-export .chart-title-group {
+  display: flex !important;
+  flex-direction: column !important;
+  min-width: 0 !important;
+  margin-bottom: 2px !important;
+}
+
+.is-pdf-export .chart-heading {
+  font-size: 11.5px !important;
+  font-weight: 800 !important;
+  line-height: 1.25 !important;
+  margin-top: 0 !important;
+  margin-bottom: 3px !important;
+  display: block !important;
+  color: #0f172a !important;
+}
+
+.is-pdf-export .chart-subheading {
+  font-size: 9px !important;
+  font-weight: 500 !important;
+  line-height: 1.35 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  display: block !important;
+  color: #475569 !important;
 }
 
 .is-pdf-export .sheet-footer {

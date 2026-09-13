@@ -39,7 +39,11 @@ REGLAS DE INTERPRETACIÓN CONTEXTUAL Y NORMALIZACIÓN:
      * Si es verdura o fruta de platillo donde el contexto amerita una porción sugerida (ej. 150g para ensalada, 100g para verduras guisadas, 1 pieza para fruta), asigna la porción estándar estimada y en "notes" aclara "Porción sugerida al gusto".
      * Si es condimento o sazón libre (sal, pimienta, etc.), coloca null y unit "al gusto".
 5. "unit": Unidad de medida canónica ("g", "kg", "ml", "L", "pieza", "rebanada", "tortilla", "lata", "taza", "cucharada", "cucharadita", "scoop", "porción", "al gusto", "unspecified").
-6. "state": Estado ("raw", "cooked", "prepared", "liquid", "piece", "unspecified"). Si dice "cocido/salteado/asado/a la plancha", asigna "cooked". Si dice "fresco/crudo", asigna "raw".
+   - EXCEPCIÓN OBLIGATORIA: Para "Proteína en polvo", la unidad debe ser SIEMPRE "scoop" (y en quantity el número de scoops, ej. 1).
+6. "state": Estado ("raw", "cooked", "prepared", "liquid", "piece", "unspecified").
+   - REGLA CLÍNICA DE PROTEÍNAS: Para TODAS las proteínas (pollo, carnes de res o cerdo, pescados, atún, mariscos, huevos, claras, etc.), el estado DEBE SER SIEMPRE "raw" (crudo), ya que en nutrición clínica las porciones y las compras de proteína se calculan en peso crudo.
+   - La única excepción es "Proteína en polvo", la cual debe tener unit: "scoop" y state: "raw".
+   - Para otros alimentos (como arroz, verduras, pastas), si el texto dice "cocido/salteado", asigna "cooked"; si dice "fresco/crudo", asigna "raw".
 7. "notes": Notas culinarias del platillo (ej. "Para sándwich", "Opción alternativa: Mermelada natural", "Salteadas con poco aceite", "A la plancha", etc.).
 
 ESTRUCTURA EXACTA DEL JSON REQUERIDO:
