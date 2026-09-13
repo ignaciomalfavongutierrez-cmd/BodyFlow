@@ -389,6 +389,16 @@
               </button>
             </div>
 
+            <!-- Direct Print Button -->
+            <button
+              @click="printFromPreview"
+              class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold shadow-md cursor-pointer hover:bg-slate-800 dark:hover:bg-slate-100 transition-all"
+              title="Imprimir directamente en formato horizontal de 1 hoja"
+            >
+              <Printer class="w-3.5 h-3.5 text-emerald-400 dark:text-emerald-600" />
+              <span>Imprimir (1 Hoja)</span>
+            </button>
+
             <!-- Export Buttons -->
             <button
               @click="exportPdfFromPreview"
@@ -473,6 +483,7 @@ import {
   Sparkles,
   Edit2,
   Eye,
+  Printer,
   ZoomIn,
   ZoomOut,
   X
@@ -695,6 +706,12 @@ function resetZoom(level = 1.0) {
 async function exportPdfFromPreview() {
   if (!previewPlan.value) return;
   await exportPdf(previewPlan.value);
+}
+
+function printFromPreview() {
+  if (!previewPlan.value) return;
+  const menu = ensureFallbackMenu(previewPlan.value);
+  MenuExportService.exportMenuToPrint(props.patient, previewPlan.value, menu);
 }
 
 function exportWordFromPreview() {

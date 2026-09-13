@@ -7,7 +7,7 @@
     "dev": "vite",
     "server": "npm run dev --prefix server",
     "build": "vue-tsc -b && vite build",
-    "test": "npx tsx src/services/nutrition/__tests__/nutritionEngine.test.ts && npx tsx src/services/nutrition/__tests__/equivalences.test.ts && npx tsx src/services/patients/__tests__/patientSync.test.ts && npx tsx src/services/nutrition/__tests__/menuParser.test.ts && npx tsx src/services/patients/__tests__/patientOwnership.test.ts && npx tsx src/services/progress/__tests__/progressCalculations.test.ts",
+    "test": "npx tsx src/services/nutrition/__tests__/nutritionEngine.test.ts && npx tsx src/services/nutrition/__tests__/equivalences.test.ts && npx tsx src/services/patients/__tests__/patientSync.test.ts && npx tsx src/services/nutrition/__tests__/menuParser.test.ts && npx tsx src/services/patients/__tests__/patientOwnership.test.ts && npx tsx src/services/progress/__tests__/progressCalculations.test.ts && npx tsx src/services/nutrition/__tests__/menuCompactService.test.ts && npx tsx src/services/nutrition/__tests__/menuExportService.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {

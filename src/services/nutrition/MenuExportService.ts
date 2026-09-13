@@ -9,6 +9,7 @@ import {
   TALIA_LOGO_BASE64,
   TALIA_CLINICAL_CONTACT
 } from './menuExportAssets';
+import { MenuCompactService } from './MenuCompactService';
 
 export interface ShoppingCategoryItem {
   nombre: string;
@@ -326,34 +327,43 @@ export class MenuExportService {
   }
 
   /**
-   * Renderiza el contenido celular de los platillos e ingredientes con viñetas limpias
+   * Renderiza el contenido celular de los platillos e ingredientes optimizado para 1 hoja horizontal.
    */
-  private static renderDishesCellHtml(dishes: DishItem[]): string {
+  private static renderDishesCellHtml(dishes: DishItem[], isCompact = true, isManyMeals = true): string {
     if (!dishes || dishes.length === 0) {
-      return `<div style="text-align: center; color: #94a3b8; font-size: 9px; padding: 2px 0;">—</div>`;
+      return `<div style="text-align: center; color: #94a3b8; font-size: 8px; padding: 1px 0;">—</div>`;
     }
+
+    const titleSize = isManyMeals ? '7.5px' : '8.2px';
+    const ingSize = isManyMeals ? '6.8px' : '7.4px';
 
     return dishes.map(dish => {
       const hasIngs = dish.ingredientes && Array.isArray(dish.ingredientes) && dish.ingredientes.length > 0;
-      let html = '<div style="margin-bottom: 3.5px;">';
+      let html = '<div style="margin-bottom: 2px;">';
+
+      const cleanTitle = isCompact
+        ? MenuCompactService.cleanDishTitle(dish.nombre, hasIngs)
+        : dish.nombre;
 
       if (hasIngs) {
-        // Si el nombre es un título de receta estructurado (ej. "Sándwich integral de")
-        const isRecipe = dish.nombre && !dish.ingredientes.some(i => i.toLowerCase() === dish.nombre.toLowerCase());
+        const isRecipe = cleanTitle && !dish.ingredientes.some(i => i.toLowerCase() === cleanTitle.toLowerCase());
         if (isRecipe) {
-          const formattedTitle = dish.nombre.endsWith(':') ? dish.nombre : `${dish.nombre}:`;
-          html += `<div style="font-weight: 700; color: #1e293b; font-size: 8.5px; margin-bottom: 1.5px;">${formattedTitle}</div>`;
+          const formattedTitle = cleanTitle.endsWith(':') ? cleanTitle : `${cleanTitle}:`;
+          html += `<div style="font-weight: 800; color: #0f172a; font-size: ${titleSize}; line-height: 1.15; margin-bottom: 1px;">${formattedTitle}</div>`;
         }
-        html += '<ul style="margin: 0; padding-left: 11px; list-style-type: disc; font-size: 8px; color: #334155; line-height: 1.3;">';
+        html += `<div style="margin: 0; padding: 0; font-size: ${ingSize}; color: #334155; line-height: 1.15;">`;
         dish.ingredientes.forEach(ing => {
-          html += `<li style="margin-bottom: 1px;">${ing}</li>`;
+          const cleanIng = isCompact ? MenuCompactService.abbreviateIngredient(ing) : ing;
+          if (cleanIng) {
+            html += `<div style="margin-bottom: 0.5px; white-space: normal;">• ${cleanIng}</div>`;
+          }
         });
-        html += '</ul>';
+        html += '</div>';
       } else {
-        const porcionStr = dish.porcion ? ` <span style="color: #64748b;">(${dish.porcion})</span>` : '';
-        html += `<div style="font-size: 8px; color: #1e293b; line-height: 1.3;">• ${dish.nombre}${porcionStr}</div>`;
+        const porcionStr = dish.porcion ? ` <span style="color: #64748b; font-size: 6.8px;">(${dish.porcion})</span>` : '';
+        html += `<div style="font-size: ${titleSize}; font-weight: 700; color: #0f172a; line-height: 1.15;">• ${cleanTitle}${porcionStr}</div>`;
         if (dish.descripcion) {
-          html += `<div style="font-size: 7.5px; color: #64748b; font-style: italic; margin-left: 6px;">${dish.descripcion}</div>`;
+          html += `<div style="font-size: 6.8px; color: #64748b; font-style: italic; margin-left: 4px; line-height: 1.1;">${dish.descripcion}</div>`;
         }
       }
 
@@ -557,7 +567,8 @@ export class MenuExportService {
     // Detección dinámica de secciones activas según el plan y menú
     const sectionsToRender = this.getActiveMealSections(plan, menu);
     const isFewMeals = sectionsToRender.length <= 3;
-    const cellPadding = isFewMeals ? '7px 6px' : '4px 6px';
+    const isManyMeals = sectionsToRender.length >= 5;
+    const cellPadding = isFewMeals ? '5px 4px' : isManyMeals ? '2px 3px' : '3px 4px';
 
     // Construcción de filas de la tabla
     let tableBodyHtml = '';
@@ -567,7 +578,7 @@ export class MenuExportService {
       <thead>
         <tr>
           ${displayDays.map(d => `
-            <th style="border: 1px solid #cbd5e1; border-bottom: 2px solid #a8b792; padding: 5px 2px; text-align: center; font-size: 10.5px; font-weight: 800; color: #1e293b; background-color: #f8fafc; text-transform: uppercase; width: ${colWidthPct}%;">
+            <th style="border: 1px solid #cbd5e1; border-bottom: 2px solid #a8b792; padding: 3px 2px; text-align: center; font-size: 9px; font-weight: 800; color: #1e293b; background-color: #f8fafc; text-transform: uppercase; width: ${colWidthPct}%;">
               ${d.label}
             </th>
           `).join('')}
@@ -581,19 +592,19 @@ export class MenuExportService {
       // 1. Barra de sección de comida con icono nítido y horario
       tableBodyHtml += `
         <tr style="background-color: ${sec.bg};">
-          <td colspan="${numCols}" style="padding: 3px 10px; border: 1px solid #cbd5e1; border-top: 1.5px solid #94a3b8; text-align: left;">
+          <td colspan="${numCols}" style="padding: 2px 8px; border: 1px solid #cbd5e1; border-top: 1.5px solid #94a3b8; text-align: left;">
             <table style="width: 100%; border-collapse: collapse; border: none;">
               <tr>
                 <td style="text-align: left; vertical-align: middle; border: none; padding: 0;">
-                  <span style="font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Symbol', sans-serif; font-size: 13px; line-height: 1; vertical-align: middle; margin-right: 5px; display: inline-block;">${sec.icon || '🍽️'}</span>
-                  <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background-color: ${sec.dotColor}; vertical-align: middle; margin-right: 5px;"></span>
-                  <span style="font-size: 9.5px; font-weight: 900; color: ${sec.textColor}; letter-spacing: 0.8px; text-transform: uppercase; vertical-align: middle;">
+                  <span style="font-family: 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', 'Segoe UI Symbol', sans-serif; font-size: 11px; line-height: 1; vertical-align: middle; margin-right: 4px; display: inline-block;">${sec.icon || '🍽️'}</span>
+                  <span style="display: inline-block; width: 5px; height: 5px; border-radius: 50%; background-color: ${sec.dotColor}; vertical-align: middle; margin-right: 4px;"></span>
+                  <span style="font-size: 8px; font-weight: 900; color: ${sec.textColor}; letter-spacing: 0.6px; text-transform: uppercase; vertical-align: middle;">
                     ${sec.label}
                   </span>
                 </td>
                 ${sec.defaultTime ? `
                   <td style="text-align: right; vertical-align: middle; border: none; padding: 0;">
-                    <span style="font-size: 8.5px; font-weight: 800; color: ${sec.textColor}; opacity: 0.85; letter-spacing: 0.4px;">
+                    <span style="font-size: 7.5px; font-weight: 800; color: ${sec.textColor}; opacity: 0.85; letter-spacing: 0.3px;">
                       ⏰ ${sec.defaultTime}
                     </span>
                   </td>
@@ -610,8 +621,8 @@ export class MenuExportService {
           ${displayDays.map(day => {
             const dishes = this.getDishesForSection(day.comidas, sec);
             return `
-              <td style="border: 1px solid #cbd5e1; padding: ${cellPadding}; vertical-align: top; background-color: transparent; font-size: 8.5px; line-height: 1.35; color: #1e293b;">
-                ${this.renderDishesCellHtml(dishes)}
+              <td style="border: 1px solid #cbd5e1; padding: ${cellPadding}; vertical-align: top; background-color: transparent; font-size: 8px; line-height: 1.2; color: #1e293b;">
+                ${this.renderDishesCellHtml(dishes, true, isManyMeals)}
               </td>
             `;
           }).join('')}
@@ -624,10 +635,10 @@ export class MenuExportService {
     const guidelines = this.getClinicalGuidelines(plan);
 
     const containerStyle = options.isForWord
-      ? `width: 100%; box-sizing: border-box; padding: 6px 10px; background-color: #ffffff; font-family: 'Calibri', 'Arial', sans-serif; color: #0f172a;`
+      ? `width: 100%; box-sizing: border-box; padding: 4px 6px; background-color: #ffffff; font-family: 'Calibri', 'Arial', sans-serif; color: #0f172a;`
       : options.isForPdf
-        ? `width: 1200px; min-width: 1200px; min-height: 840px; box-sizing: border-box; padding: 18px 24px; background-color: #ffffff; position: relative; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Outfit', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #0f172a; overflow: hidden;`
-        : `width: 100%; max-width: 1200px; min-height: 760px; box-sizing: border-box; padding: 18px 24px; background-color: #ffffff; position: relative; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Outfit', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #0f172a; overflow: hidden; margin: 0 auto;`;
+        ? `width: 1200px; min-width: 1200px; box-sizing: border-box; padding: 10px 14px; background-color: #ffffff; position: relative; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Outfit', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #0f172a; overflow: hidden;`
+        : `width: 100%; max-width: 1200px; box-sizing: border-box; padding: 10px 14px; background-color: #ffffff; position: relative; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Outfit', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #0f172a; overflow: hidden; margin: 0 auto;`;
 
     const watermarkHtml = options.isForWord ? '' : `
       <!-- MARCA DE AGUA CENTRAL (Manzana Talia Tinoco - Perfectamente centrada sobre la tabla) -->
@@ -636,11 +647,12 @@ export class MenuExportService {
         top: 52%;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: 440px;
-        max-width: 48%;
+        width: 380px;
+        max-width: 42%;
         pointer-events: none;
         z-index: 10;
         text-align: center;
+        opacity: 0.85;
       ">
         <img src="${TALIA_WATERMARK_BASE64}" style="width: 100%; height: auto; object-fit: contain; display: block;" alt="Marca de Agua" />
       </div>
@@ -650,11 +662,11 @@ export class MenuExportService {
       <div class="clinical-sheet-container" style="${containerStyle}">
         ${watermarkHtml}
 
-        <!-- ENCABEZADO INSTITUCIONAL TALIA TINOCO FABIÁN (Tabla para perfecta alineación en Word y PDF) -->
+        <!-- ENCABEZADO INSTITUCIONAL TALIA TINOCO FABIÁN -->
         <table style="
           width: 100%;
           border-collapse: collapse;
-          margin-bottom: 6px;
+          margin-bottom: 4px;
           border: none;
           position: relative;
           z-index: 2;
@@ -664,22 +676,22 @@ export class MenuExportService {
             <td style="width: 32%; vertical-align: middle; border: none; text-align: left;">
               <table style="border-collapse: collapse; border: none;">
                 <tr>
-                  <td style="vertical-align: middle; padding-right: 8px; border: none;">
-                    <img src="${TALIA_LOGO_BASE64}" style="width: 48px; height: 48px; object-fit: contain; display: block;" alt="Talia Logo" />
+                  <td style="vertical-align: middle; padding-right: 6px; border: none;">
+                    <img src="${TALIA_LOGO_BASE64}" style="width: 36px; height: 36px; object-fit: contain; display: block;" alt="Talia Logo" />
                   </td>
                   <td style="vertical-align: middle; border: none;">
-                    <div style="font-size: 13.5px; font-weight: 900; color: #43512b; letter-spacing: 0.8px; line-height: 1.15; white-space: nowrap;">TALIA TINOCO FABIÁN</div>
-                    <div style="font-size: 8px; font-weight: 800; color: #687e43; letter-spacing: 2.8px; text-transform: uppercase; margin-top: 2px;">NUTRICIÓN CLÍNICA & DEPORTIVA</div>
+                    <div style="font-size: 11.5px; font-weight: 900; color: #43512b; letter-spacing: 0.6px; line-height: 1.1; white-space: nowrap;">TALIA TINOCO FABIÁN</div>
+                    <div style="font-size: 7px; font-weight: 800; color: #687e43; letter-spacing: 2px; text-transform: uppercase; margin-top: 1px;">NUTRICIÓN CLÍNICA & DEPORTIVA</div>
                   </td>
                 </tr>
               </table>
             </td>
 
-            <!-- Centro: Banner Verde Salvia "MENÚ" (Geométricamente centrado en todo entorno) -->
+            <!-- Centro: Banner Verde Salvia "MENÚ" -->
             <td style="width: 36%; vertical-align: middle; border: none; text-align: center;">
-              <table style="display: inline-table; margin: 0 auto; border-collapse: collapse; border: none; background-color: #a8b792; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+              <table style="display: inline-table; margin: 0 auto; border-collapse: collapse; border: none; background-color: #a8b792; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                 <tr>
-                  <td style="height: 32px; vertical-align: middle; text-align: center; padding: 0 40px; border: none; font-size: 16px; font-weight: 900; color: #1a2512; text-transform: uppercase; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; line-height: 1;">
+                  <td style="height: 24px; vertical-align: middle; text-align: center; padding: 0 28px; border: none; font-size: 13px; font-weight: 900; color: #1a2512; text-transform: uppercase; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; line-height: 1;">
                     M&nbsp;&nbsp;E&nbsp;&nbsp;N&nbsp;&nbsp;Ú
                   </td>
                 </tr>
@@ -690,16 +702,16 @@ export class MenuExportService {
             <td style="width: 32%; vertical-align: middle; border: none; text-align: right;">
               <div style="
                 display: inline-block;
-                border: 1.5px solid #cbd5e1;
-                border-radius: 8px;
-                padding: 4px 14px;
+                border: 1.2px solid #cbd5e1;
+                border-radius: 6px;
+                padding: 2px 10px;
                 background-color: #ffffff;
                 text-align: center;
               ">
-                <div style="font-size: 7.5px; font-weight: 800; color: #64748b; letter-spacing: 0.8px; text-transform: uppercase;">
+                <div style="font-size: 6.5px; font-weight: 800; color: #64748b; letter-spacing: 0.6px; text-transform: uppercase;">
                   CÉDULA PROFESIONAL
                 </div>
-                <div style="font-size: 11.5px; font-weight: 800; color: #0f172a; margin-top: 1px;">
+                <div style="font-size: 10px; font-weight: 800; color: #0f172a; margin-top: 0.5px;">
                   ${TALIA_CLINICAL_CONTACT.cedula}
                 </div>
               </div>
@@ -707,33 +719,33 @@ export class MenuExportService {
           </tr>
         </table>
 
-        <!-- SUB-BARRA METADATOS DEL PACIENTE (Caja clínica estilizada y perfectamente alineada) -->
+        <!-- SUB-BARRA METADATOS DEL PACIENTE -->
         <div style="
-          border: 1.5px solid #cbd5e1;
-          border-radius: 8px;
+          border: 1.2px solid #cbd5e1;
+          border-radius: 6px;
           background-color: #f8fafc;
-          margin-bottom: 8px;
-          padding: 6px 14px;
+          margin-bottom: 4px;
+          padding: 3px 10px;
           position: relative;
           z-index: 2;
         ">
           <table style="width: 100%; border-collapse: collapse; border: none;">
             <tr>
               <td style="width: 28%; text-align: left; vertical-align: middle; border: none;">
-                <div style="font-size: 7.5px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px;">PACIENTE</div>
-                <div style="font-size: 11.5px; font-weight: 800; color: #0f172a; margin-top: 1px;">${patient.nombre}</div>
+                <div style="font-size: 6.8px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px;">PACIENTE</div>
+                <div style="font-size: 10px; font-weight: 800; color: #0f172a; margin-top: 0.5px;">${patient.nombre}</div>
               </td>
               <td style="width: 32%; text-align: left; vertical-align: middle; border: none;">
-                <div style="font-size: 7.5px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px;">PLAN ASIGNADO</div>
-                <div style="font-size: 11.5px; font-weight: 800; color: #0f172a; margin-top: 1px;">${plan.nombre}</div>
+                <div style="font-size: 6.8px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px;">PLAN ASIGNADO</div>
+                <div style="font-size: 10px; font-weight: 800; color: #0f172a; margin-top: 0.5px;">${plan.nombre}</div>
               </td>
               <td style="width: 24%; text-align: left; vertical-align: middle; border: none;">
-                <div style="font-size: 7.5px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px;">OBJETIVO CLÍNICO</div>
-                <div style="font-size: 11px; font-weight: 800; color: #15803d; margin-top: 1px;">🎯 ${plan.objetivo || 'Personalizado'}</div>
+                <div style="font-size: 6.8px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px;">OBJETIVO CLÍNICO</div>
+                <div style="font-size: 9.5px; font-weight: 800; color: #15803d; margin-top: 0.5px;">🎯 ${plan.objetivo || 'Personalizado'}</div>
               </td>
               <td style="width: 16%; text-align: right; vertical-align: middle; border: none;">
-                <div style="font-size: 7.5px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px;">FECHA</div>
-                <div style="font-size: 11px; font-weight: 700; color: #334155; margin-top: 1px;">📅 ${plan.fechaAsignacion}</div>
+                <div style="font-size: 6.8px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px;">FECHA</div>
+                <div style="font-size: 9.5px; font-weight: 700; color: #334155; margin-top: 0.5px;">📅 ${plan.fechaAsignacion}</div>
               </td>
             </tr>
           </table>
@@ -746,70 +758,70 @@ export class MenuExportService {
           table-layout: fixed;
           position: relative;
           z-index: 2;
-          margin-bottom: 8px;
+          margin-bottom: 4px;
         ">
           ${tableBodyHtml}
         </table>
 
-        <!-- SECCIÓN INFERIOR: RESUMEN DE METAS Y CONTACTO CLÍNICO (TaliaClinicalBanner) -->
+        <!-- SECCIÓN INFERIOR: RESUMEN DE METAS Y CONTACTO CLÍNICO -->
         <table style="
           width: 100%;
           border-collapse: collapse;
           border: none;
           position: relative;
           z-index: 2;
-          margin-top: 6px;
+          margin-top: 4px;
         ">
           <tr>
             <!-- Caja Izquierda: Calorías, Macronutrientes e Indicaciones Clínicas Dinámicas -->
             <td style="
               width: 50%;
               vertical-align: top;
-              padding-right: 6px;
+              padding-right: 4px;
               border: none;
             ">
               <div style="
-                border: 2px solid #0f172a;
-                border-radius: 8px;
-                padding: 6px 12px;
+                border: 1.5px solid #0f172a;
+                border-radius: 6px;
+                padding: 4px 8px;
                 background-color: #ffffff;
                 box-sizing: border-box;
-                min-height: 74px;
+                min-height: 48px;
               ">
-                <div style="font-size: 11px; font-weight: 900; color: #0f172a; margin-bottom: 4px; letter-spacing: -0.2px;">
+                <div style="font-size: 9.5px; font-weight: 900; color: #0f172a; margin-bottom: 2px; letter-spacing: -0.2px;">
                   ⚡ ${plan.calorias.toLocaleString()} kcal: ${plan.macros.protein}g proteína • ${plan.macros.carbs}g carbohidratos • ${plan.macros.fat}g grasas
                 </div>
                 <ul style="
                   margin: 0;
-                  padding-left: 14px;
-                  font-size: 8px;
+                  padding-left: 12px;
+                  font-size: 7.2px;
                   color: #334155;
-                  line-height: 1.35;
+                  line-height: 1.25;
                   list-style-type: circle;
                 ">
-                  ${guidelines.map(g => `<li style="margin-bottom: 2px;">${g}</li>`).join('')}
-                  <li style="color: #0369a1; font-weight: 700; margin-bottom: 2px;">
-                    🍽️ Estructura: ${sectionsToRender.length} tiempos de comida al día (${sectionsToRender.map(s => `${s.icon} ${s.label}`).join(' • ')}).
+                  ${guidelines.slice(0, 2).map(g => `<li style="margin-bottom: 1px;">${g}</li>`).join('')}
+                  <li style="color: #0369a1; font-weight: 700; margin-bottom: 1px;">
+                    🍽️ ${sectionsToRender.length} comidas al día: ${sectionsToRender.map(s => `${s.icon} ${s.label}`).join(' • ')}
                   </li>
-                  ${plan.notas ? `<li style="margin-top: 2.5px; color: #047857; font-weight: 700;"><strong>💡 Indicaciones clínicas del profesional:</strong> ${plan.notas}</li>` : ''}
+                  ${plan.notas ? `<li style="margin-top: 1.5px; color: #047857; font-weight: 700;"><strong>💡 Nota:</strong> ${plan.notas}</li>` : ''}
                 </ul>
               </div>
             </td>
 
-            <!-- Caja Derecha: Información de Contacto Profesional (TaliaClinicalBanner Completo) -->
+            <!-- Caja Derecha: Información de Contacto Profesional -->
             <td style="
               width: 50%;
               vertical-align: top;
-              padding-left: 6px;
+              padding-left: 4px;
               border: none;
             ">
               <div style="
                 background-color: #ffffff;
                 border: 1px solid #d4dfc7;
-                border-radius: 12px;
-                padding: 5px 8px;
+                border-radius: 8px;
+                padding: 4px 6px;
                 box-sizing: border-box;
-                min-height: 74px;
+                min-height: 48px;
               ">
                 <table style="width: 100%; border-collapse: collapse; border: none;">
                   <tr>
@@ -818,29 +830,29 @@ export class MenuExportService {
                       <div style="
                         background-color: #f4f7ee;
                         border: 1px solid #d4dfc7;
-                        border-radius: 8px;
-                        padding: 5px 8px;
+                        border-radius: 6px;
+                        padding: 3px 6px;
                       ">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 8.5px; color: #43512b; line-height: 1.4; border: none;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 7.8px; color: #43512b; line-height: 1.3; border: none;">
                           <tr>
-                            <td style="padding: 1px 3px; border: none; width: 50%;">
+                            <td style="padding: 0.5px 2px; border: none; width: 50%;">
                               <span>👤 <strong>Nutrióloga:</strong> ${TALIA_CLINICAL_CONTACT.nutriologa}</span>
                             </td>
-                            <td style="padding: 1px 3px; border: none; width: 50%;">
-                              <span>🪪 <strong>Cédula Profesional:</strong> ${TALIA_CLINICAL_CONTACT.cedula}</span>
+                            <td style="padding: 0.5px 2px; border: none; width: 50%;">
+                              <span>🪪 <strong>Cédula:</strong> ${TALIA_CLINICAL_CONTACT.cedula}</span>
                             </td>
                           </tr>
                           <tr>
-                            <td style="padding: 1px 3px; border: none;">
+                            <td style="padding: 0.5px 2px; border: none;">
                               <span>📍 <strong>Dirección:</strong> ${TALIA_CLINICAL_CONTACT.direccion}</span>
                             </td>
-                            <td style="padding: 1px 3px; border: none;">
-                              <span>📞 <strong>Teléfono / Citas:</strong> ${TALIA_CLINICAL_CONTACT.telefono}</span>
+                            <td style="padding: 0.5px 2px; border: none;">
+                              <span>📞 <strong>Tel:</strong> ${TALIA_CLINICAL_CONTACT.telefono}</span>
                             </td>
                           </tr>
                           <tr>
-                            <td colspan="2" style="padding: 1px 3px; border: none;">
-                              <span>✉️ <strong>Correo Electrónico:</strong> ${TALIA_CLINICAL_CONTACT.correo}</span>
+                            <td colspan="2" style="padding: 0.5px 2px; border: none;">
+                              <span>✉️ <strong>Correo:</strong> ${TALIA_CLINICAL_CONTACT.correo}</span>
                             </td>
                           </tr>
                         </table>
@@ -848,8 +860,8 @@ export class MenuExportService {
                     </td>
 
                     <!-- Logotipo Oficial Talia Tinoco -->
-                    <td style="width: 65px; text-align: center; vertical-align: middle; padding-left: 6px; border: none;">
-                      <img src="${TALIA_LOGO_BASE64}" style="width: 52px; height: 52px; object-fit: contain; display: inline-block;" alt="Talia Logo" />
+                    <td style="width: 48px; text-align: center; vertical-align: middle; padding-left: 4px; border: none;">
+                      <img src="${TALIA_LOGO_BASE64}" style="width: 38px; height: 38px; object-fit: contain; display: inline-block;" alt="Talia Logo" />
                     </td>
                   </tr>
                 </table>
@@ -889,9 +901,9 @@ export class MenuExportService {
           @page Section1 {
             size: 11.0in 8.5in;
             mso-page-orientation: landscape;
-            margin: 0.3in 0.3in 0.3in 0.3in;
-            mso-header-margin: 0.1in;
-            mso-footer-margin: 0.1in;
+            margin: 0.2in 0.25in 0.2in 0.25in;
+            mso-header-margin: 0.08in;
+            mso-footer-margin: 0.08in;
           }
           div.Section1 { 
             page: Section1; 
@@ -908,6 +920,13 @@ export class MenuExportService {
             border-collapse: collapse;
             mso-table-lspace: 0pt;
             mso-table-rspace: 0pt;
+            page-break-inside: avoid;
+          }
+          tr {
+            page-break-inside: avoid;
+          }
+          td {
+            page-break-inside: avoid;
           }
         </style>
       </head>
@@ -1032,5 +1051,87 @@ export class MenuExportService {
       }
     }
   }
+
+  /**
+   * Abre directamente el diálogo de impresión del navegador en formato horizontal (Landscape)
+   * configurado con márgenes y reglas CSS para encajar en 1 sola hoja física.
+   */
+  public static exportMenuToPrint(
+    patient: Patient,
+    plan: PatientDietPlan,
+    menu: DietPlanMenu
+  ): void {
+    const htmlContent = this.generateClinicalMenuHtml(patient, plan, menu, { isForPreview: true });
+
+    const printFrame = document.createElement('iframe');
+    printFrame.style.position = 'fixed';
+    printFrame.style.top = '0';
+    printFrame.style.left = '-9999px';
+    printFrame.style.width = '1200px';
+    printFrame.style.height = '800px';
+    printFrame.style.border = 'none';
+    printFrame.style.zIndex = '-1';
+
+    document.body.appendChild(printFrame);
+
+    const frameDoc = printFrame.contentWindow?.document || printFrame.contentDocument;
+    if (!frameDoc || !printFrame.contentWindow) return;
+
+    frameDoc.open();
+    frameDoc.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Menú - ${patient.nombre} (${plan.calorias} kcal)</title>
+        <style>
+          @page {
+            size: landscape;
+            margin: 4mm 5mm;
+          }
+          * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          html, body {
+            margin: 0;
+            padding: 0;
+            background-color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          }
+          .clinical-sheet-container {
+            width: 100% !important;
+            max-width: none !important;
+            padding: 2mm 3mm !important;
+            page-break-inside: avoid !important;
+            page-break-after: avoid !important;
+          }
+          table {
+            page-break-inside: avoid !important;
+          }
+          tr {
+            page-break-inside: avoid !important;
+          }
+        </style>
+      </head>
+      <body>
+        ${htmlContent}
+      </body>
+      </html>
+    `);
+    frameDoc.close();
+
+    setTimeout(() => {
+      printFrame.contentWindow?.focus();
+      printFrame.contentWindow?.print();
+      setTimeout(() => {
+        if (printFrame.parentNode) {
+          printFrame.parentNode.removeChild(printFrame);
+        }
+      }, 3000);
+    }, 400);
+  }
 }
+
 

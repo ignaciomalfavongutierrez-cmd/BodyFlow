@@ -29,16 +29,39 @@
 
       <!-- Right: Action Buttons -->
       <div class="flex items-center gap-2 flex-wrap">
-        
-        <!-- Preview Button -->
+           <!-- Previsualizar Button -->
         <button
           type="button"
           @click="handleOpenPreview"
-          class="px-3 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-bold transition-all border border-emerald-500/30 flex items-center gap-1.5 cursor-pointer shadow-2xs"
-          title="Previsualizar formato membretado oficial antes de descargar"
+          class="px-3 py-2 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/15 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all border border-slate-200 dark:border-white/10 flex items-center gap-1.5 cursor-pointer"
+          title="Vista previa del menú clínico para impresión"
         >
           <Eye class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
           <span class="hidden sm:inline">Previsualizar</span>
+        </button>
+
+        <!-- Compact Names with AI / Heuristics Button -->
+        <button
+          type="button"
+          @click="handleCompactMenuWithAI"
+          :disabled="isCompactingAi"
+          class="px-3 py-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 hover:bg-purple-100 border border-purple-200 dark:border-purple-800/40 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+          title="Acorta los nombres largos con IA para que el menú quepa en 1 sola hoja horizontal"
+        >
+          <Sparkles v-if="!isCompactingAi" class="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+          <Loader2 v-else class="w-3.5 h-3.5 animate-spin text-purple-600" />
+          <span class="hidden md:inline">{{ isCompactingAi ? 'Optimizando...' : 'Ajustar Nombres (1 Hoja)' }}</span>
+        </button>
+
+        <!-- Direct Print Button -->
+        <button
+          type="button"
+          @click="handleDirectPrint"
+          class="px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 border border-emerald-300 dark:border-emerald-700/50 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+          title="Imprimir directamente en 1 hoja horizontal"
+        >
+          <Printer class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+          <span class="hidden sm:inline">Imprimir</span>
         </button>
 
         <!-- Export Word Button -->
@@ -59,7 +82,7 @@
           class="px-3 py-2 rounded-xl bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/15 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all border border-slate-200 dark:border-white/10 flex items-center gap-1.5 cursor-pointer"
           title="Descargar PDF institucional membretado"
         >
-          <Printer class="w-3.5 h-3.5 text-emerald-500" />
+          <Download class="w-3.5 h-3.5 text-emerald-500" />
           <span class="hidden sm:inline">PDF</span>
         </button>
 
@@ -1080,14 +1103,36 @@
               </button>
             </div>
 
+            <!-- AI Compact in Preview -->
+            <button
+              @click="handleCompactMenuWithAI"
+              :disabled="isCompactingAi"
+              class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-700 text-xs font-bold cursor-pointer hover:bg-purple-100 transition-all disabled:opacity-50"
+              title="Ajustar y acortar nombres con IA para no expandir el menú"
+            >
+              <Sparkles v-if="!isCompactingAi" class="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+              <Loader2 v-else class="w-3.5 h-3.5 animate-spin text-purple-600" />
+              <span class="hidden sm:inline">{{ isCompactingAi ? 'Optimizando...' : 'Ajustar Nombres con IA' }}</span>
+            </button>
+
+            <!-- Direct Print -->
+            <button
+              @click="handleDirectPrint"
+              class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold shadow-md cursor-pointer hover:bg-slate-800 dark:hover:bg-slate-100 transition-all"
+              title="Imprimir directamente en 1 hoja horizontal"
+            >
+              <Printer class="w-3.5 h-3.5 text-emerald-400 dark:text-emerald-600" />
+              <span>Imprimir (1 Hoja)</span>
+            </button>
+
             <!-- Export PDF -->
             <button
               @click="handleExportPDF"
               :disabled="isExportingPdf"
-              class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md cursor-pointer transition-all disabled:opacity-50"
+              class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md cursor-pointer transition-all disabled:opacity-50"
               title="Descargar PDF Oficial"
             >
-              <Printer class="w-3.5 h-3.5" />
+              <Download class="w-3.5 h-3.5" />
               <span class="hidden sm:inline">{{ isExportingPdf ? 'Generando...' : 'Descargar PDF' }}</span>
               <span class="sm:hidden">PDF</span>
             </button>
@@ -1098,7 +1143,7 @@
               class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md cursor-pointer transition-all"
               title="Descargar Word (.doc)"
             >
-              <Download class="w-3.5 h-3.5" />
+              <FileText class="w-3.5 h-3.5" />
               <span class="hidden sm:inline">Word</span>
             </button>
 
@@ -1168,6 +1213,7 @@ import type {
 } from '../../../types/dietMenu';
 import { HEALTHY_DISHES_CATALOG } from '../../../catalog/nutrition/healthyDishesCatalog';
 import { MenuExportService } from '../../../services/nutrition/MenuExportService';
+import { MenuCompactService } from '../../../services/nutrition/MenuCompactService';
 import { useFoodsStore } from '../../../stores/foods';
 import { PatientsService } from '../../../services/patients/patients.service';
 import WhatsAppShareModal from '../modals/WhatsAppShareModal.vue';
@@ -1796,6 +1842,57 @@ async function handleExportPDF() {
     await MenuExportService.exportMenuToPdf(props.patient, props.plan, menuData);
   } finally {
     isExportingPdf.value = false;
+  }
+}
+
+function handleDirectPrint() {
+  MenuExportService.exportMenuToPrint(props.patient, props.plan, menuData);
+}
+
+const isCompactingAi = ref(false);
+
+async function handleCompactMenuWithAI() {
+  if (isCompactingAi.value) return;
+  try {
+    isCompactingAi.value = true;
+    const res = await MenuCompactService.compactMenuWithAI(menuData);
+    if (res.modifiedCount > 0) {
+      menuData.dias = res.menu.dias;
+      const origin = res.aiUsed ? 'con Gemini AI' : 'con optimizador local';
+      toastMessage.value = `¡${res.modifiedCount} nombres de comidas compactados ${origin} para caber en 1 hoja!`;
+      showToast.value = true;
+      setTimeout(() => { showToast.value = false; }, 4000);
+      if (showPreviewModal.value) {
+        handleOpenPreview();
+      }
+    } else {
+      toastMessage.value = 'Los nombres ya están optimizados para caber en 1 hoja.';
+      showToast.value = true;
+      setTimeout(() => { showToast.value = false; }, 3000);
+    }
+  } catch (err) {
+    console.error('Error compacting menu names with AI:', err);
+    // Fallback local
+    handleCompactMenuLocally();
+  } finally {
+    isCompactingAi.value = false;
+  }
+}
+
+function handleCompactMenuLocally() {
+  const res = MenuCompactService.compactMenuLocally(menuData);
+  if (res.modifiedCount > 0) {
+    menuData.dias = res.menu.dias;
+    toastMessage.value = `¡${res.modifiedCount} nombres de comidas compactados para 1 hoja!`;
+    showToast.value = true;
+    setTimeout(() => { showToast.value = false; }, 4000);
+    if (showPreviewModal.value) {
+      handleOpenPreview();
+    }
+  } else {
+    toastMessage.value = 'Los nombres ya están en formato corto para 1 hoja.';
+    showToast.value = true;
+    setTimeout(() => { showToast.value = false; }, 3000);
   }
 }
 
