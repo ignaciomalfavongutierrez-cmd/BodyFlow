@@ -431,11 +431,6 @@
             <div v-if="apt.acuerdosCompromisos" class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-100">
               <strong class="text-amber-300">Acuerdos:</strong> {{ apt.acuerdosCompromisos }}
             </div>
-
-            <div v-if="apt.notasEvolucion" class="p-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-slate-300 font-mono whitespace-pre-line leading-relaxed">
-              <strong class="text-indigo-400 font-sans block mb-1">Notas del Especialista (SOAP):</strong>
-              {{ apt.notasEvolucion }}
-            </div>
           </div>
         </div>
       </section>
@@ -682,7 +677,6 @@ import {
 import { useAuthStore } from '../stores/auth';
 import { useUserStore } from '../stores/user';
 import { PatientsService } from '../services/patients/patients.service';
-import { PatientSyncService } from '../services/patients/PatientSyncService';
 import { PersonalTrackingService } from '../services/progress/PersonalTrackingService';
 import type { Patient, PatientAppointment, AppointmentStatus } from '../types/patient';
 import type { ClinicalRecord } from '../types/patientProgress';
@@ -748,7 +742,7 @@ const upcomingAppointment = computed(() => {
 });
 
 const latestAppointmentWithNotes = computed(() => {
-  return appointments.value.find(a => Boolean(a.acuerdosCompromisos || a.notasEvolucion));
+  return appointments.value.find(a => Boolean(a.acuerdosCompromisos));
 });
 
 const reversedRecords = computed(() => {
@@ -882,16 +876,8 @@ const clinicalStats = computed(() => {
 async function loadData() {
   isLoading.value = true;
   try {
-    // 1. Check if linked via profile or search by email
-    let patientId = userStore.profile.linkedPatientId;
-
-    if (!patientId && authStore.user?.email) {
-      const found = await PatientSyncService.findPatientByEmail(authStore.user.email);
-      if (found) {
-        patientId = found.id;
-        await userStore.updateProfile({ linkedPatientId: found.id });
-      }
-    }
+    // 1. Check if linked via profile
+    const patientId = userStore.profile.linkedPatientId;
 
     if (patientId) {
       // Linked with Talia Tinoco

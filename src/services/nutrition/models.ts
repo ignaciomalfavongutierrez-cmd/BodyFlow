@@ -18,9 +18,13 @@ export interface NutritionGoals {
   goal: string // 'cut' | 'maintain' | 'bulk'
 }
 
+export type UserRole = 'nutritionist' | 'patient';
+
 export interface UserProfile extends PhysicalData, NutritionGoals {
   name?: string
   email?: string
+  /** Account authorization role: 'nutritionist' grants clinician tools; 'patient' or undefined defaults to consumer */
+  role?: UserRole
   macroTargets: MacroTargets
   /** Backup of app-calculated (Mifflin-St Jeor) targets before meal plan override */
   tdeeTargets?: MacroTargets

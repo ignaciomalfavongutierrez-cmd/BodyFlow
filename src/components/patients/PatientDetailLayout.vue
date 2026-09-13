@@ -1,8 +1,30 @@
 <template>
   <div class="space-y-6 max-w-7xl mx-auto w-full pb-16">
     
+    <!-- LOADING STATE -->
+    <div v-if="isLoading" class="py-16 text-center text-slate-400">
+      <p class="text-sm font-medium animate-pulse">Cargando expediente...</p>
+    </div>
+
+    <!-- ACCESS DENIED / NOT FOUND STATE -->
+    <div v-else-if="notFoundOrDenied" class="p-8 text-center bg-white dark:bg-[#16181d] rounded-2xl border border-slate-200 dark:border-white/10 shadow-sm max-w-lg mx-auto mt-12">
+      <div class="w-12 h-12 mx-auto rounded-full bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center text-amber-500 mb-4">
+        <ShieldAlert class="w-6 h-6" />
+      </div>
+      <h3 class="text-lg font-bold text-slate-900 dark:text-white">Expediente no encontrado o acceso denegado</h3>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">
+        No tienes permisos para consultar este expediente o el paciente no existe.
+      </p>
+      <button 
+        @click="$emit('back')" 
+        class="mt-6 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition cursor-pointer"
+      >
+        Volver al listado
+      </button>
+    </div>
+
     <!-- IMMERSIVE MENU DESIGNER VIEW -->
-    <div v-if="activePlanForMenu" class="space-y-6">
+    <div v-else-if="activePlanForMenu" class="space-y-6">
       <PatientMenuDesigner
         :patient="patient"
         :plan="activePlanForMenu"
@@ -161,7 +183,8 @@ import {
   Calendar, 
   BarChart3, 
   Utensils, 
-  FolderArchive 
+  FolderArchive,
+  ShieldAlert 
 } from 'lucide-vue-next';
 import type { 
   Patient, 
@@ -205,8 +228,12 @@ type TabId = 'overview' | 'history' | 'appointments' | 'measurements' | 'diet-pl
 const activeTab = ref<TabId>((props.initialTab as TabId) || 'overview');
 const activePlanForMenu = ref<PatientDietPlan | null>(null);
 
+const isLoading = ref(true);
+const notFoundOrDenied = ref(false);
+
 const patient = ref<Patient>({
   id: props.patientId,
+  ownerUid: '',
   nombre: 'Cargando paciente...',
   sexo: 'M',
   status: 'activo',
@@ -259,21 +286,42 @@ async function handleMenuSaved(updatedPlan: PatientDietPlan) {
 
 async function loadPatientData() {
   if (!props.patientId) return;
-  const p = await PatientsService.getPatientById(props.patientId);
-  if (p) {
-    patient.value = p;
-  }
-  clinicalHistory.value = await PatientsService.getClinicalHistory(props.patientId);
-  appointments.value = await PatientsService.getAppointments(props.patientId);
-  measurements.value = await PatientsService.getMeasurements(props.patientId);
-  dietPlans.value = await PatientsService.getPatientDietPlans(props.patientId);
-
-  // If initialPlanId was passed, restore the menu designer immediately
-  if (props.initialPlanId) {
-    const found = dietPlans.value.find(dp => dp.id === props.initialPlanId);
-    if (found) {
-      activePlanForMenu.value = found;
+  isLoading.value = true;
+  notFoundOrDenied.value = false;
+  try {
+    const p = await PatientsService.getPatientById(props.patientId);
+    if (!p) {
+      notFoundOrDenied.value = true;
+      isLoading.value = false;
+      return;
     }
+
+    // Load private clinical data for the nutritionist owner
+    const privClinical = await PatientsService.getPrivateClinical(props.patientId);
+    patient.value = {
+      ...p,
+      ...(privClinical || {}),
+      alertasMedicas: privClinical?.alertasMedicas || p.alertasMedicas || [],
+      notasGenerales: privClinical?.notasGenerales || p.notasGenerales || ''
+    };
+
+    clinicalHistory.value = await PatientsService.getClinicalHistory(props.patientId);
+    appointments.value = await PatientsService.getAppointmentsWithPrivate(props.patientId);
+    measurements.value = await PatientsService.getMeasurementsWithPrivate(props.patientId);
+    dietPlans.value = await PatientsService.getPatientDietPlans(props.patientId);
+
+    // If initialPlanId was passed, restore the menu designer immediately
+    if (props.initialPlanId) {
+      const found = dietPlans.value.find(dp => dp.id === props.initialPlanId);
+      if (found) {
+        activePlanForMenu.value = found;
+      }
+    }
+  } catch (err) {
+    console.error('Error cargando paciente:', err);
+    notFoundOrDenied.value = true;
+  } finally {
+    isLoading.value = false;
   }
 }
 

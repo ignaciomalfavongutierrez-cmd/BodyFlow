@@ -9,7 +9,6 @@ import { CheckCircle, AlertTriangle, LogOut, Wrench, Sun, Moon, RefreshCw, FileU
 import { usePwaStore } from '../stores/pwa'
 import { useAuthStore } from '../stores/auth'
 import { useTheme } from '../composables/useTheme'
-import { isAdminEmail } from '../router'
 import { generateNutritionPlan } from '../services/nutrition/calculations'
 import { PatientSyncService } from '../services/patients/PatientSyncService'
 import type { PhysicalData, NutritionGoals } from '../services/nutrition/models'
@@ -151,39 +150,45 @@ const activeDietSource = computed(() => userStore.profile.activeDietSource || (i
 const hasCustomUpload = computed(() => Array.isArray(userStore.profile.customUploadedWeek) && userStore.profile.customUploadedWeek.length > 0)
 
 async function syncWithNutritionist() {
-  const uid = auth.currentUser?.uid
-  const userEmail = auth.currentUser?.email || userStore.profile.email
-  if (!uid || !userEmail) return
+  const linkedPatientId = userStore.profile.linkedPatientId
+  if (!linkedPatientId) {
+    syncSuccess.value = false
+    syncFeedback.value = 'Tu cuenta aún no está vinculada con un expediente. Solicita a tu nutrióloga que vincule tu cuenta.'
+    return
+  }
 
   isSyncingPatient.value = true
   syncFeedback.value = ''
   syncSuccess.value = false
 
   try {
-    const res = await PatientSyncService.checkAndSyncPatientAccount(uid, userEmail)
-    if (res.linked) {
+    const activePlan = await PatientSyncService.getActiveDietPlan(linkedPatientId)
+    if (activePlan) {
       syncSuccess.value = true
-      if (res.activePlan && res.dayPlans && res.dayPlans.length > 0) {
-        await dietStore.setDiet(res.dayPlans)
-        await userStore.applyNutritionistPlan({
-          id: res.activePlan.id,
-          nombre: res.activePlan.nombre || 'Plan de Nutrición',
-          calorias: res.activePlan.calorias || 0,
-          macros: res.activePlan.macros,
-          objetivo: res.activePlan.objetivo,
-          updatedAt: res.activePlan.updatedAt
-        })
-        syncFeedback.value = `¡Sincronizado con éxito! Plan "${res.activePlan.nombre}" cargado.`
+      if (activePlan.menu) {
+        const dayPlans = PatientSyncService.convertDietPlanMenuToDayPlans(activePlan.menu, activePlan.calorias)
+        if (dayPlans && dayPlans.length > 0) {
+          await dietStore.setDiet(dayPlans)
+          await userStore.applyNutritionistPlan({
+            id: activePlan.id,
+            nombre: activePlan.nombre || 'Plan de Nutrición',
+            calorias: activePlan.calorias || 0,
+            macros: activePlan.macros,
+            objetivo: activePlan.objetivo,
+            updatedAt: activePlan.updatedAt
+          })
+          syncFeedback.value = `¡Sincronizado con éxito! Plan "${activePlan.nombre}" cargado.`
+        }
       } else {
-        syncFeedback.value = 'Expediente vinculado con Lic. Talia Tinoco. La nutrióloga aún no ha activado un menú.'
+        syncFeedback.value = 'Expediente vinculado. La nutrióloga aún no ha activado un menú.'
       }
     } else {
       syncSuccess.value = false
-      syncFeedback.value = `No se encontró un expediente con "${userEmail}". Solicita a tu nutrióloga registrar tu correo.`
+      syncFeedback.value = 'No se encontró un plan activo asignado a tu expediente.'
     }
   } catch (err: any) {
     syncSuccess.value = false
-    syncFeedback.value = 'Error al sincronizar: ' + (err?.message || 'Inténtalo de nuevo.')
+    syncFeedback.value = 'Error al consultar el expediente asignado.'
   } finally {
     isSyncingPatient.value = false
     setTimeout(() => { syncFeedback.value = '' }, 5000)
@@ -259,8 +264,8 @@ async function confirmLogout() {
         </button>
       </section>
 
-      <!-- Admin Utilities Panel (Only for authorized admin emails) -->
-      <section v-if="isAdminEmail(authStore.user?.email)" class="glass-card p-5 border border-emerald-500/30 shadow-lg relative overflow-hidden">
+      <!-- Admin Utilities Panel (Only for authorized nutritionist role) -->
+      <section v-if="userStore.isNutritionist" class="glass-card p-5 border border-emerald-500/30 shadow-lg relative overflow-hidden">
         <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-emerald-500/10 dark:bg-[#19e80d]/10 rounded-full blur-xl pointer-events-none"></div>
         <div class="flex items-center justify-between gap-3">
           <div>

@@ -1,21 +1,350 @@
 rules_version = '2';
 
+/**
+ * ============================================================================
+ * BODYFLOW CLOUD FIRESTORE SECURITY RULES (v2)
+ * ============================================================================
+ *
+ * ⚠️ STATUS: CANDIDATE RULES — NOT SAFE TO DEPLOY YET ⚠️
+ *
+ * MANDATORY DEPLOYMENT GATE:
+ * These rules MUST NOT be deployed to production Firebase until the data migration
+ * and cleanup gates have passed:
+ *   1. scripts/migrations/patient-data-separation.ts --dry-run
+ *   2. scripts/migrations/patient-data-separation.ts --migrate
+ *   3. Manual verification in Firebase Console
+ *   4. scripts/migrations/patient-data-separation.ts --cleanup --confirm-cleanup
+ *   5. Full test suite passing
+ *
+ * ARCHITECTURAL PRINCIPLES:
+ * 1. Personal Nutrition Tracker (/users/{uid}/**):
+ *    - Available to all authenticated users.
+ *    - Strict account ownership boundary: users can ONLY access their own data.
+ *    - Nutritionists do NOT gain global read access to other users' profiles.
+ * 2. Professional Clinical Module (/pacientes/{patientId}/**):
+ *    - Full management restricted exclusively to the nutritionist owner (ownerUid).
+ *    - Linked patients (userId) granted READ ONLY on shared root and non-confidential subcollections.
+ *    - Private clinical paths (/private/clinical, /citas_private, /mediciones_private,
+ *      /historial_clinico, /archivos) are STRICTLY DENIED to linked patients and non-owners.
+ * 3. Server-Enforced Immutability:
+ *    - role is immutable via client-side updates (prevents privilege escalation).
+ *    - ownerUid is immutable after patient creation (prevents dossier hijacking).
+ *    - userId is controllable exclusively by the nutritionist owner (linking/unlinking).
+ *    - Bidirectional linking verified atomically across both documents:
+ *      * LINK: Requires reciprocal user.linkedPatientId in same batch.
+ *      * UNLINK: Requires reciprocal clearing of user.linkedPatientId in same batch.
+ *      * RELINK: Direct transition OLD_UID -> NEW_UID is DENIED (requires UNLINK then LINK).
+ *      * CREATE WITH LINK: Requires reciprocal user link in same batch.
+ *      * DELETE: Requires reciprocal user cleanup in same batch if patient was linked.
+ * 4. Default Deny:
+ *    - Unspecified collections and paths are denied by default.
+ */
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 1. Colección de Pacientes (Módulo Nutrióloga) y todas sus subcolecciones
-    match /pacientes/{document=**} {
-      allow read, write: if true;
+    // ========================================================================
+    // HELPER FUNCTIONS
+    // ========================================================================
+
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // 2. Colección de Usuarios y subcolecciones
-    match /users/{document=**} {
-      allow read, write: if true;
+    function currentUserProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
-    // 3. Regla global por defecto para desarrollo
-    match /{document=**} {
-      allow read, write: if true;
+    function isNutritionist() {
+      return isSignedIn()
+        && currentUserProfile().data.role == 'nutritionist';
+    }
+
+    function patientDoc(patientId) {
+      return get(/databases/$(database)/documents/pacientes/$(patientId));
+    }
+
+    function ownsPatient(patientId) {
+      return isNutritionist()
+        && patientDoc(patientId).data.ownerUid == request.auth.uid;
+    }
+
+    // Evaluates patient ownership after an atomic batch write (for patient creation or update)
+    function ownsPatientAfter(patientId) {
+      return isNutritionist()
+        && existsAfter(/databases/$(database)/documents/pacientes/$(patientId))
+        && getAfter(/databases/$(database)/documents/pacientes/$(patientId)).data.ownerUid == request.auth.uid;
+    }
+
+    function isLinkedPatient(patientId) {
+      return isSignedIn()
+        && patientDoc(patientId).data.userId == request.auth.uid;
+    }
+
+    // ------------------------------------------------------------------------
+    // SHARED DOCUMENT SCHEMA ALLOWLISTS & ANTI-LEAKAGE GUARDS
+    // ------------------------------------------------------------------------
+
+    // Rejects confidential clinical fields and restricts shared patient root to permitted demographic/administrative fields
+    function isValidSharedPatient() {
+      return !request.resource.data.keys().hasAny([
+          'alertasMedicas',
+          'notasGenerales',
+          'diagnosticos',
+          'notasInternas',
+          'observacionesClinicas',
+          'notasConsulta',
+          'notasEvolucion'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'id', 'ownerUid', 'userId', 'nombre', 'email', 'telefono',
+          'fechaNacimiento', 'edad', 'sexo', 'ocupacion', 'motivoConsulta',
+          'objetivoPrincipal', 'status', 'metas', 'tags', 'ultimaConsulta',
+          'proximaCita', 'alergias', 'alergiasIntolerancias', 'createdAt', 'updatedAt'
+        ]);
+    }
+
+    // Rejects private evolution notes (SOAP) and restricts shared appointments to scheduling/status fields
+    function isValidSharedAppointment() {
+      return !request.resource.data.keys().hasAny([
+          'notasEvolucion',
+          'observacionesClinicas',
+          'notasInternas',
+          'soap'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'id', 'fecha', 'hora', 'tipo', 'motivo', 'status',
+          'acuerdosCompromisos', 'proximaCitaSugerida', 'createdAt', 'updatedAt'
+        ]);
+    }
+
+    // Rejects private notes and restricts shared measurements to metric/anthropometric fields
+    function isValidSharedMeasurement() {
+      return !request.resource.data.keys().hasAny([
+          'notasConsulta',
+          'observacionesClinicas',
+          'notasInternas'
+        ]);
+    }
+
+    // Rejects private notes from shared diet plans
+    function isValidSharedDietPlan() {
+      return !request.resource.data.keys().hasAny([
+          'notasInternas',
+          'observacionesClinicas'
+        ]);
+    }
+
+    // ========================================================================
+    // 1. USERS & PERSONAL TRACKING (/users/{uid})
+    // ========================================================================
+
+    match /users/{uid} {
+      // Users may read ONLY their own profile.
+      // Nutritionists do NOT have global read access to other users' profiles.
+      allow get: if isSignedIn() && request.auth.uid == uid;
+
+      // Public registration: role MUST equal "patient". Self-escalation to "nutritionist" is DENIED.
+      // Cannot self-assign linkedPatientId at creation.
+      allow create: if isSignedIn()
+        && request.auth.uid == uid
+        && request.resource.data.role == 'patient'
+        && (!('linkedPatientId' in request.resource.data) || request.resource.data.linkedPatientId == null);
+
+      // Updates:
+      // Case A: Owner user updating their own profile data (CANNOT modify role or linkedPatientId)
+      // Case B: Nutritionist owner linking or unlinking their patient (can ONLY modify linkedPatientId & updatedAt)
+      allow update: if isSignedIn() && (
+        // Self profile update: role and linkedPatientId are strictly immutable
+        (
+          request.auth.uid == uid
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'linkedPatientId'])
+        )
+        ||
+        // Nutritionist linking/unlinking:
+        (
+          isNutritionist()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['linkedPatientId', 'updatedAt'])
+          && (
+            // SUBCASE LINK:
+            // 1. Target patient dossier owned by nutritionist (pre-existing or created in same batch).
+            // 2. Cannot silently overwrite if target user is already linked to another patient.
+            // 3. Atomic batch verification: patient.userId must match this user's uid after the batch.
+            (
+              request.resource.data.linkedPatientId != null
+              && (
+                ownsPatient(request.resource.data.linkedPatientId)
+                || ownsPatientAfter(request.resource.data.linkedPatientId)
+              )
+              && (
+                !('linkedPatientId' in resource.data)
+                || resource.data.linkedPatientId == null
+                || resource.data.linkedPatientId == request.resource.data.linkedPatientId
+              )
+              && existsAfter(/databases/$(database)/documents/pacientes/$(request.resource.data.linkedPatientId))
+              && getAfter(/databases/$(database)/documents/pacientes/$(request.resource.data.linkedPatientId)).data.userId == uid
+            )
+            ||
+            // SUBCASE UNLINK:
+            // 1. Must clear linkedPatientId.
+            // 2. Nutritionist must own the previously linked patient.
+            // 3. Atomic batch verification: patient.userId must be removed or null after the batch.
+            (
+              (!('linkedPatientId' in request.resource.data) || request.resource.data.linkedPatientId == null)
+              && ('linkedPatientId' in resource.data && ownsPatient(resource.data.linkedPatientId))
+              && (
+                !existsAfter(/databases/$(database)/documents/pacientes/$(resource.data.linkedPatientId))
+                || !('userId' in getAfter(/databases/$(database)/documents/pacientes/$(resource.data.linkedPatientId)).data)
+                || getAfter(/databases/$(database)/documents/pacientes/$(resource.data.linkedPatientId)).data.userId == null
+              )
+            )
+          )
+        )
+      );
+
+      allow delete: if false; // User accounts cannot be directly deleted via client SDK
+
+      // Personal tracking subcollections (diet, mediciones_personales, meals, logs, etc.)
+      // Strictly owned by the account holder. Nutritionists CANNOT access other users' personal tracking.
+      match /{trackingSubcollection=**} {
+        allow read, write: if isSignedIn() && request.auth.uid == uid;
+      }
+    }
+
+    // ========================================================================
+    // 2. CLINICAL MODULE: PATIENT ROOT (/pacientes/{patientId})
+    // ========================================================================
+
+    match /pacientes/{patientId} {
+      // CREATE: Restricted to authenticated nutritionists creating dossiers they own.
+      // Must satisfy shared schema allowlist (no confidential fields).
+      // If a userId is included at creation, require reciprocal user.linkedPatientId in same batch.
+      allow create: if isNutritionist()
+        && request.resource.data.ownerUid == request.auth.uid
+        && (!('id' in request.resource.data) || request.resource.data.id == patientId)
+        && isValidSharedPatient()
+        && (
+          !('userId' in request.resource.data)
+          || request.resource.data.userId == null
+          || (
+            existsAfter(/databases/$(database)/documents/users/$(request.resource.data.userId))
+            && getAfter(/databases/$(database)/documents/users/$(request.resource.data.userId)).data.linkedPatientId == patientId
+          )
+        );
+
+      // DIRECT GET: Nutritionist owner OR linked patient
+      allow get: if ownsPatient(patientId) || isLinkedPatient(patientId);
+
+      // COLLECTION LIST / QUERY: Nutritionist owner ONLY.
+      // Must filter queries by where("ownerUid", "==", auth.uid).
+      // Linked patients and unauthorized users are DENIED from querying the collection.
+      allow list: if isNutritionist() && resource.data.ownerUid == request.auth.uid;
+
+      // UPDATE: Nutritionist owner ONLY.
+      // ownerUid and id are strictly immutable.
+      // Must satisfy shared schema allowlist (no confidential fields).
+      // userId transitions are strictly validated:
+      //   - UNCHANGED: old userId == new userId
+      //   - LINK: null/missing -> non-null UID requires reciprocal user.linkedPatientId == patientId
+      //   - UNLINK: non-null UID -> null/missing requires reciprocal user.linkedPatientId cleared/null
+      //   - RELINK: Direct transition OLD_UID -> NEW_UID is DENIED (requires UNLINK then LINK)
+      allow update: if ownsPatient(patientId)
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && (!('id' in request.resource.data) || request.resource.data.id == resource.data.id)
+        && isValidSharedPatient()
+        && (
+          // Case 1: UNCHANGED RELATIONSHIP
+          (
+            (!('userId' in resource.data) || resource.data.userId == null)
+              ? (!('userId' in request.resource.data) || request.resource.data.userId == null)
+              : ('userId' in request.resource.data && request.resource.data.userId == resource.data.userId)
+          )
+          ||
+          // Case 2: LINK (from null/missing to non-null UID)
+          (
+            (!('userId' in resource.data) || resource.data.userId == null)
+            && ('userId' in request.resource.data && request.resource.data.userId != null)
+            && existsAfter(/databases/$(database)/documents/users/$(request.resource.data.userId))
+            && getAfter(/databases/$(database)/documents/users/$(request.resource.data.userId)).data.linkedPatientId == patientId
+          )
+          ||
+          // Case 3: UNLINK (from non-null UID to null/missing)
+          (
+            ('userId' in resource.data && resource.data.userId != null)
+            && (!('userId' in request.resource.data) || request.resource.data.userId == null)
+            && (
+              !existsAfter(/databases/$(database)/documents/users/$(resource.data.userId))
+              || !('linkedPatientId' in getAfter(/databases/$(database)/documents/users/$(resource.data.userId)).data)
+              || getAfter(/databases/$(database)/documents/users/$(resource.data.userId)).data.linkedPatientId == null
+            )
+          )
+        );
+
+      // DELETE: Nutritionist owner ONLY.
+      // If patient was linked to a user, requires atomic clearing of reciprocal
+      // user.linkedPatientId in the same batch to prevent dangling links.
+      allow delete: if ownsPatient(patientId)
+        && (
+          !('userId' in resource.data)
+          || resource.data.userId == null
+          || (
+            !existsAfter(/databases/$(database)/documents/users/$(resource.data.userId))
+            || !('linkedPatientId' in getAfter(/databases/$(database)/documents/users/$(resource.data.userId)).data)
+            || getAfter(/databases/$(database)/documents/users/$(resource.data.userId)).data.linkedPatientId == null
+          )
+        );
+
+      // ----------------------------------------------------------------------
+      // 2A. SHARED PATIENT SUBCOLLECTIONS (Patient Readable)
+      // ----------------------------------------------------------------------
+
+      // Appointments (shared schedule, motif, commitments)
+      match /citas/{appointmentId} {
+        allow read: if ownsPatient(patientId) || isLinkedPatient(patientId);
+        allow write: if ownsPatient(patientId) && isValidSharedAppointment();
+      }
+
+      // Measurements (shared anthropometry and body composition)
+      match /mediciones/{measurementId} {
+        allow read: if ownsPatient(patientId) || isLinkedPatient(patientId);
+        allow write: if ownsPatient(patientId) && isValidSharedMeasurement();
+      }
+
+      // Diet Plans (shared prescribed menus and macro targets)
+      match /planes_nutricionales/{planId} {
+        allow read: if ownsPatient(patientId) || isLinkedPatient(patientId);
+        allow write: if ownsPatient(patientId) && isValidSharedDietPlan();
+      }
+
+      // ----------------------------------------------------------------------
+      // 2B. PRIVATE CLINICAL SUBCOLLECTIONS (Nutritionist Owner ONLY)
+      // Linked Patients: STRICT DENY
+      // ----------------------------------------------------------------------
+
+      // Private Clinical Data (alertasMedicas, notasGenerales, diagnosticos, notasInternas)
+      match /private/{document} {
+        allow read, write: if ownsPatient(patientId);
+      }
+
+      // Private Appointment Notes (SOAP / notasEvolucion, observacionesClinicas)
+      match /citas_private/{appointmentId} {
+        allow read, write: if ownsPatient(patientId);
+      }
+
+      // Private Measurement Notes (notasConsulta, observacionesClinicas)
+      match /mediciones_private/{measurementId} {
+        allow read, write: if ownsPatient(patientId);
+      }
+
+      // Clinical History (anamnesis, hereditary factors, pathologies)
+      match /historial_clinico/{document} {
+        allow read, write: if ownsPatient(patientId);
+      }
+
+      // Clinical Files & Deliverables (internal lab reports, deliverables)
+      match /archivos/{document} {
+        allow read, write: if ownsPatient(patientId);
+      }
     }
 
   }

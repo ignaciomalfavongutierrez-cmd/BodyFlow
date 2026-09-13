@@ -9,10 +9,13 @@ export type ActivityLevel = 'sedentario' | 'ligero' | 'moderado' | 'intenso' | '
 
 /**
  * Root Document in Firestore: `pacientes/{patientId}`
+ * Datos clínicos compartidos accesibles para la Nutrióloga Propietaria (RW)
+ * y el Paciente Vinculado (SOLO LECTURA).
  */
 export interface Patient {
-  id: string;
-  userId?: string; // ID de usuario Firebase Auth (users/{uid}) vinculado al paciente
+  id: string; // Inmutable tras creación
+  ownerUid: string; // Firebase Auth UID de la nutrióloga dueña. Inmutable tras creación.
+  userId?: string; // UID de cuenta de paciente vinculada. Controlado exclusivamente por la nutrióloga dueña.
   nombre: string;
   email?: string;
   telefono?: string;
@@ -23,7 +26,7 @@ export interface Patient {
   motivoConsulta?: string;
   objetivoPrincipal?: string; // ej. 'Pérdida de grasa', 'Hipertrofia muscular', 'Recomposición corporal', 'Salud digestiva / clínica'
   status: PatientStatus;
-  alertasMedicas: string[]; // Alergias prioritarias, patologías graves (Diabetes, Hipotiroidismo, etc.)
+  alertasMedicas?: string[]; // Alergias prioritarias, patologías graves (Persistido en /private/clinical)
   metas: {
     metaPeso?: number | string;
     metaGrasa?: number | string;
@@ -32,12 +35,39 @@ export interface Patient {
     notas?: string;
   };
   tags?: string[]; // ej. ['Atleta', 'Vegano', 'Matutino', 'Presencial', 'Online']
-  notasGenerales?: string;
+  notasGenerales?: string; // Notas generales de consulta (Persistido en /private/clinical)
   ultimaConsulta?: string;
   proximaCita?: string;
   createdAt: any;
   updatedAt: any;
 }
+
+/**
+ * Subcollection Document: `pacientes/{patientId}/private/clinical`
+ * Acceso EXCLUSIVO para la Nutrióloga Propietaria (ownerUid).
+ * DENY estricto para Paciente Vinculado y terceros.
+ */
+export interface PrivateClinicalData {
+  alertasMedicas?: string[];
+  notasGenerales?: string;
+  observacionesClinicas?: string;
+  diagnosticos?: string[];
+  notasInternas?: string;
+  updatedAt?: any;
+}
+
+/** Input for creating a new patient document (id, ownerUid, timestamps assigned at persistence) */
+export type CreatePatientInput = Omit<Patient, 'id' | 'ownerUid' | 'createdAt' | 'updatedAt'> & {
+  privateClinical?: Partial<PrivateClinicalData>;
+};
+
+/** Input for editing an existing patient document (id and ownerUid are immutable; userId is modifiable by owner) */
+export type UpdatePatientInput = Partial<Omit<Patient, 'id' | 'ownerUid' | 'createdAt' | 'updatedAt'>> & {
+  privateClinical?: Partial<PrivateClinicalData>;
+};
+
+/** Definition for offline/local seed fixtures (no fake ownerUid) */
+export type PatientSeed = Omit<Patient, 'id' | 'ownerUid' | 'createdAt' | 'updatedAt'>;
 
 /**
  * Subcollection: `pacientes/{patientId}/historial_clinico/main`
@@ -71,6 +101,7 @@ export interface ClinicalHistory {
 
 /**
  * Subcollection: `pacientes/{patientId}/citas/{citaId}`
+ * Información de citas compartida y visible para el paciente (fecha, motivo, acuerdos, etc.)
  */
 export interface PatientAppointment {
   id: string;
@@ -79,7 +110,7 @@ export interface PatientAppointment {
   tipo: AppointmentType;
   motivo: string;
   status: AppointmentStatus;
-  notasEvolucion?: string; // Notas clínicas del especialista (SOAP)
+  notasEvolucion?: string; // En memoria / UI nutrióloga; persistido en citas_private/{citaId}
   acuerdosCompromisos?: string;
   proximaCitaSugerida?: string;
   createdAt: any;
@@ -87,13 +118,36 @@ export interface PatientAppointment {
 }
 
 /**
+ * Subcollection: `pacientes/{patientId}/citas_private/{citaId}`
+ * Notas clínicas privadas del especialista (SOAP, observaciones internas).
+ * Exclusivo nutrióloga dueña. DENY paciente.
+ */
+export interface AppointmentPrivateData {
+  notasEvolucion?: string; // Notas clínicas del especialista (SOAP)
+  observacionesClinicas?: string;
+  notasInternas?: string;
+  updatedAt?: any;
+}
+
+/**
  * Subcollection: `pacientes/{patientId}/mediciones/{medicionId}`
- * Compatible 1:1 con ClinicalRecord para el motor de gráficas
+ * Métricas antropométricas compartidas y legibles por el paciente.
  */
 export interface PatientMeasurement extends ClinicalRecord {
   id: string;
-  notasConsulta?: string;
+  notasConsulta?: string; // En memoria / UI nutrióloga; persistido en mediciones_private/{medicionId}
   createdAt: any;
+}
+
+/**
+ * Subcollection: `pacientes/{patientId}/mediciones_private/{medicionId}`
+ * Notas y observaciones clínicas de la medición. Exclusivo nutrióloga dueña.
+ */
+export interface MeasurementPrivateData {
+  notasConsulta?: string;
+  observacionesClinicas?: string;
+  notasInternas?: string;
+  updatedAt?: any;
 }
 
 export interface PatientPlanCalculationSnapshot {

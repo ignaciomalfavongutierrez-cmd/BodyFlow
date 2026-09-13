@@ -2,7 +2,7 @@ import type { Patient, ClinicalHistory, PatientAppointment, PatientMeasurement, 
 import { SAMPLE_PROGRESS_RECORDS } from '../../catalog/progress/samplePatientProgress';
 
 export interface FullPatientData {
-  patient: Patient;
+  patient: Omit<Patient, 'ownerUid'> & { ownerUid?: string };
   history: ClinicalHistory;
   appointments: PatientAppointment[];
   measurements: PatientMeasurement[];

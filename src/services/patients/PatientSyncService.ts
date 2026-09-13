@@ -5,11 +5,12 @@ import {
   query,
   where,
   onSnapshot,
-  setDoc,
+  deleteField,
+  writeBatch,
   serverTimestamp,
   type Unsubscribe
 } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { db, auth } from '../../firebase';
 import type { Patient, PatientDietPlan } from '../../types/patient';
 import type { DietPlanMenu, DayMenuSchedule, DishItem } from '../../types/dietMenu';
 import { MEAL_TIMES_CATALOG } from '../../types/dietMenu';
@@ -49,35 +50,13 @@ export class PatientSyncService {
   };
 
   /**
-   * Busca un paciente en el directorio clínico por correo electrónico (insensible a mayúsculas/minúsculas).
+   * @deprecated DESACTIVADO POR SEGURIDAD.
+   * No consultar la colección `pacientes` por email de forma abierta / cross-tenant.
+   * La vinculación de expedientes de pacientes debe realizarse mediante vinculación explícita
+   * (`users/{uid}.linkedPatientId`) o bajo el ámbito de ownership de la nutrióloga.
    */
-  public static async findPatientByEmail(email?: string | null): Promise<Patient | null> {
-    if (!email || !email.trim()) return null;
-    const cleanEmail = email.toLowerCase().trim();
-
-    try {
-      // 1. Intento de consulta directa en Firestore
-      const colRef = collection(db, PATIENTS_COLLECTION);
-      const q = query(colRef, where('email', '==', cleanEmail));
-      const snap = await getDocs(q);
-
-      if (!snap.empty) {
-        const docSnap = snap.docs[0];
-        return { id: docSnap.id, ...docSnap.data() } as Patient;
-      }
-
-      // 2. Búsqueda con tolerancia de mayúsculas entre todos los pacientes registrados
-      const allPatients = await PatientsService.getPatients();
-      const match = allPatients.find(p => (p.email || '').toLowerCase().trim() === cleanEmail);
-      if (match) {
-        return match;
-      }
-    } catch (err) {
-      console.warn('[PATIENT:SYNC] Error buscando paciente por email en Firestore, consultando caché:', err);
-      const allPatients = await PatientsService.getPatients();
-      return allPatients.find(p => (p.email || '').toLowerCase().trim() === cleanEmail) || null;
-    }
-
+  public static async findPatientByEmail(_email?: string | null): Promise<Patient | null> {
+    console.warn('[PATIENT:SYNC] findPatientByEmail está deprecado y desactivado por seguridad. Utilice users/{uid}.linkedPatientId');
     return null;
   }
 
@@ -106,29 +85,91 @@ export class PatientSyncService {
   }
 
   /**
-   * Vincula bidireccionalmente el UID de Auth con el expediente clínico del paciente en Firestore.
+   * Vincula bidireccionalmente y de forma ATÓMICA el UID de Auth con el expediente clínico del paciente.
+   * Exclusivo para la nutrióloga dueña del expediente (`patient.ownerUid === auth.currentUser.uid`).
+   * Protegido contra sobreescritura silenciosa si el usuario ya está vinculado a otro expediente.
    */
   public static async linkUserToPatient(patientId: string, userId: string): Promise<void> {
     if (!patientId || !userId) return;
 
     try {
-      // 1. Asignar userId en el expediente del paciente
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('No se puede vincular paciente: usuario no autenticado');
+      }
+
+      // Validar que el usuario autenticado sea el dueño (ownerUid) del expediente
+      const patient = await PatientsService.getPatientById(patientId);
+      if (!patient || patient.ownerUid !== user.uid) {
+        throw new Error('No autorizado para vincular este paciente: no es el propietario del expediente');
+      }
+
+      // Atomic writeBatch para garantizar bidireccionalidad íntegra.
+      // Las reglas de seguridad de Firestore validan en el servidor que el usuario no esté
+      // vinculado previamente a otro expediente, respetando el principio de mínimo privilegio en /users/{uid}.
+      const userRef = doc(db, 'users', userId);
+      const batch = writeBatch(db);
       const patientRef = doc(db, PATIENTS_COLLECTION, patientId);
-      await setDoc(patientRef, cleanFirestoreData({
+
+      batch.set(patientRef, cleanFirestoreData({
         userId,
         updatedAt: serverTimestamp()
       }), { merge: true });
 
-      // 2. Asignar linkedPatientId en el documento del usuario
-      const userRef = doc(db, 'users', userId);
-      await setDoc(userRef, cleanFirestoreData({
+      batch.set(userRef, cleanFirestoreData({
         linkedPatientId: patientId,
         updatedAt: serverTimestamp()
       }), { merge: true });
 
-      console.log(`[PATIENT:SYNC] Vinculación exitosa: Paciente ${patientId} ⇄ Usuario ${userId}`);
-    } catch (err) {
+      await batch.commit();
+      console.log(`[PATIENT:SYNC] Vinculación atómica exitosa: Paciente ${patientId} ⇄ Usuario ${userId}`);
+    } catch (err: any) {
+      if (err?.code === 'permission-denied') {
+        console.error('[PATIENT:SYNC] Permiso denegado al vincular. Posible sobreescritura rechazada por Firestore Rules.');
+        throw new Error('No se pudo vincular: el usuario ya está vinculado a otro expediente o no eres propietario del mismo.');
+      }
       console.error('[PATIENT:SYNC] Error al vincular usuario con paciente:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Desvincula bidireccionalmente y de forma ATÓMICA el paciente y el usuario de la App.
+   * Requiere autorización del propietario del expediente (`ownerUid`).
+   */
+  public static async unlinkUserFromPatient(patientId: string, userId: string): Promise<void> {
+    if (!patientId || !userId) return;
+
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('No se puede desvincular: usuario no autenticado');
+      }
+
+      const patient = await PatientsService.getPatientById(patientId);
+      if (!patient || patient.ownerUid !== user.uid) {
+        throw new Error('No autorizado para desvincular este paciente: no es el propietario');
+      }
+
+      const batch = writeBatch(db);
+      const patientRef = doc(db, PATIENTS_COLLECTION, patientId);
+      const userRef = doc(db, 'users', userId);
+
+      batch.update(patientRef, {
+        userId: deleteField(),
+        updatedAt: serverTimestamp()
+      });
+
+      batch.update(userRef, {
+        linkedPatientId: deleteField(),
+        updatedAt: serverTimestamp()
+      });
+
+      await batch.commit();
+      console.log(`[PATIENT:SYNC] Desvinculación atómica exitosa: Paciente ${patientId} ⇎ Usuario ${userId}`);
+    } catch (err) {
+      console.error('[PATIENT:SYNC] Error al desvincular usuario de paciente:', err);
+      throw err;
     }
   }
 
@@ -251,45 +292,20 @@ export class PatientSyncService {
   }
 
   /**
-   * Sincroniza la cuenta del usuario con el expediente de la nutrióloga si el correo coincide.
+   * @deprecated DESACTIVADO POR SEGURIDAD.
+   * Los pacientes autenticados leen directamente su expediente asignado mediante `users/{uid}.linkedPatientId`.
+   * No se permite auto-descubrimiento o auto-vinculación basada en coincidencias de email cross-tenant.
    */
   public static async checkAndSyncPatientAccount(
-    userId: string,
-    userEmail: string
+    _userId: string,
+    _userEmail: string
   ): Promise<PatientSyncResult> {
-    const defaultResult: PatientSyncResult = {
+    console.warn('[PATIENT:SYNC] checkAndSyncPatientAccount está deprecado y desactivado por seguridad.');
+    return {
       linked: false,
       patient: null,
       activePlan: null,
       dayPlans: null
-    };
-
-    if (!userId || !userEmail) return defaultResult;
-
-    const patient = await this.findPatientByEmail(userEmail);
-    if (!patient) {
-      return defaultResult;
-    }
-
-    // Vincular bidireccionalmente si aún no está enlazado con este UID
-    if (patient.userId !== userId) {
-      await this.linkUserToPatient(patient.id, userId);
-      patient.userId = userId;
-    }
-
-    // Obtener plan activo del paciente
-    const activePlan = await this.getActiveDietPlan(patient.id);
-    let dayPlans: DayPlan[] | null = null;
-
-    if (activePlan && activePlan.menu) {
-      dayPlans = this.convertDietPlanMenuToDayPlans(activePlan.menu, activePlan.calorias);
-    }
-
-    return {
-      linked: true,
-      patient,
-      activePlan,
-      dayPlans
     };
   }
 

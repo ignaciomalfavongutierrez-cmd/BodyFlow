@@ -1,11 +1,11 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { db, auth } from '../firebase'
 import { doc, setDoc, collection, addDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
-import type { UserProfile } from '../services/nutrition/models'
+import type { UserProfile, UserRole } from '../services/nutrition/models'
 
 // Re-export so consumers can import types from the store without knowing the service path
-export type { UserProfile }
+export type { UserProfile, UserRole }
 
 const DEFAULT_PROFILE: UserProfile = {
   weight: null,
@@ -25,6 +25,12 @@ const DEFAULT_PROFILE: UserProfile = {
 
 export const useUserStore = defineStore('user', () => {
   const profile = ref<UserProfile>({ ...DEFAULT_PROFILE, macroTargets: { ...DEFAULT_PROFILE.macroTargets } })
+
+  /**
+   * Authoritative client-side role check: returns true ONLY if profile.role === 'nutritionist'.
+   * Missing, undefined, null, or unknown roles fail closed to false.
+   */
+  const isNutritionist = computed(() => profile.value?.role === 'nutritionist')
 
   let unsubscribe: (() => void) | null = null
 
@@ -63,22 +69,24 @@ export const useUserStore = defineStore('user', () => {
 
   // Optimistic update: patches local state immediately for instant UI feedback,
   // then persists to Firestore. Also tracks weight changes in `weight_history`.
+  // Role protection: normal profile updates must completely strip `role` to prevent client escalation.
   async function updateProfile(newProfile: Partial<UserProfile>) {
+    const { role: _role, ...safeUpdates } = newProfile as any
     const oldWeight = profile.value.weight
-    profile.value = { ...profile.value, ...newProfile }
+    profile.value = { ...profile.value, ...safeUpdates }
 
     const uid = auth.currentUser?.uid
     if (uid) {
-      await setDoc(doc(db, 'users', uid), profile.value, { merge: true })
+      await setDoc(doc(db, 'users', uid), safeUpdates, { merge: true })
 
       if (
-        newProfile.weight !== undefined &&
-        newProfile.weight !== oldWeight &&
-        newProfile.weight !== null
+        safeUpdates.weight !== undefined &&
+        safeUpdates.weight !== oldWeight &&
+        safeUpdates.weight !== null
       ) {
         const historyRef = collection(db, 'users', uid, 'weight_history')
         await addDoc(historyRef, {
-          weight: newProfile.weight,
+          weight: safeUpdates.weight,
           date: serverTimestamp()
         })
       }
@@ -150,6 +158,7 @@ export const useUserStore = defineStore('user', () => {
 
   return {
     profile,
+    isNutritionist,
     fetchProfile,
     updateProfile,
     applyMealPlanOverride,

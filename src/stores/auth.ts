@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { auth, persistenceReady } from '../firebase';
 import { onAuthStateChanged, signOut, getRedirectResult, type User } from 'firebase/auth';
-import router, { isAdminEmail } from '../router';
+import router from '../router';
 import { useUserStore } from './user';
 import { useDietStore } from './diet';
 import { useFoodsStore } from './foods';
@@ -213,12 +213,11 @@ export const useAuthStore = defineStore('auth', () => {
           const currentName = router.currentRoute.value?.name;
           if (currentName === 'login') {
             const redirect = router.currentRoute.value?.query?.redirect as string;
-            const userEmail = (firebaseUser.email || '').toLowerCase().trim();
-            const isAdmin = isAdminEmail(userEmail);
+            const isNutritionist = userStore.isNutritionist;
             let target = '/';
             if (redirect && redirect !== '/login') {
               if (redirect.startsWith('/utilities')) {
-                target = isAdmin ? redirect : '/';
+                target = isNutritionist ? redirect : '/';
               } else {
                 target = redirect;
               }
@@ -258,28 +257,26 @@ export const useAuthStore = defineStore('auth', () => {
       ]);
       authLog('STORES_LOAD_COMPLETE');
 
-      // Auto-sincronización con expediente de la nutrióloga si el correo coincide
-      const currentUser = auth.currentUser;
-      if (currentUser?.uid && currentUser?.email) {
-        PatientSyncService.checkAndSyncPatientAccount(currentUser.uid, currentUser.email)
-          .then(async (syncRes) => {
-            if (syncRes.linked) {
-              authLog('PATIENT_SYNC_LINKED', syncRes.patient?.id);
+      // Carga directa del plan clínico si el usuario está vinculado por linkedPatientId
+      const linkedPatientId = userStore.profile.linkedPatientId;
+      if (linkedPatientId) {
+        PatientSyncService.getActiveDietPlan(linkedPatientId)
+          .then(async (activePlan) => {
+            if (activePlan) {
+              authLog('PATIENT_SYNC_PLAN_LOADED', activePlan.id);
 
-              // Si el usuario no ha forzado un menú subido manualmente (PDF externo)
-              if (userStore.profile.activeDietSource !== 'custom_upload' && syncRes.activePlan) {
-                // Si la nutrióloga tiene un menú estructurado y activo
-                if (syncRes.dayPlans && syncRes.dayPlans.length > 0) {
-                  // Cargar a la semana si estaba vacía o si su fuente activa es nutrióloga
+              if (userStore.profile.activeDietSource !== 'custom_upload' && activePlan.menu) {
+                const dayPlans = PatientSyncService.convertDietPlanMenuToDayPlans(activePlan.menu, activePlan.calorias);
+                if (dayPlans && dayPlans.length > 0) {
                   if (dietStore.week.length === 0 || userStore.profile.activeDietSource === 'nutritionist') {
-                    await dietStore.setDiet(syncRes.dayPlans);
+                    await dietStore.setDiet(dayPlans);
                     await userStore.applyNutritionistPlan({
-                      id: syncRes.activePlan.id,
-                      nombre: syncRes.activePlan.nombre || 'Plan de Nutrición',
-                      calorias: syncRes.activePlan.calorias || 0,
-                      macros: syncRes.activePlan.macros,
-                      objetivo: syncRes.activePlan.objetivo,
-                      updatedAt: syncRes.activePlan.updatedAt
+                      id: activePlan.id,
+                      nombre: activePlan.nombre || 'Plan de Nutrición',
+                      calorias: activePlan.calorias || 0,
+                      macros: activePlan.macros,
+                      objetivo: activePlan.objetivo,
+                      updatedAt: activePlan.updatedAt
                     });
                   }
                 }
@@ -287,7 +284,7 @@ export const useAuthStore = defineStore('auth', () => {
             }
           })
           .catch((err) => {
-            console.warn('[AUTH:SYNC] Patient check error:', err);
+            console.warn('[AUTH:SYNC] Error loading linked patient plan:', err);
           });
       }
     } catch (error: any) {

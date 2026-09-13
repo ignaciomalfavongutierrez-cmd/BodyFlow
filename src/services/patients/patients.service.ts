@@ -4,27 +4,44 @@ import {
   getDocs,
   getDoc,
   setDoc,
-  deleteDoc,
   query,
   where,
   orderBy,
   onSnapshot,
   serverTimestamp,
   type Unsubscribe,
-  writeBatch
+  writeBatch,
+  deleteField
 } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { db, auth } from '../../firebase';
+import type { User } from 'firebase/auth';
 import type {
   Patient,
+  CreatePatientInput,
+  UpdatePatientInput,
   PatientStatus,
   ClinicalHistory,
   PatientAppointment,
   PatientMeasurement,
+  PrivateClinicalData,
   PatientDietPlan,
   PatientDeliverable
 } from '../../types/patient';
 import type { ClinicalRecord } from '../../types/patientProgress';
 import { SEED_PATIENTS } from './samplePatientsSeed';
+
+/**
+ * Resolves and validates the authenticated Firebase user.
+ * Waits for Firebase Auth initialization to eliminate startup race conditions.
+ */
+export async function resolveAuthUser(): Promise<User> {
+  await auth.authStateReady();
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error('User must be authenticated to perform this operation');
+  }
+  return user;
+}
 
 const PATIENTS_COLLECTION = 'pacientes';
 
@@ -65,73 +82,22 @@ export class PatientsService {
   private static localPatientsCache: Patient[] = [];
   private static initialized = false;
 
-  /**
-   * Initializes or seeds default patients if Firestore collection is empty or for instant UI response
-   */
-  static async initializeDefaultsIfEmpty(): Promise<void> {
-    try {
-      const snap = await getDocs(collection(db, PATIENTS_COLLECTION));
-      if (snap.empty) {
-        console.log('[PATIENTS:SERVICE] Seeding initial patient records into Firestore...');
-        for (const seed of SEED_PATIENTS) {
-          await this.createPatientWithFullSeed(seed);
-        }
-      }
-      this.initialized = true;
-    } catch (err) {
-      console.warn('[PATIENTS:SERVICE] Could not check/seed Firestore, loading local seed memory fallback.', err);
-      if (this.localPatientsCache.length === 0) {
-        this.localPatientsCache = SEED_PATIENTS.map(s => s.patient);
-      }
-      this.initialized = true;
-    }
+  public static get isInitialized(): boolean {
+    return this.initialized;
   }
 
   /**
-   * Seeds a complete patient with its subcollections
+   * Initializes local demo patients in memory if cache is empty.
+   * Never writes unowned or fake-owned seed fixtures to Firestore.
    */
-  private static async createPatientWithFullSeed(seed: typeof SEED_PATIENTS[0]): Promise<void> {
-    const patientRef = doc(db, PATIENTS_COLLECTION, seed.patient.id);
-    await setDoc(patientRef, {
-      ...seed.patient,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    });
-
-    // Subcollection: historial_clinico/main
-    const historyRef = doc(db, PATIENTS_COLLECTION, seed.patient.id, 'historial_clinico', 'main');
-    await setDoc(historyRef, {
-      ...seed.history,
-      updatedAt: serverTimestamp()
-    });
-
-    // Subcollection: citas
-    for (const apt of seed.appointments) {
-      const aptRef = doc(db, PATIENTS_COLLECTION, seed.patient.id, 'citas', apt.id);
-      await setDoc(aptRef, {
-        ...apt,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
+  static async initializeDefaultsIfEmpty(): Promise<void> {
+    if (this.localPatientsCache.length === 0) {
+      this.localPatientsCache = SEED_PATIENTS.map(s => ({
+        ...s.patient,
+        ownerUid: 'demo_local'
+      })) as Patient[];
     }
-
-    // Subcollection: mediciones
-    for (const meas of seed.measurements) {
-      const measRef = doc(db, PATIENTS_COLLECTION, seed.patient.id, 'mediciones', meas.id);
-      await setDoc(measRef, {
-        ...meas,
-        createdAt: serverTimestamp()
-      });
-    }
-
-    // Subcollection: planes_nutricionales
-    for (const plan of seed.dietPlans) {
-      const planRef = doc(db, PATIENTS_COLLECTION, seed.patient.id, 'planes_nutricionales', plan.id);
-      await setDoc(planRef, {
-        ...plan,
-        createdAt: serverTimestamp()
-      });
-    }
+    this.initialized = true;
   }
 
   // =========================================================================
@@ -139,32 +105,38 @@ export class PatientsService {
   // =========================================================================
 
   /**
-   * Fetches all patients with optional filter by status or search keyword
+   * Fetches all patients owned by the authenticated nutritionist with optional filter by status or search keyword.
+   * Every collection query is strictly scoped to `ownerUid === user.uid`.
    */
   static async getPatients(filters?: { status?: PatientStatus; search?: string }): Promise<Patient[]> {
+    const user = await resolveAuthUser();
+
     try {
-      let q = query(collection(db, PATIENTS_COLLECTION));
+      let q = query(
+        collection(db, PATIENTS_COLLECTION),
+        where('ownerUid', '==', user.uid)
+      );
+
       if (filters?.status) {
-        q = query(collection(db, PATIENTS_COLLECTION), where('status', '==', filters.status));
+        q = query(
+          collection(db, PATIENTS_COLLECTION),
+          where('ownerUid', '==', user.uid),
+          where('status', '==', filters.status)
+        );
       }
 
       const snap = await getDocs(q);
-      if (snap.empty && !this.initialized) {
-        await this.initializeDefaultsIfEmpty();
-        const retrySnap = await getDocs(q);
-        return this.mapPatientDocs(retrySnap.docs, filters?.search);
-      }
-
       const results = this.mapPatientDocs(snap.docs, filters?.search);
-      if (results.length > 0) {
-        this.localPatientsCache = results;
-        return results;
+      this.localPatientsCache = results;
+      this.initialized = true;
+      return results;
+    } catch (err: any) {
+      if (err?.code === 'permission-denied') {
+        console.warn('[PATIENTS:SERVICE] getPatients permission-denied:', err?.message || err);
+        return [];
       }
-
-      return this.getLocalFilteredPatients(filters);
-    } catch (err) {
-      console.warn('[PATIENTS:SERVICE] getPatients Firestore query failed, using local cache:', err);
-      return this.getLocalFilteredPatients(filters);
+      console.warn('[PATIENTS:SERVICE] getPatients query failed, using scoped local cache:', err);
+      return this.getLocalFilteredPatients(user.uid, filters);
     }
   }
 
@@ -187,10 +159,8 @@ export class PatientsService {
     return list;
   }
 
-  private static getLocalFilteredPatients(filters?: { status?: PatientStatus; search?: string }): Patient[] {
-    let list = this.localPatientsCache.length > 0 
-      ? [...this.localPatientsCache] 
-      : SEED_PATIENTS.map(s => s.patient);
+  private static getLocalFilteredPatients(ownerUid: string, filters?: { status?: PatientStatus; search?: string }): Patient[] {
+    let list = this.localPatientsCache.filter(p => p.ownerUid === ownerUid);
 
     if (filters?.status) {
       list = list.filter(p => p.status === filters.status);
@@ -210,90 +180,146 @@ export class PatientsService {
   }
 
   /**
-   * Real-time subscription to patients collection
+   * Real-time subscription to patients collection scoped strictly to the authenticated user's ownerUid.
    */
   static subscribePatients(
     onUpdate: (patients: Patient[]) => void,
     onError?: (error: any) => void
   ): Unsubscribe {
-    const q = query(collection(db, PATIENTS_COLLECTION));
-    return onSnapshot(
-      q,
-      (snap) => {
-        const patients = snap.docs.map(d => ({ id: d.id, ...d.data() })) as Patient[];
-        if (patients.length > 0) {
-          this.localPatientsCache = patients;
-          onUpdate(patients);
-        } else {
-          // If empty, initialize defaults
-          this.initializeDefaultsIfEmpty().then(() => {
-            onUpdate(SEED_PATIENTS.map(s => s.patient));
-          });
-        }
-      },
-      (error) => {
-        console.warn('[PATIENTS:SERVICE] subscribePatients error, fallback to cache:', error);
-        if (onError) onError(error);
-        onUpdate(this.getLocalFilteredPatients());
-      }
-    );
+    let isCancelled = false;
+    let unsubscribeFirestore: Unsubscribe = () => {};
+
+    resolveAuthUser()
+      .then((user) => {
+        if (isCancelled) return;
+        const q = query(
+          collection(db, PATIENTS_COLLECTION),
+          where('ownerUid', '==', user.uid)
+        );
+
+        unsubscribeFirestore = onSnapshot(
+          q,
+          (snap) => {
+            const patients = snap.docs.map(d => ({ id: d.id, ...d.data() })) as Patient[];
+            this.localPatientsCache = patients;
+            onUpdate(patients);
+          },
+          (error) => {
+            console.warn('[PATIENTS:SERVICE] subscribePatients error:', error);
+            if (onError) onError(error);
+            onUpdate(this.getLocalFilteredPatients(user.uid));
+          }
+        );
+      })
+      .catch((err) => {
+        console.warn('[PATIENTS:SERVICE] subscribePatients auth resolution error:', err);
+        if (onError) onError(err);
+        onUpdate([]);
+      });
+
+    return () => {
+      isCancelled = true;
+      unsubscribeFirestore();
+    };
   }
 
   /**
-   * Retrieves a single patient by ID
+   * Retrieves a single patient by ID.
+   * Validates read permission: only the nutritionist owner OR the linked patient account may read.
+   * If not found or unauthorized, returns null (safe deny state).
    */
   static async getPatientById(patientId: string): Promise<Patient | null> {
+    const user = await resolveAuthUser();
+
     try {
       const docRef = doc(db, PATIENTS_COLLECTION, patientId);
       const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const data = { id: snap.id, ...snap.data() } as Patient;
+
+      if (!snap.exists()) {
+        return null;
+      }
+
+      const data = { id: snap.id, ...snap.data() } as Patient;
+
+      // Explicit read-role validation:
+      // Grants READ access only if authenticated user is the nutritionist owner OR the linked patient.
+      const isOwner = data.ownerUid === user.uid;
+      const isLinkedPatient = data.userId === user.uid;
+
+      if (!isOwner && !isLinkedPatient) {
+        return null;
+      }
+
+      if (isOwner) {
         const idx = this.localPatientsCache.findIndex(p => p.id === patientId);
         if (idx !== -1) {
           this.localPatientsCache[idx] = data;
         } else {
           this.localPatientsCache.push(data);
         }
-        return data;
       }
-      // Check local cache
-      const cached = this.localPatientsCache.find(p => p.id === patientId);
-      if (cached) return { ...cached };
-      // Check local seed
-      const seed = SEED_PATIENTS.find(s => s.patient.id === patientId);
-      return seed ? { ...seed.patient } : null;
-    } catch (err) {
-      console.warn(`[PATIENTS:SERVICE] getPatientById(${patientId}) failed, fallback:`, err);
-      const cached = this.localPatientsCache.find(p => p.id === patientId);
-      if (cached) return { ...cached };
-      const seed = SEED_PATIENTS.find(s => s.patient.id === patientId);
-      return seed ? { ...seed.patient } : null;
+
+      return data;
+    } catch (err: any) {
+      if (err?.code === 'permission-denied') {
+        return null;
+      }
+      console.warn(`[PATIENTS:SERVICE] getPatientById(${patientId}) read error:`, err);
+      const cached = this.localPatientsCache.find(p => p.id === patientId && p.ownerUid === user.uid);
+      return cached ? { ...cached } : null;
     }
   }
 
   /**
-   * Creates a new patient in Firestore
+   * Creates a new patient in Firestore using an ATOMIC batch write:
+   * 1. Shared root document: `pacientes/{id}` (patient-readable)
+   * 2. Private clinical document: `pacientes/{id}/private/clinical` (nutritionist-only)
+   * 3. Linked user profile (if email matches existing account)
+   * Enforces trusted ownerUid strictly from authenticated Firebase user.
    */
-  static async createPatient(data: Omit<Patient, 'id' | 'createdAt' | 'updatedAt'>): Promise<Patient> {
+  static async createPatient(data: CreatePatientInput): Promise<Patient> {
+    const user = await resolveAuthUser();
+
+    // Strip client-injected security fields
+    const { ownerUid: _discardedOwner, id: _discardedId, ...cleanInput } = data as any;
+
     const newId = `patient_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+    // Separate private clinical data from shared root
+    const privateClinical: Partial<PrivateClinicalData> = cleanInput.privateClinical || {};
+    if (cleanInput.alertasMedicas && !privateClinical.alertasMedicas) {
+      privateClinical.alertasMedicas = cleanInput.alertasMedicas;
+    }
+    if (cleanInput.notasGenerales && !privateClinical.notasGenerales) {
+      privateClinical.notasGenerales = cleanInput.notasGenerales;
+    }
+
+    // Shared root document data (never contains private fields)
+    const {
+      alertasMedicas: _stripAlerts,
+      notasGenerales: _stripNotes,
+      privateClinical: _stripPrivate,
+      ...sharedData
+    } = cleanInput;
+
     const patientData: Patient = {
-      ...data,
+      ...sharedData,
       id: newId,
+      ownerUid: user.uid,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
 
-    // Auto-link con cuenta de usuario existente en la App si se provee email
+    let userDocToLink: any = null;
+    // Auto-link with app user if email is provided
     if (patientData.email && !patientData.userId) {
       try {
         const usersCol = collection(db, 'users');
         const q = query(usersCol, where('email', '==', patientData.email.toLowerCase().trim()));
         const snap = await getDocs(q);
         if (!snap.empty) {
-          const userDoc = snap.docs[0];
-          patientData.userId = userDoc.id;
-          await setDoc(doc(db, 'users', userDoc.id), { linkedPatientId: newId, updatedAt: serverTimestamp() }, { merge: true });
-          console.log(`[PATIENTS:SERVICE] Auto-vinculado paciente nuevo ${newId} con usuario App ${userDoc.id}`);
+          userDocToLink = snap.docs[0];
+          patientData.userId = userDocToLink.id;
         }
       } catch (linkErr) {
         console.warn('[PATIENTS:SERVICE] Auto-vincular usuario omitido:', linkErr);
@@ -301,38 +327,89 @@ export class PatientsService {
     }
 
     try {
-      const docRef = doc(db, PATIENTS_COLLECTION, newId);
-      await setDoc(docRef, cleanFirestoreData({
+      const batch = writeBatch(db);
+      const patientDocRef = doc(db, PATIENTS_COLLECTION, newId);
+      const privateDocRef = doc(db, PATIENTS_COLLECTION, newId, 'private', 'clinical');
+
+      batch.set(patientDocRef, cleanFirestoreData({
         ...patientData,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       }));
+
+      batch.set(privateDocRef, cleanFirestoreData({
+        alertasMedicas: privateClinical.alertasMedicas || [],
+        notasGenerales: privateClinical.notasGenerales || '',
+        observacionesClinicas: privateClinical.observacionesClinicas || '',
+        diagnosticos: privateClinical.diagnosticos || [],
+        notasInternas: privateClinical.notasInternas || '',
+        updatedAt: serverTimestamp()
+      }));
+
+      if (userDocToLink) {
+        const userRef = doc(db, 'users', userDocToLink.id);
+        batch.set(userRef, {
+          linkedPatientId: newId,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+        console.log(`[PATIENTS:SERVICE] Auto-vinculado atómico paciente ${newId} con usuario ${userDocToLink.id}`);
+      }
+
+      await batch.commit();
     } catch (err) {
-      console.warn('[PATIENTS:SERVICE] createPatient Firestore write failed, stored in local cache:', err);
+      console.warn('[PATIENTS:SERVICE] createPatient Firestore write failed:', err);
+      throw err;
     }
 
-    this.localPatientsCache.unshift(patientData);
-    return patientData;
+    // Include private fields in local memory representation for nutritionist caller
+    const fullLocalPatient: Patient = {
+      ...patientData,
+      alertasMedicas: privateClinical.alertasMedicas || [],
+      notasGenerales: privateClinical.notasGenerales || ''
+    };
+    this.localPatientsCache.unshift(fullLocalPatient);
+    return fullLocalPatient;
   }
 
   /**
-   * Updates an existing patient document
+   * Updates an existing patient document atomically.
+   * Strips ownerUid and id from update payload so ownership is completely immutable.
+   * `userId` is modifiable only by the nutritionist owner for linking/unlinking.
    */
-  static async updatePatient(patientId: string, data: Partial<Patient>): Promise<void> {
-    const cleanData = { ...data, updatedAt: new Date().toISOString() };
-    delete (cleanData as any).id;
+  static async updatePatient(patientId: string, data: UpdatePatientInput): Promise<void> {
+    const user = await resolveAuthUser();
 
-    // Auto-link con cuenta de usuario existente en la App si se agrega/modifica email
+    // Verify ownership before modifying
+    const existing = await this.getPatientById(patientId);
+    if (!existing || existing.ownerUid !== user.uid) {
+      throw new Error('No tienes permiso para modificar este paciente.');
+    }
+
+    // Immutable ownership: ownerUid and id must never be modified by update operations
+    const { ownerUid: _ownerUid, id: _id, createdAt: _createdAt, privateClinical, ...cleanData } = data as any;
+    cleanData.updatedAt = new Date().toISOString();
+
+    // Separate private fields if passed in updatePatient payload
+    const privateUpdates: Partial<PrivateClinicalData> = { ...(privateClinical || {}) };
+    if (cleanData.alertasMedicas !== undefined) {
+      privateUpdates.alertasMedicas = cleanData.alertasMedicas;
+      delete cleanData.alertasMedicas;
+    }
+    if (cleanData.notasGenerales !== undefined) {
+      privateUpdates.notasGenerales = cleanData.notasGenerales;
+      delete cleanData.notasGenerales;
+    }
+
+    // Auto-link with existing user if email is updated
+    let userDocToLink: any = null;
     if (cleanData.email && !cleanData.userId) {
       try {
         const usersCol = collection(db, 'users');
         const q = query(usersCol, where('email', '==', cleanData.email.toLowerCase().trim()));
         const snap = await getDocs(q);
         if (!snap.empty) {
-          const userDoc = snap.docs[0];
-          cleanData.userId = userDoc.id;
-          await setDoc(doc(db, 'users', userDoc.id), { linkedPatientId: patientId, updatedAt: serverTimestamp() }, { merge: true });
-          console.log(`[PATIENTS:SERVICE] Auto-vinculado paciente ${patientId} con usuario App ${userDoc.id}`);
+          userDocToLink = snap.docs[0];
+          cleanData.userId = userDocToLink.id;
         }
       } catch (linkErr) {
         console.warn('[PATIENTS:SERVICE] Auto-vincular usuario omitido:', linkErr);
@@ -340,40 +417,144 @@ export class PatientsService {
     }
 
     try {
-      const docRef = doc(db, PATIENTS_COLLECTION, patientId);
-      // setDoc with merge: true creates or updates safely even for initial seed records
-      await setDoc(docRef, cleanFirestoreData({
-        ...cleanData,
-        updatedAt: serverTimestamp()
-      }), { merge: true });
-    } catch (err) {
-      console.warn(`[PATIENTS:SERVICE] updatePatient(${patientId}) Firestore write failed, patching local cache:`, err);
+      const batch = writeBatch(db);
+      const patientDocRef = doc(db, PATIENTS_COLLECTION, patientId);
+
+      if (Object.keys(cleanData).length > 0) {
+        batch.set(patientDocRef, cleanFirestoreData({
+          ...cleanData,
+          updatedAt: serverTimestamp()
+        }), { merge: true });
+      }
+
+      if (Object.keys(privateUpdates).length > 0) {
+        const privDocRef = doc(db, PATIENTS_COLLECTION, patientId, 'private', 'clinical');
+        batch.set(privDocRef, cleanFirestoreData({
+          ...privateUpdates,
+          updatedAt: serverTimestamp()
+        }), { merge: true });
+      }
+
+      if (userDocToLink) {
+        const userRef = doc(db, 'users', userDocToLink.id);
+        batch.set(userRef, {
+          linkedPatientId: patientId,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      }
+
+      await batch.commit();
+    } catch (err: any) {
+      if (err?.code === 'permission-denied') {
+        throw new Error('No tienes permiso para modificar este paciente.');
+      }
+      console.warn(`[PATIENTS:SERVICE] updatePatient(${patientId}) Firestore write failed:`, err);
+      throw err;
     }
 
     // Update in local cache
-    const idx = this.localPatientsCache.findIndex(p => p.id === patientId);
+    const idx = this.localPatientsCache.findIndex(p => p.id === patientId && p.ownerUid === user.uid);
     if (idx !== -1) {
-      this.localPatientsCache[idx] = { ...this.localPatientsCache[idx], ...cleanData };
-    } else {
-      this.localPatientsCache.push({ id: patientId, ...cleanData } as Patient);
-    }
-
-    // Also update seed memory object if it was a seed patient
-    const seed = SEED_PATIENTS.find(s => s.patient.id === patientId);
-    if (seed) {
-      seed.patient = { ...seed.patient, ...cleanData };
+      this.localPatientsCache[idx] = {
+        ...this.localPatientsCache[idx],
+        ...cleanData,
+        ...(privateUpdates.alertasMedicas !== undefined ? { alertasMedicas: privateUpdates.alertasMedicas } : {}),
+        ...(privateUpdates.notasGenerales !== undefined ? { notasGenerales: privateUpdates.notasGenerales } : {})
+      };
     }
   }
 
   /**
-   * Deletes a patient
+   * Retrieves private clinical data for a patient (`pacientes/{id}/private/clinical`).
+   * Independently establishes `patient.ownerUid === authenticatedUser.uid`.
+   * Never accepts `userId` or caller-supplied flags as authorization.
+   */
+  static async getPrivateClinical(patientId: string): Promise<PrivateClinicalData | null> {
+    const user = await resolveAuthUser();
+    const patient = await this.getPatientById(patientId);
+    if (!patient || patient.ownerUid !== user.uid) {
+      return null;
+    }
+
+    try {
+      const docRef = doc(db, PATIENTS_COLLECTION, patientId, 'private', 'clinical');
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        return snap.data() as PrivateClinicalData;
+      }
+      return null;
+    } catch (err: any) {
+      if (err?.code === 'permission-denied') {
+        return null;
+      }
+      console.warn(`[PATIENTS:SERVICE] getPrivateClinical(${patientId}) error:`, err);
+      return null;
+    }
+  }
+
+  /**
+   * Updates private clinical data for a patient (`pacientes/{id}/private/clinical`).
+   * Independently establishes `patient.ownerUid === authenticatedUser.uid`.
+   */
+  static async updatePrivateClinical(patientId: string, data: Partial<PrivateClinicalData>): Promise<void> {
+    const user = await resolveAuthUser();
+    const patient = await this.getPatientById(patientId);
+    if (!patient || patient.ownerUid !== user.uid) {
+      throw new Error('No tienes permiso para modificar la información clínica privada de este paciente.');
+    }
+
+    const docRef = doc(db, PATIENTS_COLLECTION, patientId, 'private', 'clinical');
+    await setDoc(docRef, cleanFirestoreData({
+      ...data,
+      updatedAt: serverTimestamp()
+    }), { merge: true });
+
+    // Update local cache
+    const idx = this.localPatientsCache.findIndex(p => p.id === patientId && p.ownerUid === user.uid);
+    if (idx !== -1) {
+      this.localPatientsCache[idx] = {
+        ...this.localPatientsCache[idx],
+        ...(data.alertasMedicas !== undefined ? { alertasMedicas: data.alertasMedicas } : {}),
+        ...(data.notasGenerales !== undefined ? { notasGenerales: data.notasGenerales } : {})
+      };
+    }
+  }
+
+  /**
+   * Deletes a patient document and all associated private records.
+   * Requires authenticated user and verifies ownerUid strictly matches.
    */
   static async deletePatient(patientId: string): Promise<void> {
+    const user = await resolveAuthUser();
+    const patient = await this.getPatientById(patientId);
+    if (!patient || patient.ownerUid !== user.uid) {
+      throw new Error('No tienes permiso para eliminar este paciente.');
+    }
+
     try {
+      const batch = writeBatch(db);
       const docRef = doc(db, PATIENTS_COLLECTION, patientId);
-      await deleteDoc(docRef);
-    } catch (err) {
+      const privRef = doc(db, PATIENTS_COLLECTION, patientId, 'private', 'clinical');
+      batch.delete(docRef);
+      batch.delete(privRef);
+
+      // Si el paciente estaba vinculado a un usuario, limpiar atómicamente el perfil del usuario
+      // para evitar vínculos huérfanos y satisfacer la regla de seguridad estricta en delete
+      if (patient.userId) {
+        const userRef = doc(db, 'users', patient.userId);
+        batch.update(userRef, {
+          linkedPatientId: deleteField(),
+          updatedAt: serverTimestamp()
+        });
+      }
+
+      await batch.commit();
+    } catch (err: any) {
+      if (err?.code === 'permission-denied') {
+        throw new Error('No tienes permiso para eliminar este paciente.');
+      }
       console.warn(`[PATIENTS:SERVICE] deletePatient(${patientId}) failed:`, err);
+      throw err;
     }
     this.localPatientsCache = this.localPatientsCache.filter(p => p.id !== patientId);
   }
@@ -408,9 +589,16 @@ export class PatientsService {
   // =========================================================================
 
   /**
-   * Retrieves the clinical history for a patient
+   * Retrieves the clinical history for a patient (`pacientes/{id}/historial_clinico/main`).
+   * Authorized strictly for the nutritionist owner (ownerUid).
    */
   static async getClinicalHistory(patientId: string): Promise<ClinicalHistory> {
+    const user = await resolveAuthUser();
+    const patient = await this.getPatientById(patientId);
+    if (!patient || patient.ownerUid !== user.uid) {
+      return { id: 'main', updatedAt: new Date().toISOString() };
+    }
+
     try {
       const docRef = doc(db, PATIENTS_COLLECTION, patientId, 'historial_clinico', 'main');
       const snap = await getDoc(docRef);
@@ -439,6 +627,12 @@ export class PatientsService {
    * Upserts the clinical history for a patient
    */
   static async upsertClinicalHistory(patientId: string, history: Partial<ClinicalHistory>): Promise<void> {
+    const user = await resolveAuthUser();
+    const patient = await this.getPatientById(patientId);
+    if (!patient || patient.ownerUid !== user.uid) {
+      throw new Error('No tienes permiso para modificar el historial clínico.');
+    }
+
     const fullHist = {
       ...(this.localHistoryCache[patientId] || {}),
       ...history,
@@ -470,7 +664,8 @@ export class PatientsService {
   // =========================================================================
 
   /**
-   * Gets all appointments for a patient
+   * Gets all patient-readable appointments for a patient (`pacientes/{id}/citas`).
+   * Does NOT return private SOAP notes (`notasEvolucion`).
    */
   static async getAppointments(patientId: string): Promise<PatientAppointment[]> {
     try {
@@ -499,15 +694,57 @@ export class PatientsService {
   }
 
   /**
-   * Creates a new appointment
+   * Gets appointments with private clinical notes merged (`citas` + `citas_private`).
+   * Authorized strictly for the nutritionist owner (ownerUid).
+   */
+  static async getAppointmentsWithPrivate(patientId: string): Promise<PatientAppointment[]> {
+    const user = await resolveAuthUser();
+    const patient = await this.getPatientById(patientId);
+    if (!patient || patient.ownerUid !== user.uid) {
+      return this.getAppointments(patientId);
+    }
+
+    const appointments = await this.getAppointments(patientId);
+    try {
+      const privCol = collection(db, PATIENTS_COLLECTION, patientId, 'citas_private');
+      const snap = await getDocs(privCol);
+      if (!snap.empty) {
+        const privMap = new Map(snap.docs.map(d => [d.id, d.data()]));
+        return appointments.map(apt => {
+          const priv = privMap.get(apt.id);
+          return priv ? { ...apt, ...priv } : apt;
+        });
+      }
+    } catch (err) {
+      console.warn(`[PATIENTS:SERVICE] getAppointmentsWithPrivate(${patientId}) private read error:`, err);
+    }
+    return appointments;
+  }
+
+  /**
+   * Creates a new appointment using an ATOMIC batch write:
+   * 1. Shared record: `pacientes/{id}/citas/{aptId}` (patient-readable)
+   * 2. Private notes: `pacientes/{id}/citas_private/{aptId}` (SOAP / nutritionist-only)
    */
   static async createAppointment(
     patientId: string,
-    appointment: Omit<PatientAppointment, 'id' | 'createdAt' | 'updatedAt'>
+    appointment: Omit<PatientAppointment, 'id' | 'createdAt' | 'updatedAt'> & {
+      observacionesClinicas?: string;
+      notasInternas?: string;
+    }
   ): Promise<PatientAppointment> {
+    const user = await resolveAuthUser();
+    const patient = await this.getPatientById(patientId);
+    if (!patient || patient.ownerUid !== user.uid) {
+      throw new Error('No tienes permiso para crear citas para este paciente.');
+    }
+
     const newId = `apt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const { notasEvolucion, observacionesClinicas, notasInternas, ...sharedInput } = appointment as any;
+
     const aptData: PatientAppointment = {
-      ...appointment,
+      ...sharedInput,
+      notasEvolucion: notasEvolucion || '',
       id: newId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -529,27 +766,52 @@ export class PatientsService {
     }
 
     try {
-      const docRef = doc(db, PATIENTS_COLLECTION, patientId, 'citas', newId);
-      await setDoc(docRef, {
-        ...aptData,
+      const batch = writeBatch(db);
+      const aptDocRef = doc(db, PATIENTS_COLLECTION, patientId, 'citas', newId);
+      const privDocRef = doc(db, PATIENTS_COLLECTION, patientId, 'citas_private', newId);
+
+      batch.set(aptDocRef, cleanFirestoreData({
+        ...sharedInput,
+        id: newId,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
-      }, { merge: true });
+      }));
+
+      batch.set(privDocRef, cleanFirestoreData({
+        notasEvolucion: notasEvolucion || '',
+        observacionesClinicas: observacionesClinicas || '',
+        notasInternas: notasInternas || '',
+        updatedAt: serverTimestamp()
+      }));
+
+      await batch.commit();
     } catch (err) {
-      console.warn(`[PATIENTS:SERVICE] createAppointment(${patientId}) Firestore write failed (stored locally):`, err);
+      console.warn(`[PATIENTS:SERVICE] createAppointment(${patientId}) Firestore batch write failed:`, err);
     }
 
     return aptData;
   }
 
   /**
-   * Updates an existing appointment
+   * Updates an existing appointment using an ATOMIC batch write:
+   * Updates `citas/{id}` and `citas_private/{id}` simultaneously.
    */
   static async updateAppointment(
     patientId: string,
     appointmentId: string,
-    data: Partial<PatientAppointment>
+    data: Partial<PatientAppointment> & {
+      observacionesClinicas?: string;
+      notasInternas?: string;
+    }
   ): Promise<void> {
+    const user = await resolveAuthUser();
+    const patient = await this.getPatientById(patientId);
+    if (!patient || patient.ownerUid !== user.uid) {
+      throw new Error('No tienes permiso para modificar citas de este paciente.');
+    }
+
+    const { notasEvolucion, observacionesClinicas, notasInternas, ...sharedUpdates } = data as any;
+
     const currentApts = this.localAppointmentsCache[patientId] || [];
     const idx = currentApts.findIndex(a => a.id === appointmentId);
     if (idx !== -1) {
@@ -559,27 +821,51 @@ export class PatientsService {
     }
 
     try {
-      const docRef = doc(db, PATIENTS_COLLECTION, patientId, 'citas', appointmentId);
-      await setDoc(docRef, {
-        ...data,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
+      const batch = writeBatch(db);
+      const aptDocRef = doc(db, PATIENTS_COLLECTION, patientId, 'citas', appointmentId);
+      const privDocRef = doc(db, PATIENTS_COLLECTION, patientId, 'citas_private', appointmentId);
+
+      if (Object.keys(sharedUpdates).length > 0) {
+        batch.set(aptDocRef, cleanFirestoreData({
+          ...sharedUpdates,
+          updatedAt: serverTimestamp()
+        }), { merge: true });
+      }
+
+      if (notasEvolucion !== undefined || observacionesClinicas !== undefined || notasInternas !== undefined) {
+        batch.set(privDocRef, cleanFirestoreData({
+          ...(notasEvolucion !== undefined ? { notasEvolucion } : {}),
+          ...(observacionesClinicas !== undefined ? { observacionesClinicas } : {}),
+          ...(notasInternas !== undefined ? { notasInternas } : {}),
+          updatedAt: serverTimestamp()
+        }), { merge: true });
+      }
+
+      await batch.commit();
     } catch (err) {
       console.warn(`[PATIENTS:SERVICE] updateAppointment(${patientId}, ${appointmentId}) Firestore write failed:`, err);
     }
   }
 
   /**
-   * Deletes an appointment
+   * Deletes an appointment and its associated private notes using an ATOMIC batch write.
    */
   static async deleteAppointment(patientId: string, appointmentId: string): Promise<void> {
+    const user = await resolveAuthUser();
+    const patient = await this.getPatientById(patientId);
+    if (!patient || patient.ownerUid !== user.uid) {
+      throw new Error('No tienes permiso para eliminar citas de este paciente.');
+    }
+
     const currentApts = this.localAppointmentsCache[patientId] || [];
     this.localAppointmentsCache[patientId] = currentApts.filter(a => a.id !== appointmentId);
     this.saveToStorage(this.getStorageKey('citas', patientId), this.localAppointmentsCache[patientId]);
 
     try {
-      const docRef = doc(db, PATIENTS_COLLECTION, patientId, 'citas', appointmentId);
-      await deleteDoc(docRef);
+      const batch = writeBatch(db);
+      batch.delete(doc(db, PATIENTS_COLLECTION, patientId, 'citas', appointmentId));
+      batch.delete(doc(db, PATIENTS_COLLECTION, patientId, 'citas_private', appointmentId));
+      await batch.commit();
     } catch (err) {
       console.warn(`[PATIENTS:SERVICE] deleteAppointment(${patientId}, ${appointmentId}) failed:`, err);
     }
@@ -590,7 +876,8 @@ export class PatientsService {
   // =========================================================================
 
   /**
-   * Gets all measurements for a patient
+   * Gets all patient-readable measurements for a patient (`pacientes/{id}/mediciones`).
+   * Does NOT return private consultation notes (`notasConsulta`).
    */
   static async getMeasurements(patientId: string): Promise<PatientMeasurement[]> {
     try {
@@ -624,15 +911,58 @@ export class PatientsService {
   }
 
   /**
-   * Adds a single measurement record
+   * Gets measurements with private clinical notes merged (`mediciones` + `mediciones_private`).
+   * Authorized strictly for the nutritionist owner (ownerUid).
+   */
+  static async getMeasurementsWithPrivate(patientId: string): Promise<PatientMeasurement[]> {
+    const user = await resolveAuthUser();
+    const patient = await this.getPatientById(patientId);
+    if (!patient || patient.ownerUid !== user.uid) {
+      return this.getMeasurements(patientId);
+    }
+
+    const measurements = await this.getMeasurements(patientId);
+    try {
+      const privCol = collection(db, PATIENTS_COLLECTION, patientId, 'mediciones_private');
+      const snap = await getDocs(privCol);
+      if (!snap.empty) {
+        const privMap = new Map(snap.docs.map(d => [d.id, d.data()]));
+        return measurements.map(m => {
+          const priv = privMap.get(m.id);
+          return priv ? { ...m, ...priv } : m;
+        });
+      }
+    } catch (err) {
+      console.warn(`[PATIENTS:SERVICE] getMeasurementsWithPrivate(${patientId}) private read error:`, err);
+    }
+    return measurements;
+  }
+
+  /**
+   * Adds a single measurement record using an ATOMIC batch write:
+   * 1. Shared record: `pacientes/{id}/mediciones/{measId}` (patient-readable)
+   * 2. Private notes: `pacientes/{id}/mediciones_private/{measId}` (consultation notes / nutritionist-only)
    */
   static async addMeasurement(
     patientId: string,
-    record: Omit<ClinicalRecord, 'id'> & { notasConsulta?: string }
+    record: Omit<ClinicalRecord, 'id'> & {
+      notasConsulta?: string;
+      observacionesClinicas?: string;
+      notasInternas?: string;
+    }
   ): Promise<PatientMeasurement> {
+    const user = await resolveAuthUser();
+    const patient = await this.getPatientById(patientId);
+    if (!patient || patient.ownerUid !== user.uid) {
+      throw new Error('No tienes permiso para agregar mediciones a este paciente.');
+    }
+
     const newId = `meas_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const { notasConsulta, observacionesClinicas, notasInternas, ...sharedRecord } = record as any;
+
     const measurement: PatientMeasurement = {
-      ...record,
+      ...sharedRecord,
+      notasConsulta: notasConsulta || '',
       id: newId,
       createdAt: new Date().toISOString()
     };
@@ -651,26 +981,52 @@ export class PatientsService {
     }
 
     try {
-      const docRef = doc(db, PATIENTS_COLLECTION, patientId, 'mediciones', newId);
-      await setDoc(docRef, {
-        ...measurement,
+      const batch = writeBatch(db);
+      const measDocRef = doc(db, PATIENTS_COLLECTION, patientId, 'mediciones', newId);
+      const privDocRef = doc(db, PATIENTS_COLLECTION, patientId, 'mediciones_private', newId);
+
+      batch.set(measDocRef, cleanFirestoreData({
+        ...sharedRecord,
+        id: newId,
         createdAt: serverTimestamp()
-      }, { merge: true });
+      }));
+
+      batch.set(privDocRef, cleanFirestoreData({
+        notasConsulta: notasConsulta || '',
+        observacionesClinicas: observacionesClinicas || '',
+        notasInternas: notasInternas || '',
+        updatedAt: serverTimestamp()
+      }));
+
+      await batch.commit();
     } catch (err) {
-      console.warn(`[PATIENTS:SERVICE] addMeasurement(${patientId}) Firestore write failed (stored in local cache):`, err);
+      console.warn(`[PATIENTS:SERVICE] addMeasurement(${patientId}) Firestore batch write failed:`, err);
     }
 
     return measurement;
   }
 
   /**
-   * Updates an existing measurement
+   * Updates an existing measurement using an ATOMIC batch write:
+   * Updates `mediciones/{id}` and `mediciones_private/{id}` simultaneously.
    */
   static async updateMeasurement(
     patientId: string,
     measurementId: string,
-    record: Partial<ClinicalRecord>
+    record: Partial<ClinicalRecord> & {
+      notasConsulta?: string;
+      observacionesClinicas?: string;
+      notasInternas?: string;
+    }
   ): Promise<void> {
+    const user = await resolveAuthUser();
+    const patient = await this.getPatientById(patientId);
+    if (!patient || patient.ownerUid !== user.uid) {
+      throw new Error('No tienes permiso para modificar mediciones de este paciente.');
+    }
+
+    const { notasConsulta, observacionesClinicas, notasInternas, ...sharedUpdates } = record as any;
+
     const currentList = this.localMeasurementsCache[patientId] || [];
     const idx = currentList.findIndex(m => m.id === measurementId);
     if (idx !== -1) {
@@ -680,24 +1036,48 @@ export class PatientsService {
     }
 
     try {
-      const docRef = doc(db, PATIENTS_COLLECTION, patientId, 'mediciones', measurementId);
-      await setDoc(docRef, { ...record }, { merge: true });
+      const batch = writeBatch(db);
+      const measDocRef = doc(db, PATIENTS_COLLECTION, patientId, 'mediciones', measurementId);
+      const privDocRef = doc(db, PATIENTS_COLLECTION, patientId, 'mediciones_private', measurementId);
+
+      if (Object.keys(sharedUpdates).length > 0) {
+        batch.set(measDocRef, cleanFirestoreData({ ...sharedUpdates }), { merge: true });
+      }
+
+      if (notasConsulta !== undefined || observacionesClinicas !== undefined || notasInternas !== undefined) {
+        batch.set(privDocRef, cleanFirestoreData({
+          ...(notasConsulta !== undefined ? { notasConsulta } : {}),
+          ...(observacionesClinicas !== undefined ? { observacionesClinicas } : {}),
+          ...(notasInternas !== undefined ? { notasInternas } : {}),
+          updatedAt: serverTimestamp()
+        }), { merge: true });
+      }
+
+      await batch.commit();
     } catch (err) {
       console.warn(`[PATIENTS:SERVICE] updateMeasurement(${patientId}, ${measurementId}) Firestore write failed:`, err);
     }
   }
 
   /**
-   * Deletes a measurement
+   * Deletes a measurement and its associated private notes using an ATOMIC batch write.
    */
   static async deleteMeasurement(patientId: string, measurementId: string): Promise<void> {
+    const user = await resolveAuthUser();
+    const patient = await this.getPatientById(patientId);
+    if (!patient || patient.ownerUid !== user.uid) {
+      throw new Error('No tienes permiso para eliminar mediciones de este paciente.');
+    }
+
     const currentList = this.localMeasurementsCache[patientId] || [];
     this.localMeasurementsCache[patientId] = currentList.filter(m => m.id !== measurementId);
     this.saveToStorage(this.getStorageKey('mediciones', patientId), this.localMeasurementsCache[patientId]);
 
     try {
-      const docRef = doc(db, PATIENTS_COLLECTION, patientId, 'mediciones', measurementId);
-      await deleteDoc(docRef);
+      const batch = writeBatch(db);
+      batch.delete(doc(db, PATIENTS_COLLECTION, patientId, 'mediciones', measurementId));
+      batch.delete(doc(db, PATIENTS_COLLECTION, patientId, 'mediciones_private', measurementId));
+      await batch.commit();
     } catch (err) {
       console.warn(`[PATIENTS:SERVICE] deleteMeasurement(${patientId}, ${measurementId}) failed:`, err);
     }
@@ -858,6 +1238,12 @@ export class PatientsService {
   }
 
   static async getPatientDeliverables(patientId: string): Promise<PatientDeliverable[]> {
+    const user = await resolveAuthUser();
+    const patient = await this.getPatientById(patientId);
+    if (!patient || patient.ownerUid !== user.uid) {
+      return [];
+    }
+
     try {
       const colRef = collection(db, PATIENTS_COLLECTION, patientId, 'archivos');
       const snap = await getDocs(colRef);
@@ -875,6 +1261,12 @@ export class PatientsService {
     patientId: string,
     deliverable: Omit<PatientDeliverable, 'id' | 'createdAt'> & { id?: string }
   ): Promise<PatientDeliverable> {
+    const user = await resolveAuthUser();
+    const patient = await this.getPatientById(patientId);
+    if (!patient || patient.ownerUid !== user.uid) {
+      throw new Error('No tienes permiso para guardar archivos en este paciente.');
+    }
+
     const fileId = deliverable.id || `file_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const fullFile: PatientDeliverable = {
       ...deliverable,
@@ -895,3 +1287,4 @@ export class PatientsService {
     return fullFile;
   }
 }
+

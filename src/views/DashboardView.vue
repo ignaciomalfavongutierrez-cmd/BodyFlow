@@ -3,12 +3,9 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useUserStore } from '../stores/user'
 import { useDietStore } from '../stores/diet'
 import { useLogStore } from '../stores/log'
-import { useAuthStore } from '../stores/auth'
-import { isAdminEmail } from '../router'
 import { Wrench, Sun, Moon } from 'lucide-vue-next'
 import { useTheme } from '../composables/useTheme'
 import MealCard from '../components/MealCard.vue'
-
 import DateBubbleSlider from '../components/dashboard/DateBubbleSlider.vue'
 import MacroRings from '../components/dashboard/MacroRings.vue'
 import { PatientSyncService } from '../services/patients/PatientSyncService'
@@ -16,10 +13,9 @@ import { PatientSyncService } from '../services/patients/PatientSyncService'
 const userStore = useUserStore()
 const dietStore = useDietStore()
 const logStore = useLogStore()
-const authStore = useAuthStore()
 const { isDark, toggleTheme } = useTheme()
 
-const isAdmin = computed(() => isAdminEmail(authStore.user?.email))
+const isNutritionist = computed(() => userStore.isNutritionist)
 
 // Quick water hydration stats for compact dashboard chip
 const currentWaterMl = computed(() => {
@@ -199,8 +195,8 @@ function loadDemoDiet() {
     <!-- Main Content Area (Scrollable Feed) -->
     <div class="flex-1 p-4 pb-24 overflow-y-auto space-y-4">
       
-      <!-- Admin Nutrióloga Quick Action (Only for authorized admin emails) -->
-      <section v-if="isAdmin" class="glass-card p-4 sm:p-5 border border-emerald-500/30 shadow-lg relative overflow-hidden">
+      <!-- Admin Nutrióloga Quick Action (Only for authorized nutritionist role) -->
+      <section v-if="isNutritionist" class="glass-card p-4 sm:p-5 border border-emerald-500/30 shadow-lg relative overflow-hidden">
         <div class="absolute -right-6 -bottom-6 w-28 h-28 bg-emerald-500/10 dark:bg-[#19e80d]/10 rounded-full blur-xl pointer-events-none"></div>
         <div class="flex items-center justify-between gap-3 relative z-10">
           <div>

@@ -2,15 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 import DashboardView from '../views/DashboardView.vue'
 import UploadView from '../views/UploadView.vue'
 
-export const ADMIN_EMAILS = [
-  'lic.n.talia@gmail.com',
-  'ignaciomalfavongutierrez@gmail.com'
-]
-
-export function isAdminEmail(email?: string | null): boolean {
-  if (!email) return false
-  return ADMIN_EMAILS.includes(email.toLowerCase().trim())
-}
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -31,43 +22,43 @@ const router = createRouter({
       path: '/utilities',
       name: 'utilities',
       component: () => import('../views/UtilitiesView.vue'),
-      meta: { requiresAuth: true, adminOnly: true }
+      meta: { requiresAuth: true, nutritionistOnly: true }
     },
     {
       path: '/utilities/pacientes',
       name: 'utilities-patients',
       component: () => import('../views/UtilitiesView.vue'),
-      meta: { requiresAuth: true, adminOnly: true }
+      meta: { requiresAuth: true, nutritionistOnly: true }
     },
     {
       path: '/utilities/pacientes/:patientId',
       name: 'utilities-patient-detail',
       component: () => import('../views/UtilitiesView.vue'),
-      meta: { requiresAuth: true, adminOnly: true }
+      meta: { requiresAuth: true, nutritionistOnly: true }
     },
     {
       path: '/utilities/pacientes/:patientId/:tabId',
       name: 'utilities-patient-tab',
       component: () => import('../views/UtilitiesView.vue'),
-      meta: { requiresAuth: true, adminOnly: true }
+      meta: { requiresAuth: true, nutritionistOnly: true }
     },
     {
       path: '/utilities/pacientes/:patientId/planes/:planId/menu',
       name: 'utilities-patient-menu',
       component: () => import('../views/UtilitiesView.vue'),
-      meta: { requiresAuth: true, adminOnly: true }
+      meta: { requiresAuth: true, nutritionistOnly: true }
     },
     {
       path: '/utilities/herramientas',
       name: 'utilities-tools-hub',
       component: () => import('../views/UtilitiesView.vue'),
-      meta: { requiresAuth: true, adminOnly: true }
+      meta: { requiresAuth: true, nutritionistOnly: true }
     },
     {
       path: '/utilities/herramientas/:toolId',
       name: 'utilities-tool',
       component: () => import('../views/UtilitiesView.vue'),
-      meta: { requiresAuth: true, adminOnly: true }
+      meta: { requiresAuth: true, nutritionistOnly: true }
     },
     {
       path: '/upload',
@@ -109,32 +100,33 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, _from) => {
-  // Lazy-import auth store to avoid circular dependency at module load time.
+  // Lazy-import stores to avoid circular dependency at module load time.
   const { useAuthStore } = await import('../stores/auth')
+  const { useUserStore } = await import('../stores/user')
   const authStore = useAuthStore()
+  const userStore = useUserStore()
 
   // Wait for the auth store's initialization to complete (single source of truth).
   await authStore.authReadyPromise
 
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
   const guestOnly = to.matched.some(record => record.meta.guestOnly)
-  const adminOnly = to.matched.some(record => record.meta.adminOnly)
+  const nutritionistOnly = to.matched.some(record => record.meta.nutritionistOnly || record.meta.adminOnly)
 
-  const userEmail = authStore.user?.email?.toLowerCase().trim() || ''
-  const isAdmin = isAdminEmail(userEmail)
+  const isNutritionist = userStore.isNutritionist
 
   if (requiresAuth && !authStore.isAuthenticated()) {
     // Not logged in → send to login with redirect param (never redirect back to /login itself)
     const targetRedirect = to.fullPath && to.fullPath !== '/login' ? to.fullPath : '/'
     return { name: 'login', query: { redirect: targetRedirect } }
-  } else if (adminOnly && (!authStore.isAuthenticated() || !isAdmin)) {
-    // Attempted to access restricted admin utilities route without authorized admin email
+  } else if (nutritionistOnly && (!authStore.isAuthenticated() || !isNutritionist)) {
+    // Attempted to access restricted clinical utilities route without nutritionist role
     return '/'
   } else if (guestOnly && authStore.isAuthenticated()) {
     // Already logged in → by default send to '/'
     const redirect = to.query.redirect as string
     let target = redirect && redirect !== '/login' ? redirect : '/'
-    if (target.startsWith('/utilities') && !isAdmin) {
+    if (target.startsWith('/utilities') && !isNutritionist) {
       target = '/'
     }
     return target

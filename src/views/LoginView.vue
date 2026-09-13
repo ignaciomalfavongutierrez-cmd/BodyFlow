@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { auth } from '../firebase'
+import { db, auth } from '../firebase'
+import { doc, setDoc } from 'firebase/firestore'
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
@@ -13,7 +14,6 @@ import {
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore, classifyAuthError, friendlyAuthMessage } from '../stores/auth'
 import { useUserStore } from '../stores/user'
-import { isAdminEmail } from '../router'
 import logoImg from '../assets/logo.png'
 import { Mail, Lock, User, Eye, EyeOff, KeyRound, ArrowRight, CheckCircle2 } from 'lucide-vue-next'
 
@@ -47,13 +47,12 @@ const resetSent = ref(false)
 
 function navigateToHome() {
   const redirect = route.query.redirect as string
-  const userEmail = (authStore.user?.email || auth.currentUser?.email || '').toLowerCase().trim()
-  const isAdmin = isAdminEmail(userEmail)
+  const isNutritionist = userStore.isNutritionist
 
   let target = '/'
   if (redirect && redirect !== '/login') {
     if (redirect.startsWith('/utilities')) {
-      target = isAdmin ? redirect : '/'
+      target = isNutritionist ? redirect : '/'
     } else {
       target = redirect
     }
@@ -146,12 +145,14 @@ async function handleSubmit() {
         }
       }
 
-      // 3. Initialize Firestore profile document
+      // 3. Initialize Firestore profile document with least-privileged 'patient' role
       try {
-        await userStore.updateProfile({
+        await setDoc(doc(db, 'users', userCredential.user.uid), {
           name: name.value.trim(),
-          email: email.value.trim()
-        })
+          email: email.value.trim(),
+          role: 'patient'
+        }, { merge: true })
+        await userStore.fetchProfile()
       } catch (storeErr) {
         console.warn('[AUTH] Firestore user profile init warning:', storeErr)
       }
